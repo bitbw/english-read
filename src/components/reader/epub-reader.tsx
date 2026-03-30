@@ -48,9 +48,13 @@ export function EpubReader({
 
   useEffect(() => {
     let mounted = true;
+    let resizeObserver: ResizeObserver | null = null;
 
     async function initReader() {
       if (!viewerRef.current) return;
+
+      // 读取容器实际像素尺寸（paginated 模式必须用像素值）
+      const { width, height } = viewerRef.current.getBoundingClientRect();
 
       // 动态导入 epubjs（仅客户端）
       const ePub = (await import("epubjs")).default;
@@ -58,12 +62,23 @@ export function EpubReader({
       bookRef.current = book;
 
       const rendition = book.renderTo(viewerRef.current, {
-        width: "100%",
-        height: "100%",
+        width: Math.floor(width) || 600,
+        height: Math.floor(height) || 800,
         flow: "paginated",
         spread: "none",
       });
       renditionRef.current = rendition;
+
+      // 容器尺寸变化时通知 epubjs 重新计算列布局
+      resizeObserver = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (!entry || !renditionRef.current) return;
+        const { width: w, height: h } = entry.contentRect;
+        if (w > 0 && h > 0) {
+          renditionRef.current.resize(Math.floor(w), Math.floor(h));
+        }
+      });
+      resizeObserver.observe(viewerRef.current);
 
       // 恢复阅读位置
       if (initialCfi) {
@@ -82,6 +97,20 @@ export function EpubReader({
         const pct = book.locations.percentageFromCfi(location.start.cfi) * 100;
         setPercent(pct);
         saveProgress(location.start.cfi, pct);
+      });
+
+      // 在 iframe 内注册触摸滑动翻页（epubjs 内容在 iframe 里，触摸事件不冒泡到外层）
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      rendition.on("rendered", (_section: any, view: any) => {
+        let startX = 0;
+        const win: Window = view.window;
+        win.addEventListener("touchstart", (e: TouchEvent) => { startX = e.touches[0].clientX; }, { passive: true });
+        win.addEventListener("touchend", (e: TouchEvent) => {
+          const diff = startX - e.changedTouches[0].clientX;
+          if (Math.abs(diff) < 40) return;
+          if (diff > 0) renditionRef.current?.next();
+          else renditionRef.current?.prev();
+        }, { passive: true });
       });
 
       // 监听文本选中
@@ -122,6 +151,7 @@ export function EpubReader({
 
     return () => {
       mounted = false;
+      resizeObserver?.disconnect();
       renditionRef.current?.destroy();
       bookRef.current?.destroy();
     };

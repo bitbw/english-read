@@ -21,7 +21,7 @@ export default async function ReadPage({ params }: ReadPageProps) {
   if (!book) notFound();
 
   return (
-    <div className="-m-6 h-[calc(100vh-3.5rem)] flex flex-col">
+    <div className="-m-6 h-[calc(100vh-3.5rem-4rem)] md:h-[calc(100vh-3.5rem)] flex flex-col">
       <ReaderClient
         bookId={book.id}
         title={book.title}
