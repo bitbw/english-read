@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { BookOpen, BookMarked, GraduationCap, ArrowRight } from "lucide-react";

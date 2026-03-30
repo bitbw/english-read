@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { GraduationCap, Search } from "lucide-react";
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 

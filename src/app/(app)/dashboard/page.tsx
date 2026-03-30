@@ -4,7 +4,7 @@ import { books, vocabulary } from "@/lib/db/schema";
 import { eq, and, lte, desc, count } from "drizzle-orm";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Progress } from "@/components/ui/progress";
 import {
   BookOpen,

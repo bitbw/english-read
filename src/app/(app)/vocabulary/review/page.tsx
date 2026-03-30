@@ -5,7 +5,7 @@ import { ReviewSession } from "@/components/review/review-session";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookMarked, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
 interface ReviewWord {
