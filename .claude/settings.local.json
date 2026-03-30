@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(npx shadcn@latest init --defaults)"
+      "Bash(npx shadcn@latest init --defaults)",
+      "Bash(npx shadcn@latest add card badge dialog popover progress skeleton toast separator dropdown-menu sheet avatar)",
+      "Bash(npx shadcn@latest add card badge dialog popover progress skeleton separator dropdown-menu sheet avatar sonner input label textarea)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(node -e:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx next build:*)"
     ]
   }
 }
