@@ -50,6 +50,7 @@ export default function VocabularyPage() {
     setDueCount(Array.isArray(data) ? data.length : 0);
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchWords(); }, [filter, search]);
   useEffect(() => { fetchDueCount(); }, []);
 

@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   const isPhrase = trimmed.split(/\s+/).length > 1;
 
   let phonetic = "";
-  let definitions: { partOfSpeech: string; definition: string; example?: string }[] = [];
+  const definitions: { partOfSpeech: string; definition: string; example?: string }[] = [];
   let translation = "";
 
   // 单词才查英英词典

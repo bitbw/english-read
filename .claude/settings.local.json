@@ -9,7 +9,9 @@
       "Bash(node -e:*)",
       "Bash(npm run build:*)",
       "Bash(npx next build:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(yarn build)",
+      "Bash(tree:*)"
     ]
   }
 }
