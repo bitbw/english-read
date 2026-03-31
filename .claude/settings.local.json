@@ -11,7 +11,8 @@
       "Bash(npx next build:*)",
       "Bash(echo:*)",
       "Bash(yarn build)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(ls:*)"
     ]
   }
 }

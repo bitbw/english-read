@@ -38,15 +38,21 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const [fontSize, setFontSize] = useState(20);
   const [chapterName, setChapterName] = useState("");
   const [percent, setPercent] = useState(0);
+  // 优先使用 localStorage 中的 CFI，解决 Next.js 路由缓存导致服务端数据陈旧的问题
+  const [effectiveCfi, setEffectiveCfi] = useState<string | null>(null);
+  const [cfiReady, setCfiReady] = useState(false);
 
-  // 从 localStorage 恢复字号
   useEffect(() => {
     const saved = localStorage.getItem(FONT_SIZE_KEY);
     if (saved) {
       const n = parseInt(saved, 10);
       if (n >= 12 && n <= 28) setFontSize(n);
     }
-  }, []);
+    // 优先 localStorage CFI，fallback 到服务端值
+    const localCfi = localStorage.getItem(`reader-cfi-${bookId}`);
+    setEffectiveCfi(localCfi || initialCfi);
+    setCfiReady(true);
+  }, [bookId, initialCfi]);
 
   function changeFontSize(delta: number) {
     setFontSize((prev) => {
@@ -88,19 +94,21 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
         </div>
       </div>
 
-      {/* 阅读区域 */}
+      {/* 阅读区域：等 localStorage 读取完毕再渲染，避免用错误的 initialCfi 初始化 */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        <EpubReader
-          bookId={bookId}
-          blobUrl={blobUrl}
-          initialCfi={initialCfi}
-          fontSize={fontSize}
-          onReady={(controls) => { controlsRef.current = controls; }}
-          onProgress={(_, pct, chapter) => {
-            setPercent(pct);
-            if (chapter) setChapterName(chapter);
-          }}
-        />
+        {cfiReady && (
+          <EpubReader
+            bookId={bookId}
+            blobUrl={blobUrl}
+            initialCfi={effectiveCfi}
+            fontSize={fontSize}
+            onReady={(controls) => { controlsRef.current = controls; }}
+            onProgress={(_, pct, chapter) => {
+              setPercent(pct);
+              if (chapter) setChapterName(chapter);
+            }}
+          />
+        )}
       </div>
 
       {/* 底栏：上一章 + 章节名/进度 + 下一章 */}

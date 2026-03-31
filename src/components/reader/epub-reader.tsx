@@ -23,6 +23,11 @@ interface EpubReaderProps {
   onReady?: (controls: ReaderControls) => void;
 }
 
+// localStorage key for storing the last-read CFI per book
+function cfiKey(bookId: string) {
+  return `reader-cfi-${bookId}`;
+}
+
 export function EpubReader({
   bookId,
   blobUrl,
@@ -44,8 +49,17 @@ export function EpubReader({
     let mounted = true;
     let resizeObserver: ResizeObserver | null = null;
     let lastSelectedAt = 0;
-    // WeakSet 防止同一 iframe window 重复注册触摸监听
     const setupWindows = new WeakSet<Window>();
+
+    // 保存进度到服务端（支持页面卸载场景用 keepalive）
+    function saveToServer(cfi: string, pct: number) {
+      fetch(`/api/books/${bookId}/progress`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true, // 页面卸载/组件卸载时请求依然会完成
+        body: JSON.stringify({ currentCfi: cfi, readingProgress: Math.round(pct) }),
+      }).catch(() => {});
+    }
 
     async function initReader() {
       if (!viewerRef.current) return;
@@ -63,13 +77,11 @@ export function EpubReader({
       });
       renditionRef.current = rendition;
 
-      // 通知父组件 prev/next 控制方法
       onReady?.({
         prev: () => renditionRef.current?.prev(),
         next: () => renditionRef.current?.next(),
       });
 
-      // 容器尺寸变化时重算列布局
       resizeObserver = new ResizeObserver((entries) => {
         const entry = entries[0];
         if (!entry || !renditionRef.current) return;
@@ -80,50 +92,49 @@ export function EpubReader({
       });
       resizeObserver.observe(viewerRef.current);
 
-      // ── 所有事件必须在 display() 之前注册，否则初次 relocated 会丢失 ──
-
-      // 进度追踪 + 章节名
+      // 在 display() 之前加载导航目录，后续 relocated 中直接同步使用
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      rendition.on("relocated", async (location: any) => {
+      let navToc: any[] = [];
+      try {
+        const nav = await book.loaded.navigation;
+        navToc = nav?.toc ?? [];
+      } catch { /* silent */ }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      function findChapterLabel(href: string, items: any[]): string {
+        for (const item of items) {
+          const itemHref = (item.href ?? "").split("#")[0];
+          if (itemHref && href.endsWith(itemHref)) return item.label?.trim() ?? "";
+          if (item.subitems?.length) {
+            const found = findChapterLabel(href, item.subitems);
+            if (found) return found;
+          }
+        }
+        return "";
+      }
+
+      // ── 所有事件必须在 display() 之前注册 ──
+
+      // relocated 必须是同步函数，不能有 await，否则 fetch 可能不被执行
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      rendition.on("relocated", (location: any) => {
         if (!mounted) return;
-        currentCfiRef.current = location.start.cfi;
-        const pct = book.locations.percentageFromCfi(location.start.cfi) * 100;
+        const cfi = location.start.cfi;
+        const pct = book.locations.percentageFromCfi(cfi) * 100;
+        currentCfiRef.current = cfi;
         currentPctRef.current = pct;
 
-        // 查找当前章节名
-        let chapterName = "";
-        try {
-          const nav = await book.loaded.navigation;
-          const href = location.start.href ?? "";
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const findLabel = (items: any[]): string => {
-            for (const item of items) {
-              const itemHref = (item.href ?? "").split("#")[0];
-              if (itemHref && href.endsWith(itemHref)) return item.label?.trim() ?? "";
-              if (item.subitems?.length) {
-                const found = findLabel(item.subitems);
-                if (found) return found;
-              }
-            }
-            return "";
-          };
-          chapterName = findLabel(nav.toc);
-        } catch { /* silent */ }
+        // 立即写入 localStorage，不依赖网络
+        try { localStorage.setItem(cfiKey(bookId), cfi); } catch { /* silent */ }
 
-        onProgress?.(location.start.cfi, pct, chapterName);
+        const chapterName = findChapterLabel(location.start.href ?? "", navToc);
+        onProgress?.(cfi, pct, chapterName);
 
-        // 同步保存到服务端
-        fetch(`/api/books/${bookId}/progress`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ currentCfi: location.start.cfi, readingProgress: Math.round(pct) }),
-        }).catch(() => {});
+        saveToServer(cfi, pct);
       });
 
-      // 每次 section 渲染时为 iframe 注册水平滑动翻章
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      rendition.on("rendered", (_section: any, view: any) => {
-        const win: Window = view.window;
+      rendition.on("rendered", (_section: unknown, view: { window: Window }) => {
+        const win = view.window;
         if (setupWindows.has(win)) return;
         setupWindows.add(win);
 
@@ -136,14 +147,12 @@ export function EpubReader({
         win.addEventListener("touchend", (e: TouchEvent) => {
           const diffX = startX - e.changedTouches[0].clientX;
           const diffY = startY - e.changedTouches[0].clientY;
-          // 水平滑动距离 ≥ 70px，且明显大于垂直方向，才触发翻章
           if (Math.abs(diffX) < 70 || Math.abs(diffX) < Math.abs(diffY) * 1.5) return;
           if (diffX > 0) renditionRef.current?.next();
           else renditionRef.current?.prev();
         }, { passive: true });
       });
 
-      // 文字选中 → 弹出 WordPopup（支持多词/句子，最多 200 字符）
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       rendition.on("selected", (cfiRange: string, contents: any) => {
         if (!mounted) return;
@@ -152,16 +161,10 @@ export function EpubReader({
         if (!sel) return;
         const text = sel.toString().trim();
         if (!text || text.length > 200) return;
-
         const context = sel.anchorNode?.parentElement?.closest("p")?.textContent ?? "";
-        setSelection({
-          word: text,
-          context: context.slice(0, 300),
-          cfi: cfiRange,
-        });
+        setSelection({ word: text, context: context.slice(0, 300), cfi: cfiRange });
       });
 
-      // 点击空白处关闭弹窗（选词后 300ms 内的 click 忽略，防止弹窗瞬间消失）
       rendition.on("click", () => {
         if (!mounted) return;
         if (Date.now() - lastSelectedAt < 300) return;
@@ -176,43 +179,28 @@ export function EpubReader({
       }
 
       rendition.themes.fontSize(`${fontSize}px`);
-
-      // 异步生成位置锚点（不阻塞渲染）
       book.locations.generate(1600).catch(() => {});
     }
 
     initReader().catch(console.error);
 
-    // 切换标签页/最小化/跳转其他页时，用 sendBeacon 可靠保存当前位置
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden" && currentCfiRef.current) {
-        navigator.sendBeacon(
-          `/api/books/${bookId}/progress`,
-          new Blob(
-            [JSON.stringify({ currentCfi: currentCfiRef.current, readingProgress: Math.round(currentPctRef.current) })],
-            { type: "application/json" }
-          )
-        );
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
     return () => {
       mounted = false;
       resizeObserver?.disconnect();
+      // 组件卸载（Next.js 客户端跳转）时再保存一次，keepalive 确保请求完成
+      if (currentCfiRef.current) {
+        saveToServer(currentCfiRef.current, currentPctRef.current);
+      }
       renditionRef.current?.destroy();
       bookRef.current?.destroy();
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blobUrl, initialCfi, bookId]);
 
-  // 字体大小变化时实时更新
   useEffect(() => {
     renditionRef.current?.themes.fontSize(`${fontSize}px`);
   }, [fontSize]);
 
-  // 键盘翻章
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight" || e.key === "ArrowDown") renditionRef.current?.next();
@@ -225,7 +213,6 @@ export function EpubReader({
   return (
     <div className="relative w-full h-full">
       <div ref={viewerRef} className="w-full h-full" />
-
       {selection && (
         <WordPopup
           word={selection.word}
