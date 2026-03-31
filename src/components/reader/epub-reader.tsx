@@ -127,7 +127,11 @@ export function EpubReader({
 
       // ── 所有事件必须在 display() 之前注册 ──
 
-      // relocated 必须是同步函数，不能有 await，否则 fetch 可能不被执行
+      // display(initialCfi) 会触发一次 relocated，报告的是页首 CFI（与传入值不同），
+      // 这次不能覆盖 localStorage/服务端，否则每次打开都会把位置往前漂移。
+      // 后续用户手动翻页才真正保存。
+      let isInitialRelocated = true;
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       rendition.on("relocated", (location: any) => {
         if (!mounted) return;
@@ -136,14 +140,21 @@ export function EpubReader({
         currentCfiRef.current = cfi;
         currentPctRef.current = pct;
 
-        // 立即写入 localStorage，不依赖网络
+        const chapterName = findChapterLabel(location.start.href ?? "", navToc);
+        onProgress?.(cfi, pct, chapterName);
+
+        if (isInitialRelocated) {
+          // display(initialCfi) 产生的首次 relocated：只更新 UI，不覆盖位置
+          isInitialRelocated = false;
+          console.log("[Reader] 初始 relocated（跳过保存）:", cfi);
+          return;
+        }
+
+        // 用户翻页产生的 relocated：正常保存
         try {
           localStorage.setItem(cfiKey(bookId), cfi);
           console.log("[Reader] 记录位置 → localStorage:", cfi);
         } catch { /* silent */ }
-
-        const chapterName = findChapterLabel(location.start.href ?? "", navToc);
-        onProgress?.(cfi, pct, chapterName);
 
         console.log("[Reader] 记录位置 → 服务端 PUT:", cfi, `${Math.round(pct)}%`);
         saveToServer(cfi, pct);
