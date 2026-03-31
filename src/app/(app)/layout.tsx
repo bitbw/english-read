@@ -1,6 +1,6 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
-import { BottomNav } from "@/components/layout/bottom-nav";
+// import { BottomNav } from "@/components/layout/bottom-nav";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -8,11 +8,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex flex-col flex-1 overflow-hidden">
         <Topbar />
-        <main className="flex-1 overflow-y-auto p-6 pb-20 md:pb-6">
+        <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
       </div>
-      <BottomNav />
+      {/* <BottomNav /> */}
     </div>
   );
 }
