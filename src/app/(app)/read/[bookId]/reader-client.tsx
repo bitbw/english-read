@@ -50,7 +50,11 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     }
     // 优先 localStorage CFI，fallback 到服务端值
     const localCfi = localStorage.getItem(`reader-cfi-${bookId}`);
-    setEffectiveCfi(localCfi || initialCfi);
+    console.log("[ReaderClient] 服务端 initialCfi:", initialCfi);
+    console.log("[ReaderClient] localStorage CFI:", localCfi);
+    const resolved = localCfi || initialCfi;
+    console.log("[ReaderClient] 最终使用的 CFI:", resolved);
+    setEffectiveCfi(resolved);
     setCfiReady(true);
   }, [bookId, initialCfi]);
 

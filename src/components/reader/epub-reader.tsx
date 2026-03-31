@@ -125,11 +125,15 @@ export function EpubReader({
         currentPctRef.current = pct;
 
         // 立即写入 localStorage，不依赖网络
-        try { localStorage.setItem(cfiKey(bookId), cfi); } catch { /* silent */ }
+        try {
+          localStorage.setItem(cfiKey(bookId), cfi);
+          console.log("[Reader] 记录位置 → localStorage:", cfi);
+        } catch { /* silent */ }
 
         const chapterName = findChapterLabel(location.start.href ?? "", navToc);
         onProgress?.(cfi, pct, chapterName);
 
+        console.log("[Reader] 记录位置 → 服务端 PUT:", cfi, `${Math.round(pct)}%`);
         saveToServer(cfi, pct);
       });
 
@@ -173,8 +177,10 @@ export function EpubReader({
 
       // ── 事件绑定完毕后再 display ──
       if (initialCfi) {
+        console.log("[Reader] 回显位置 → display(initialCfi):", initialCfi);
         await rendition.display(initialCfi);
       } else {
+        console.log("[Reader] 回显位置 → display() 从头开始（无 initialCfi）");
         await rendition.display();
       }
 
@@ -189,6 +195,7 @@ export function EpubReader({
       resizeObserver?.disconnect();
       // 组件卸载（Next.js 客户端跳转）时再保存一次，keepalive 确保请求完成
       if (currentCfiRef.current) {
+        console.log("[Reader] 组件卸载，记录位置 → 服务端 PUT (keepalive):", currentCfiRef.current);
         saveToServer(currentCfiRef.current, currentPctRef.current);
       }
       renditionRef.current?.destroy();
