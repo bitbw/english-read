@@ -3,9 +3,11 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, List } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, Fragment } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { TocItem } from "@/components/reader/epub-reader";
 
 const EpubReader = dynamic(
   () => import("@/components/reader/epub-reader").then((m) => m.EpubReader),
@@ -24,6 +26,7 @@ const FONT_SIZE_KEY = "reader-font-size";
 interface ReaderControls {
   prev: () => void;
   next: () => void;
+  displayChapter: (href: string) => void;
 }
 
 interface ReaderClientProps {
@@ -38,6 +41,8 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const [fontSize, setFontSize] = useState(20);
   const [chapterName, setChapterName] = useState("");
   const [percent, setPercent] = useState(0);
+  const [toc, setToc] = useState<TocItem[]>([]);
+  const [tocOpen, setTocOpen] = useState(false);
   // 优先使用 localStorage 中的 CFI，解决 Next.js 路由缓存导致服务端数据陈旧的问题
   const [effectiveCfi, setEffectiveCfi] = useState<string | null>(null);
   const [cfiReady, setCfiReady] = useState(false);
@@ -66,9 +71,30 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     });
   }
 
+  function renderTocItems(items: TocItem[], depth = 0) {
+    return items.map((item) => (
+      <Fragment key={item.href + depth}>
+        <button
+          onClick={() => {
+            controlsRef.current?.displayChapter(item.href);
+            setTocOpen(false);
+          }}
+          className={cn(
+            "w-full text-left py-2 text-sm hover:bg-accent transition-colors truncate block",
+            depth === 0 ? "font-medium text-foreground" : "text-muted-foreground"
+          )}
+          style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "12px" }}
+        >
+          {item.label}
+        </button>
+        {item.subitems?.length ? renderTocItems(item.subitems, depth + 1) : null}
+      </Fragment>
+    ));
+  }
+
   return (
     <div className="flex flex-col h-full">
-      {/* 顶栏：返回 + 书名 + 字号调节 */}
+      {/* 顶栏：返回 + 书名 + 字号调节 + 章节目录 */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-card shrink-0">
         <Link
           href="/library"
@@ -96,6 +122,26 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             A+
           </button>
         </div>
+        {/* 章节目录 */}
+        <Popover open={tocOpen} onOpenChange={setTocOpen}>
+          <PopoverTrigger
+            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 shrink-0")}
+          >
+            <List className="h-4 w-4" />
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-0 overflow-hidden" align="end" side="bottom">
+            <div className="px-3 py-2 border-b border-border">
+              <p className="text-sm font-medium">章节目录</p>
+            </div>
+            <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
+              {toc.length === 0 ? (
+                <p className="px-3 py-4 text-xs text-muted-foreground text-center">暂无目录</p>
+              ) : (
+                renderTocItems(toc)
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* 阅读区域：等 localStorage 读取完毕再渲染，避免用错误的 initialCfi 初始化 */}
@@ -107,6 +153,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             initialCfi={effectiveCfi}
             fontSize={fontSize}
             onReady={(controls) => { controlsRef.current = controls; }}
+            onTocReady={(items) => setToc(items)}
             onProgress={(_, pct, chapter) => {
               setPercent(pct);
               if (chapter) setChapterName(chapter);

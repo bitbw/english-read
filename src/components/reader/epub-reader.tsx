@@ -9,9 +9,17 @@ interface SelectionInfo {
   cfi: string;
 }
 
+export interface TocItem {
+  id?: string;
+  href: string;
+  label: string;
+  subitems?: TocItem[];
+}
+
 interface ReaderControls {
   prev: () => void;
   next: () => void;
+  displayChapter: (href: string) => void;
 }
 
 interface EpubReaderProps {
@@ -21,6 +29,7 @@ interface EpubReaderProps {
   fontSize: number;
   onProgress?: (cfi: string, pct: number, chapterName: string) => void;
   onReady?: (controls: ReaderControls) => void;
+  onTocReady?: (toc: TocItem[]) => void;
 }
 
 // localStorage key for storing the last-read CFI per book
@@ -35,6 +44,7 @@ export function EpubReader({
   fontSize,
   onProgress,
   onReady,
+  onTocReady,
 }: EpubReaderProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -80,6 +90,7 @@ export function EpubReader({
       onReady?.({
         prev: () => renditionRef.current?.prev(),
         next: () => renditionRef.current?.next(),
+        displayChapter: (href: string) => renditionRef.current?.display(href),
       });
 
       resizeObserver = new ResizeObserver((entries) => {
@@ -98,6 +109,7 @@ export function EpubReader({
       try {
         const nav = await book.loaded.navigation;
         navToc = nav?.toc ?? [];
+        if (mounted) onTocReady?.(navToc as TocItem[]);
       } catch { /* silent */ }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
