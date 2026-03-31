@@ -93,17 +93,9 @@ export function EpubReader({
         displayChapter: (href: string) => renditionRef.current?.display(href),
       });
 
-      resizeObserver = new ResizeObserver((entries) => {
-        const entry = entries[0];
-        if (!entry || !renditionRef.current) return;
-        const { width: w, height: h } = entry.contentRect;
-        if (w > 0 && h > 0) {
-          renditionRef.current.resize(Math.floor(w), Math.floor(h));
-        }
-      });
-      resizeObserver.observe(viewerRef.current);
-
       // 在 display() 之前加载导航目录，后续 relocated 中直接同步使用
+      // ⚠️ ResizeObserver 必须在 display() 之后再启动，否则它会在首次展示前
+      //    触发 resize()，改变分页布局，导致 display(cfi) 定位到错误页面。
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let navToc: any[] = [];
       try {
@@ -206,9 +198,21 @@ export function EpubReader({
         console.log("[Reader] 回显位置 → display() 从头开始（无 initialCfi）");
         await rendition.display();
       }
+      if (!mounted) return;
 
       rendition.themes.fontSize(`${fontSize}px`);
       book.locations.generate(1600).catch(() => {});
+
+      // ── display() 完成后再启动 ResizeObserver，避免提前 resize 破坏分页布局 ──
+      resizeObserver = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (!entry || !renditionRef.current) return;
+        const { width: w, height: h } = entry.contentRect;
+        if (w > 0 && h > 0) {
+          renditionRef.current.resize(Math.floor(w), Math.floor(h));
+        }
+      });
+      resizeObserver.observe(viewerRef.current);
     }
 
     initReader().catch(console.error);
