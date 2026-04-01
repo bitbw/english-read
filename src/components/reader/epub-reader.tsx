@@ -27,7 +27,8 @@ interface EpubReaderProps {
   blobUrl: string;
   initialCfi?: string | null;
   fontSize: number;
-  onProgress?: (cfi: string, pct: number, chapterName: string) => void;
+  /** chapterPct：当前章节内进度 0–100；无法分页计算时为 null，由上层决定是否回退全书进度 */
+  onProgress?: (cfi: string, bookPct: number, chapterName: string, chapterPct: number | null) => void;
   onReady?: (controls: ReaderControls) => void;
   onTocReady?: (toc: TocItem[]) => void;
 }
@@ -117,6 +118,15 @@ export function EpubReader({
         return "";
       }
 
+      /** 分页模式下用当前 spine 片段的页码 / 总页数，得到章节内 0–100% */
+      function chapterPercentFromDisplayed(displayed: { page?: number; total?: number } | undefined): number | null {
+        const total = displayed?.total;
+        const page = displayed?.page;
+        if (typeof total !== "number" || total < 1 || typeof page !== "number" || page < 1) return null;
+        if (total === 1) return 100;
+        return ((page - 1) / (total - 1)) * 100;
+      }
+
       // ── 所有事件必须在 display() 之前注册 ──
 
       // display(initialCfi) 会触发一次 relocated，报告的是页首 CFI（与传入值不同），
@@ -128,12 +138,14 @@ export function EpubReader({
       rendition.on("relocated", (location: any) => {
         if (!mounted) return;
         const cfi = location.start.cfi;
-        const pct = book.locations.percentageFromCfi(cfi) * 100;
+        const rawBookPct = book.locations.percentageFromCfi(cfi);
+        const bookPct = (rawBookPct ?? 0) * 100;
+        const chapterPct = chapterPercentFromDisplayed(location.start?.displayed);
         currentCfiRef.current = cfi;
-        currentPctRef.current = pct;
+        currentPctRef.current = bookPct;
 
         const chapterName = findChapterLabel(location.start.href ?? "", navToc);
-        onProgress?.(cfi, pct, chapterName);
+        onProgress?.(cfi, bookPct, chapterName, chapterPct);
 
         if (isInitialRelocated) {
           // display(initialCfi) 产生的首次 relocated：只更新 UI，不覆盖位置
@@ -148,8 +160,8 @@ export function EpubReader({
           console.log("[Reader] 记录位置 → localStorage:", cfi);
         } catch { /* silent */ }
 
-        console.log("[Reader] 记录位置 → 服务端 PUT:", cfi, `${Math.round(pct)}%`);
-        saveToServer(cfi, pct);
+        console.log("[Reader] 记录位置 → 服务端 PUT:", cfi, `${Math.round(bookPct)}%`);
+        saveToServer(cfi, bookPct);
       });
 
       rendition.on("rendered", (_section: unknown, view: { window: Window }) => {
