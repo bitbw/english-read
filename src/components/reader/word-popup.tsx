@@ -74,15 +74,21 @@ export function WordPopup({
   async function handleSave() {
     setSaving(true);
     try {
+      const translationTrim = translation.trim();
       const definitionStr =
         definitions.length > 0
           ? JSON.stringify(
               definitions.slice(0, 3).map((d) => ({
                 pos: d.partOfSpeech,
                 def: d.definition,
+                ...(translationTrim ? { zh: translationTrim } : {}),
               }))
             )
-          : undefined;
+          : translationTrim
+            ? JSON.stringify([
+                { pos: "译", def: translationTrim, zh: translationTrim },
+              ])
+            : undefined;
 
       const res = await fetch("/api/vocabulary", {
         method: "POST",

@@ -47,7 +47,8 @@ export default function VocabularyPage() {
   async function fetchDueCount() {
     const res = await fetch("/api/review");
     const data = await res.json();
-    setDueCount(Array.isArray(data) ? data.length : 0);
+    const n = Array.isArray(data) ? data.length : (data.words?.length ?? 0);
+    setDueCount(n);
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
