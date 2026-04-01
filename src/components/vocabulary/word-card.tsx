@@ -29,7 +29,7 @@ export function WordCard({ word, onDelete }: WordCardProps) {
   const definitions = (() => {
     if (!word.definition) return [];
     try {
-      return JSON.parse(word.definition) as { pos: string; def: string }[];
+      return JSON.parse(word.definition) as { pos: string; def: string; zh?: string }[];
     } catch {
       return [];
     }
@@ -64,7 +64,14 @@ export function WordCard({ word, onDelete }: WordCardProps) {
               {definitions.slice(0, 2).map((d, i) => (
                 <p key={i} className="text-sm text-foreground">
                   <span className="text-muted-foreground text-xs mr-1">{d.pos}.</span>
-                  {d.def}
+                  {d.zh ? (
+                    <>
+                      <span>{d.zh}</span>
+                      <span className="text-muted-foreground text-xs ml-1">({d.def})</span>
+                    </>
+                  ) : (
+                    d.def
+                  )}
                 </p>
               ))}
             </div>

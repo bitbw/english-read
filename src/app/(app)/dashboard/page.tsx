@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { books, vocabulary } from "@/lib/db/schema";
-import { eq, and, lte, desc, count } from "drizzle-orm";
+import { books, vocabulary, readingDailyTime } from "@/lib/db/schema";
+import { utcDayKeys } from "@/lib/reading-time";
+import { eq, and, lte, desc, count, gte } from "drizzle-orm";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -12,8 +13,12 @@ import {
   GraduationCap,
   Library,
   ArrowRight,
+  Timer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DailyStudyChart } from "@/components/dashboard/daily-study-chart";
+
+const CHART_DAYS = 14;
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -43,6 +48,15 @@ export default async function DashboardPage() {
     .where(eq(books.userId, userId))
     .orderBy(desc(books.lastReadAt), desc(books.createdAt))
     .limit(3);
+
+  const dayKeys = utcDayKeys(CHART_DAYS);
+  const chartStart = dayKeys[0]!;
+  const timeRows = await db
+    .select({ day: readingDailyTime.day, seconds: readingDailyTime.seconds })
+    .from(readingDailyTime)
+    .where(and(eq(readingDailyTime.userId, userId), gte(readingDailyTime.day, chartStart)));
+  const timeMap = new Map(timeRows.map((r) => [r.day, r.seconds]));
+  const studySeries = dayKeys.map((day) => ({ day, seconds: timeMap.get(day) ?? 0 }));
 
   const dueCount = dueResult?.count ?? 0;
   const totalVocab = totalVocabResult?.count ?? 0;
@@ -92,6 +106,18 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Timer className="h-4 w-4 text-muted-foreground" />
+            每日学习时长
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DailyStudyChart series={studySeries} />
+        </CardContent>
+      </Card>
 
       {dueCount > 0 && (
         <Card className="border-primary/30 bg-primary/5">

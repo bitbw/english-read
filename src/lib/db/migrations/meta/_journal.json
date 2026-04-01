@@ -8,6 +8,13 @@
       "when": 1774854990180,
       "tag": "0000_curly_metal_master",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775005911307,
+      "tag": "0001_sticky_shen",
+      "breakpoints": true
     }
   ]
 }

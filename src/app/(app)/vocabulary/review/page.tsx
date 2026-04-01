@@ -1,32 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ReviewSession } from "@/components/review/review-session";
+import { useCallback, useEffect, useState } from "react";
+import { ReviewSession, type ReviewWord } from "@/components/review/review-session";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookMarked, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
-interface ReviewWord {
-  id: string;
-  word: string;
-  phonetic: string | null;
-  definition: string | null;
-  context: string | null;
-  reviewStage: number;
-}
+type DistractorItem = { id: string; word: string; definition: string | null };
 
 export default function ReviewPage() {
   const [words, setWords] = useState<ReviewWord[]>([]);
+  const [pool, setPool] = useState<DistractorItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/review")
       .then((r) => r.json())
-      .then((data) => setWords(data))
+      .then((data: ReviewWord[] | { words: ReviewWord[]; pool?: DistractorItem[] }) => {
+        if (Array.isArray(data)) {
+          setWords(data);
+          setPool([]);
+        } else {
+          setWords(data.words ?? []);
+          setPool(data.pool ?? []);
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleReviewComplete = useCallback(() => {}, []);
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -54,7 +58,7 @@ export default function ReviewPage() {
           </Link>
         </div>
       ) : (
-        <ReviewSession words={words} onComplete={() => {}} />
+        <ReviewSession words={words} distractorPool={pool} onComplete={handleReviewComplete} />
       )}
     </div>
   );
