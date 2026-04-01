@@ -7,6 +7,7 @@ import {
   primaryKey,
   index,
   uniqueIndex,
+  date,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -110,6 +111,26 @@ export const books = pgTable(
 );
 
 // ─────────────────────────────────────────────
+// Reading daily time（每日阅读时长，秒）
+// ─────────────────────────────────────────────
+
+export const readingDailyTime = pgTable(
+  "reading_daily_time",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    day: date("day", { mode: "string" }).notNull(),
+    seconds: integer("seconds").default(0).notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.day] }),
+    userDayIdx: index("reading_daily_time_user_day_idx").on(t.userId, t.day),
+  })
+);
+
+// ─────────────────────────────────────────────
 // Vocabulary（生词本）
 // ─────────────────────────────────────────────
 
@@ -192,6 +213,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   books: many(books),
   vocabulary: many(vocabulary),
   reviewLogs: many(reviewLogs),
+  readingDailyTime: many(readingDailyTime),
 }));
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
@@ -219,4 +241,8 @@ export const reviewLogsRelations = relations(reviewLogs, ({ one }) => ({
     fields: [reviewLogs.vocabularyId],
     references: [vocabulary.id],
   }),
+}));
+
+export const readingDailyTimeRelations = relations(readingDailyTime, ({ one }) => ({
+  user: one(users, { fields: [readingDailyTime.userId], references: [users.id] }),
 }));

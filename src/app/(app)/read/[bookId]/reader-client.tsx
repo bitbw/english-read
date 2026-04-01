@@ -6,7 +6,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { ArrowLeft, ChevronLeft, ChevronRight, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRef, useState, useEffect, Fragment } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import type { TocItem } from "@/components/reader/epub-reader";
 
 const EpubReader = dynamic(
@@ -62,6 +62,68 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     setEffectiveCfi(resolved);
     setCfiReady(true);
   }, [bookId, initialCfi]);
+
+  // 阅读页前台活跃时长 → 上报累加（与仪表盘柱状图一致，按 UTC 日聚合）
+  useEffect(() => {
+    if (!cfiReady) return;
+
+    let lastMark = Date.now();
+
+    function postSeconds(seconds: number) {
+      const n = Math.round(seconds);
+      if (n < 1) return;
+      const capped = Math.min(120, n);
+      const body = JSON.stringify({ seconds: capped });
+      fetch("/api/reading/time", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    }
+
+    function flushVisible() {
+      if (document.visibilityState !== "visible") {
+        lastMark = Date.now();
+        return;
+      }
+      const elapsed = (Date.now() - lastMark) / 1000;
+      lastMark = Date.now();
+      postSeconds(Math.min(elapsed, 120));
+    }
+
+    const interval = setInterval(flushVisible, 30_000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        lastMark = Date.now();
+      } else {
+        const elapsed = (Date.now() - lastMark) / 1000;
+        lastMark = Date.now();
+        postSeconds(Math.min(elapsed, 120));
+      }
+    };
+
+    const onPageHide = () => {
+      if (document.visibilityState !== "visible") return;
+      const elapsed = (Date.now() - lastMark) / 1000;
+      lastMark = Date.now();
+      postSeconds(Math.min(elapsed, 120));
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onPageHide);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
+      if (document.visibilityState === "visible") {
+        const elapsed = (Date.now() - lastMark) / 1000;
+        postSeconds(Math.min(elapsed, 120));
+      }
+    };
+  }, [cfiReady]);
 
   function changeFontSize(delta: number) {
     setFontSize((prev) => {
@@ -122,26 +184,31 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             A+
           </button>
         </div>
-        {/* 章节目录 */}
-        <Popover open={tocOpen} onOpenChange={setTocOpen}>
-          <PopoverTrigger
+        {/* 章节目录：与顶栏移动端一致的左侧抽屉 */}
+        <Sheet open={tocOpen} onOpenChange={setTocOpen}>
+          <SheetTrigger
             className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 shrink-0")}
           >
             <List className="h-4 w-4" />
-          </PopoverTrigger>
-          <PopoverContent className="w-64 p-0 overflow-hidden" align="end" side="bottom">
-            <div className="px-3 py-2 border-b border-border">
-              <p className="text-sm font-medium">章节目录</p>
+          </SheetTrigger>
+          <SheetContent
+            side="left"
+            showCloseButton={false}
+            className="w-[min(100%,20rem)] sm:max-w-sm p-0 flex flex-col gap-0"
+          >
+            <div className="flex items-center gap-2 px-4 py-4 border-b border-border shrink-0">
+              <List className="h-5 w-5 text-primary" />
+              <span className="font-semibold text-base">章节目录</span>
             </div>
-            <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
+            <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-2">
               {toc.length === 0 ? (
-                <p className="px-3 py-4 text-xs text-muted-foreground text-center">暂无目录</p>
+                <p className="px-3 py-6 text-sm text-muted-foreground text-center">暂无目录</p>
               ) : (
                 renderTocItems(toc)
               )}
-            </div>
-          </PopoverContent>
-        </Popover>
+            </nav>
+          </SheetContent>
+        </Sheet>
       </div>
 
       {/* 阅读区域：等 localStorage 读取完毕再渲染，避免用错误的 initialCfi 初始化 */}
@@ -154,8 +221,8 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             fontSize={fontSize}
             onReady={(controls) => { controlsRef.current = controls; }}
             onTocReady={(items) => setToc(items)}
-            onProgress={(_, pct, chapter) => {
-              setPercent(pct);
+            onProgress={(_, bookPct, chapter, chapterPct) => {
+              setPercent(chapterPct != null ? chapterPct : bookPct);
               if (chapter) setChapterName(chapter);
             }}
           />
