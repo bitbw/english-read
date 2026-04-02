@@ -16,6 +16,32 @@ export async function uploadEpub(
   return { url: blob.url, pathname: blob.pathname };
 }
 
+const COVER_MAX_BYTES = 5 * 1024 * 1024;
+const COVER_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+/**
+ * 上传书籍封面到 Vercel Blob（JPEG / PNG / WebP，最大 5MB）
+ */
+export async function uploadCover(
+  userId: string,
+  file: File
+): Promise<{ url: string; pathname: string }> {
+  if (!COVER_TYPES.has(file.type)) {
+    throw new Error("封面仅支持 JPG、PNG、WebP");
+  }
+  if (file.size > COVER_MAX_BYTES) {
+    throw new Error("封面文件不能超过 5MB");
+  }
+  const ext =
+    file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  const pathname = `covers/${userId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+  const blob = await put(pathname, file, {
+    access: "public",
+    contentType: file.type,
+  });
+  return { url: blob.url, pathname: blob.pathname };
+}
+
 /**
  * 删除 Vercel Blob 文件（静默失败，不阻塞业务）
  */

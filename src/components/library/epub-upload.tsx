@@ -3,15 +3,18 @@
 import { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, X, Loader2 } from "lucide-react";
+import { Upload, FileText, X, Loader2, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { postCoverUpload } from "@/lib/post-cover-upload";
 
 export function EpubUpload() {
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   function handleDrop(e: React.DragEvent) {
@@ -52,6 +55,16 @@ export function EpubUpload() {
       }
       const { url, pathname, size } = await uploadRes.json();
 
+      let coverUrl: string | undefined;
+      if (coverFile) {
+        try {
+          const cover = await postCoverUpload(coverFile);
+          coverUrl = cover.url;
+        } catch (coverErr) {
+          throw coverErr instanceof Error ? coverErr : new Error("封面上传失败");
+        }
+      }
+
       // Step 2: 尝试从 EPUB 读取元数据
       let title = file.name.replace(/\.epub$/i, "");
       let author = "";
@@ -71,7 +84,14 @@ export function EpubUpload() {
       const bookRes = await fetch("/api/books", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, author, blobUrl: url, blobKey: pathname, fileSize: size }),
+        body: JSON.stringify({
+          title,
+          author,
+          blobUrl: url,
+          blobKey: pathname,
+          fileSize: size,
+          ...(coverUrl ? { coverUrl } : {}),
+        }),
       });
       if (!bookRes.ok) throw new Error("书籍创建失败");
       const book = await bookRes.json();
@@ -135,6 +155,42 @@ export function EpubUpload() {
             </div>
           </div>
         )}
+      </Card>
+
+      <Card className="p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div>
+              <p className="font-medium">封面（可选）</p>
+              <p className="text-xs text-muted-foreground">JPG / PNG / WebP，最大 5MB</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) setCoverFile(f);
+              }}
+            />
+            {coverFile ? (
+              <>
+                <span className="text-xs text-muted-foreground truncate max-w-[140px]">{coverFile.name}</span>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setCoverFile(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <Button type="button" variant="outline" size="sm" onClick={() => coverInputRef.current?.click()}>
+                选择图片
+              </Button>
+            )}
+          </div>
+        </div>
       </Card>
 
       <Button

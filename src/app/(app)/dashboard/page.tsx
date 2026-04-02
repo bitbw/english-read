@@ -150,8 +150,13 @@ export default async function DashboardPage() {
             {recentBooks.map((book) => (
               <Card key={book.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="flex items-center gap-4 pt-4 pb-4">
-                  <div className="w-10 h-14 bg-muted rounded flex items-center justify-center shrink-0">
-                    <BookOpen className="h-5 w-5 text-muted-foreground" />
+                  <div className="w-10 h-14 bg-muted rounded overflow-hidden shrink-0 flex items-center justify-center">
+                    {book.coverUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={book.coverUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <BookOpen className="h-5 w-5 text-muted-foreground" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{book.title}</p>
