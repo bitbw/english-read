@@ -7,12 +7,14 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Delete, Loader2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   assembledMatchesTarget,
-  buildMeaningQuizFromGlosses,
+  buildMeaningQuizEnriched,
   buildSpellingChunks,
+  isPhraseSpellingTarget,
+  pickDistractorEnglishWords,
   pickSimilarWords,
-  resolveChineseGloss,
   shuffle,
   type MeaningQuiz,
   type QuizWord,
@@ -111,6 +113,8 @@ export function ReviewSession({
   const [submitting, setSubmitting] = useState(false);
   const [meaningQuiz, setMeaningQuiz] = useState<MeaningQuiz | null>(null);
   const [meaningLoading, setMeaningLoading] = useState(false);
+  const [meaningPhase, setMeaningPhase] = useState<"pick" | "revealed">("pick");
+  const [pickMeta, setPickMeta] = useState<{ index: number; correct: boolean } | null>(null);
   const glossCacheRef = useRef<Map<string, string>>(new Map());
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -157,28 +161,33 @@ export function ReviewSession({
     let cancelled = false;
     setMeaningLoading(true);
     setMeaningQuiz(null);
-
-    const byId = new Map<string, QuizWord>();
-    byId.set(current.id, {
-      id: current.id,
-      word: current.word,
-      definition: current.definition,
-    });
-    for (const s of similar) {
-      byId.set(s.id, s);
-    }
-    const list = Array.from(byId.values());
+    setMeaningPhase("pick");
+    setPickMeta(null);
 
     (async () => {
-      const glossById: Record<string, string> = {};
-      await Promise.all(
-        list.map(async (w) => {
-          const g = await resolveChineseGloss(w.word, w.definition, glossCacheRef.current);
-          if (!cancelled) glossById[w.id] = g;
-        })
-      );
+      let datamuse: string[] = [];
+      try {
+        const r = await fetch(
+          `/api/review/similar-words?word=${encodeURIComponent(current.word.trim())}`
+        );
+        if (r.ok) {
+          const j = (await r.json()) as { words?: string[] };
+          datamuse = Array.isArray(j.words) ? j.words : [];
+        }
+      } catch {
+        /* ignore */
+      }
       if (cancelled) return;
-      const mq = buildMeaningQuizFromGlosses(current.id, glossById, similar);
+
+      const distractorEn = pickDistractorEnglishWords(current.word, datamuse, similar, 3);
+      const mq = await buildMeaningQuizEnriched({
+        currentId: current.id,
+        currentWord: current.word,
+        currentDefinition: current.definition,
+        distractorEnglish: distractorEn,
+        glossCache: glossCacheRef.current,
+      });
+      if (cancelled) return;
       setMeaningQuiz(mq);
       setMeaningLoading(false);
     })();
@@ -213,17 +222,26 @@ export function ReviewSession({
     moveHeadToEnd();
   }, [bumpFailForHead, moveHeadToEnd, queue.length]);
 
-  const onMeaningPick = (correct: boolean) => {
-    if (!quizBase || !meaningQuiz) return;
-    if (meaningQuiz.skipMeaning) {
+  const proceedAfterMeaningReveal = () => {
+    if (!quizBase || !meaningQuiz || !pickMeta) return;
+    if (pickMeta.correct) {
       setSpelling({ available: shuffle(quizBase.spellingChunks), used: [] });
       setStep("spelling");
-      return;
-    }
-    if (!correct) {
+    } else {
       onMeaningWrong();
-      return;
     }
+    setMeaningPhase("pick");
+    setPickMeta(null);
+  };
+
+  const onMeaningOptionClick = (index: number, correct: boolean) => {
+    if (!meaningQuiz || meaningQuiz.skipMeaning || meaningPhase !== "pick") return;
+    setPickMeta({ index, correct });
+    setMeaningPhase("revealed");
+  };
+
+  const onSkipMeaningToSpelling = () => {
+    if (!quizBase || !meaningQuiz) return;
     setSpelling({ available: shuffle(quizBase.spellingChunks), used: [] });
     setStep("spelling");
   };
@@ -338,6 +356,7 @@ export function ReviewSession({
 
   const totalInRound = rememberedCount + queue.length;
   const progress = totalInRound > 0 ? (rememberedCount / totalInRound) * 100 : 0;
+  const phraseSpelling = current ? isPhraseSpellingTarget(current.word) : false;
 
   return (
     <div className="flex flex-col items-center gap-6 max-w-lg mx-auto w-full py-6">
@@ -380,25 +399,104 @@ export function ReviewSession({
               <p className="text-sm text-muted-foreground text-center">
                 暂时无法取得该词的中文翻译，本轮仅考查拼写。
               </p>
-              <Button className="w-full" onClick={() => onMeaningPick(true)}>
+              <Button className="w-full" onClick={onSkipMeaningToSpelling}>
                 开始拼写
               </Button>
             </div>
           ) : (
             <>
-              <p className="text-sm font-medium text-center">选择正确的中文释义</p>
-              <div className="grid gap-2">
-                {meaningQuiz.options.map((opt, i) => (
-                  <Button
-                    key={`${opt.text}-${i}`}
-                    variant="outline"
-                    className="h-auto min-h-11 whitespace-normal py-3 px-4 text-left justify-start"
-                    onClick={() => onMeaningPick(opt.correct)}
-                  >
-                    {opt.text}
-                  </Button>
-                ))}
+              <p className="text-sm font-medium text-center">
+                {meaningPhase === "pick"
+                  ? "选择正确的中文释义（翻面后可见英文与义项）"
+                  : "翻面：对应英文与词典义项"}
+              </p>
+              <div className="grid gap-3">
+                {meaningQuiz.options.map((opt, i) => {
+                  const flipped = meaningPhase === "revealed";
+                  const isSelected = pickMeta?.index === i;
+                  const backHighlight = flipped
+                    ? opt.correct
+                      ? "border-green-600/70 bg-green-500/10"
+                      : isSelected
+                        ? "border-destructive/80 bg-destructive/10"
+                        : "border-border"
+                    : "border-border";
+
+                  return (
+                    <div key={opt.key} className="w-full" style={{ perspective: "1000px" }}>
+                      <button
+                        type="button"
+                        disabled={flipped}
+                        onClick={() => onMeaningOptionClick(i, opt.correct)}
+                        className="relative w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl disabled:pointer-events-none"
+                      >
+                        <div
+                          className={cn(
+                            "relative min-h-[132px] w-full transition-transform duration-500 [transform-style:preserve-3d]",
+                            flipped && "[transform:rotateY(180deg)]"
+                          )}
+                        >
+                          {/* 正面：仅中文释义 */}
+                          <div
+                            className={cn(
+                              "absolute inset-0 flex flex-col justify-center rounded-xl border bg-card p-4 shadow-sm [backface-visibility:hidden]",
+                              "border-border"
+                            )}
+                          >
+                            <p className="text-base font-medium text-foreground leading-snug">
+                              {opt.primaryZh}
+                            </p>
+                          </div>
+                          {/* 背面：英文 + 完整义项 */}
+                          <div
+                            className={cn(
+                              "absolute inset-0 flex flex-col gap-2 rounded-xl border bg-muted/40 p-4 shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)]",
+                              backHighlight
+                            )}
+                          >
+                            <p className="text-xl font-bold tracking-tight text-foreground">
+                              {opt.english ?? "—"}
+                            </p>
+                            {opt.fullDefs.length > 0 ? (
+                              <ul className="text-xs text-foreground/90 space-y-2 max-h-48 overflow-y-auto">
+                                {opt.fullDefs.map((d, j) => (
+                                  <li key={j} className="leading-relaxed">
+                                    <span className="font-medium text-muted-foreground">
+                                      {d.partOfSpeech ? `${d.partOfSpeech}. ` : ""}
+                                    </span>
+                                    {d.definition}
+                                    {d.example ? (
+                                      <span className="block mt-0.5 italic text-muted-foreground">
+                                        e.g. {d.example}
+                                      </span>
+                                    ) : null}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                {opt.english
+                                  ? "暂无英英词典义项（可来自短语或非词典收录词）"
+                                  : "此为占位干扰项"}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
+              {meaningPhase === "revealed" && pickMeta && (
+                <div className="space-y-2 pt-1">
+                  <p className="text-sm text-center text-muted-foreground">
+                    {pickMeta.correct ? "回答正确。" : "回答错误，本题将排到本轮末尾。"}
+                  </p>
+                  <Button className="w-full" onClick={proceedAfterMeaningReveal}>
+                    {pickMeta.correct ? "继续拼写" : "下一题"}
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </Card>
@@ -409,16 +507,28 @@ export function ReviewSession({
           {current.context ? (
             <ReviewContextQuote context={current.context} word={current.word} compact />
           ) : null}
-          <p className="text-sm font-medium text-center">请用下方字块拼出该词（不再显示英文）</p>
+          <p className="text-sm font-medium text-center">
+            {phraseSpelling
+              ? "请按顺序点选单词拼出该词组（不再显示完整英文）"
+              : "请用下方字块拼出该词（不再显示英文）"}
+          </p>
           <div
             className="min-h-[3.5rem] rounded-lg border border-dashed border-muted-foreground/40 px-3 py-3 flex flex-wrap gap-2 items-center justify-center bg-muted/30"
             aria-live="polite"
           >
             {spelling.used.length === 0 ? (
-              <span className="text-sm text-muted-foreground">点击下方字块组合</span>
+              <span className="text-sm text-muted-foreground">
+                {phraseSpelling ? "点击下方单词组合" : "点击下方字块组合"}
+              </span>
             ) : (
               spelling.used.map((chunk, i) => (
-                <span key={`${chunk}-${i}`} className="text-xl font-semibold font-mono">
+                <span
+                  key={`${chunk}-${i}`}
+                  className={cn(
+                    "font-semibold",
+                    phraseSpelling ? "text-lg tracking-tight" : "text-xl font-mono"
+                  )}
+                >
                   {chunk}
                 </span>
               ))
@@ -432,7 +542,7 @@ export function ReviewSession({
                 type="button"
                 variant="secondary"
                 size="sm"
-                className="font-mono text-base"
+                className={cn(phraseSpelling ? "text-base px-3" : "font-mono text-base")}
                 onClick={() => takeChip(i)}
               >
                 {chunk}
@@ -463,7 +573,7 @@ export function ReviewSession({
       )}
 
       <p className="text-xs text-muted-foreground text-center px-2">
-        近形干扰项来自你词库中拼写相近的单词；字块中含多余干扰，请选出正确组合。
+        释义干扰项优先来自与当前词相关的英文联想词（Datamuse），不足时辅以词库中近形词；拼写环节对词组按「单词」出题并混入干扰词，单词仍按字母块。
       </p>
     </div>
   );
