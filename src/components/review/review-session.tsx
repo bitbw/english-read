@@ -19,6 +19,7 @@ import {
   type MeaningQuiz,
   type QuizWord,
 } from "@/lib/review-quiz";
+import { markReviewClearedForScope } from "@/lib/review-session-cache";
 
 export interface ReviewWord {
   id: string;
@@ -33,6 +34,8 @@ interface ReviewSessionProps {
   words: ReviewWord[];
   /** 非今日待复习的词库片段，用于近形义/拼字干扰 */
   distractorPool?: QuizWord[];
+  /** 与复习页一致：URL `date` 或本地今日，用于本地缓存「本 scope 已过关」 */
+  reviewScopeDay: string;
   onComplete: (results: { remembered: number; forgotten: number; requeued: number }) => void;
 }
 
@@ -98,6 +101,7 @@ function ReviewContextQuote({
 export function ReviewSession({
   words,
   distractorPool = [],
+  reviewScopeDay,
   onComplete,
 }: ReviewSessionProps) {
   const [queue, setQueue] = useState<ReviewWord[]>(words);
@@ -305,6 +309,8 @@ export function ReviewSession({
     }
     setSubmitting(false);
 
+    markReviewClearedForScope(reviewScopeDay, current.id);
+
     setRememberedCount((c) => c + 1);
 
     setQueue((q) => {
@@ -344,7 +350,7 @@ export function ReviewSession({
           )}
         </div>
         <p className="text-muted-foreground text-sm text-center max-w-sm">
-          只有中文义与拼写都正确才会记入间隔复习；答错的题会自动排到本轮末尾再练。
+          只有中文义与拼写都正确才会记入间隔复习；答错的题会自动排到本轮末尾再练。已过关的词会记在本地，刷新页面当天不必重做。
         </p>
       </div>
     );

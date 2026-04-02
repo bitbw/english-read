@@ -9,6 +9,10 @@ import { BookMarked, ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import {
+  filterOutClearedReviews,
+  getReviewScopeDay,
+} from "@/lib/review-session-cache";
 
 type DistractorItem = { id: string; word: string; definition: string | null };
 
@@ -48,6 +52,7 @@ export function ReviewPageClient() {
   const [apiPreview, setApiPreview] = useState(false);
 
   const fetchUrl = useMemo(() => buildFetchUrl(date, preview), [date, preview]);
+  const reviewScopeDay = useMemo(() => getReviewScopeDay(date), [date]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -55,18 +60,25 @@ export function ReviewPageClient() {
       const r = await fetch(fetchUrl);
       const data = (await r.json()) as ReviewApiResponse;
       if (Array.isArray(data)) {
-        setWords(data);
+        const next = !preview ? filterOutClearedReviews(data, reviewScopeDay) : data;
+        setWords(next);
         setPool([]);
         setApiPreview(false);
       } else {
-        setWords(data.words ?? []);
+        const isPreview = Boolean(data.preview);
+        let nextWords = data.words ?? [];
+        // 非「仅浏览」模式：去掉本日/本 scope 已在本地标记为已完成的词（刷新后不必重做）
+        if (!isPreview && !preview) {
+          nextWords = filterOutClearedReviews(nextWords, reviewScopeDay);
+        }
+        setWords(nextWords);
         setPool(data.pool ?? []);
-        setApiPreview(Boolean(data.preview));
+        setApiPreview(isPreview);
       }
     } finally {
       setLoading(false);
     }
-  }, [fetchUrl]);
+  }, [fetchUrl, preview, reviewScopeDay]);
 
   useEffect(() => {
     void load();
@@ -96,6 +108,7 @@ export function ReviewPageClient() {
         <ReviewSession
           words={words}
           distractorPool={pool}
+          reviewScopeDay={reviewScopeDay}
           onComplete={handleReviewComplete}
         />
       ) : showPreviewList ? (
