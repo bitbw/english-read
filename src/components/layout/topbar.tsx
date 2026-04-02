@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { signOut, useSession } from "next-auth/react";
 import { ThemeToggle } from "./theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,6 +27,7 @@ import {
   BookMarked,
   Calendar,
   Settings,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -38,14 +41,44 @@ const navItems = [
   { href: "/settings", label: "设置", icon: Settings },
 ];
 
+function navItemIsActive(pathname: string, href: string) {
+  return href === "/vocabulary/plan"
+    ? pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review")
+    : pathname === href;
+}
+
 export function Topbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [mobileNavPending, setMobileNavPending] = useState(false);
+
+  useEffect(() => {
+    setMobileNavPending(false);
+  }, [pathname]);
+
+  const mobileNavLoadingOverlay =
+    mobileNavPending && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[100] md:hidden flex items-center justify-center bg-background/70 backdrop-blur-sm supports-backdrop-filter:bg-background/40"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <Loader2 className="h-10 w-10 animate-spin text-primary" aria-hidden />
+            <span className="sr-only">加载中</span>
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
-    <header className="h-14 border-b border-border bg-card flex items-center px-4 gap-2 shrink-0">
-      {/* 移动端汉堡菜单 */}
-      <Sheet>
+    <>
+      {mobileNavLoadingOverlay}
+      <header className="h-14 border-b border-border bg-card flex items-center px-4 gap-2 shrink-0">
+      {/* 移动端汉堡菜单：受控关闭，避免遮挡 main 内的 route loading */}
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
         <SheetTrigger className="md:hidden p-1.5 -ml-1.5 rounded-md hover:bg-accent">
           <Menu className="h-5 w-5" />
         </SheetTrigger>
@@ -56,14 +89,15 @@ export function Topbar() {
           </div>
           <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
             {navItems.map(({ href, label, icon: Icon }) => {
-              const isActive =
-                href === "/vocabulary/plan"
-                  ? pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review")
-                  : pathname === href;
+              const isActive = navItemIsActive(pathname, href);
               return (
                 <Link
                   key={href}
                   href={href}
+                  onClick={() => {
+                    setMobileNavOpen(false);
+                    if (!isActive) setMobileNavPending(true);
+                  }}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                     isActive
@@ -119,6 +153,7 @@ export function Topbar() {
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-    </header>
+      </header>
+    </>
   );
 }
