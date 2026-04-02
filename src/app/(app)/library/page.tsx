@@ -5,12 +5,8 @@ import { eq, desc } from "drizzle-orm";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { BookOpen, Upload } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { zhCN } from "date-fns/locale";
-import { DeleteBookButton } from "./delete-book-button";
-import { ChangeCoverButton } from "./change-cover-button";
+import { LibraryBookCard } from "./library-book-card";
 import { cn } from "@/lib/utils";
 
 export default async function LibraryPage() {
@@ -36,49 +32,7 @@ export default async function LibraryPage() {
       {userBooks.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {userBooks.map((book) => (
-            <Card key={book.id} className="group hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <Link href={`/read/${book.id}`}>
-                  <div className="w-full aspect-[2/3] rounded-md overflow-hidden mb-3 cursor-pointer hover:opacity-90 transition-opacity bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
-                    {book.coverUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={book.coverUrl}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <BookOpen className="h-12 w-12 text-primary/40" />
-                    )}
-                  </div>
-                </Link>
-
-                <div className="space-y-1">
-                  <p className="font-medium text-sm line-clamp-2 leading-tight">{book.title}</p>
-                  {book.author && <p className="text-xs text-muted-foreground">{book.author}</p>}
-                </div>
-
-                <div className="mt-3 space-y-1">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>阅读进度</span>
-                    <span>{book.readingProgress ?? 0}%</span>
-                  </div>
-                  <Progress value={book.readingProgress ?? 0} className="h-1.5" />
-                </div>
-
-                <div className="flex items-center justify-between mt-3 gap-2">
-                  <p className="text-xs text-muted-foreground min-w-0">
-                    {book.lastReadAt
-                      ? formatDistanceToNow(new Date(book.lastReadAt), { addSuffix: true, locale: zhCN })
-                      : "未开始"}
-                  </p>
-                  <div className="flex items-center shrink-0">
-                    <ChangeCoverButton bookId={book.id} hasCover={!!book.coverUrl} />
-                    <DeleteBookButton bookId={book.id} bookTitle={book.title} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <LibraryBookCard key={book.id} {...book} />
           ))}
         </div>
       ) : (
