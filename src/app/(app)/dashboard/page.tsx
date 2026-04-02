@@ -121,14 +121,19 @@ export default async function DashboardPage() {
 
       {dueCount > 0 && (
         <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="flex items-center justify-between pt-6">
+          <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pt-6">
             <div>
               <p className="font-semibold">你有 {dueCount} 个单词等待复习</p>
               <p className="text-sm text-muted-foreground mt-0.5">趁热打铁，现在复习效果最好</p>
             </div>
-            <Link href="/vocabulary/review" className={cn(buttonVariants())}>
-              开始复习<ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <Link href="/vocabulary/plan" className={cn(buttonVariants({ variant: "outline" }))}>
+                复习计划
+              </Link>
+              <Link href="/vocabulary/review" className={cn(buttonVariants())}>
+                开始复习<ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -145,8 +150,13 @@ export default async function DashboardPage() {
             {recentBooks.map((book) => (
               <Card key={book.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="flex items-center gap-4 pt-4 pb-4">
-                  <div className="w-10 h-14 bg-muted rounded flex items-center justify-center shrink-0">
-                    <BookOpen className="h-5 w-5 text-muted-foreground" />
+                  <div className="w-10 h-14 bg-muted rounded overflow-hidden shrink-0 flex items-center justify-center">
+                    {book.coverUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={book.coverUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <BookOpen className="h-5 w-5 text-muted-foreground" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{book.title}</p>

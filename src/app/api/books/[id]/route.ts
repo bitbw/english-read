@@ -4,6 +4,11 @@ import { books } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { deleteBlob } from "@/lib/blob";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+const patchBookSchema = z.object({
+  coverUrl: z.union([z.string().url(), z.null()]),
+});
 
 // GET /api/books/[id]
 export async function GET(
@@ -25,6 +30,55 @@ export async function GET(
   }
 
   return NextResponse.json(book);
+}
+
+// PATCH /api/books/[id] — 更新封面等
+export async function PATCH(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = params;
+  const body = await req.json();
+  const parsed = patchBookSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const [existing] = await db
+    .select()
+    .from(books)
+    .where(and(eq(books.id, id), eq(books.userId, session.user.id)));
+
+  if (!existing) {
+    return NextResponse.json({ error: "Book not found" }, { status: 404 });
+  }
+
+  const { coverUrl } = parsed.data;
+  const prevCover = existing.coverUrl;
+
+  if (coverUrl === prevCover) {
+    return NextResponse.json(existing);
+  }
+
+  const [updated] = await db
+    .update(books)
+    .set({
+      coverUrl,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(books.id, id), eq(books.userId, session.user.id)))
+    .returning();
+
+  if (prevCover && prevCover !== coverUrl) {
+    void deleteBlob(prevCover);
+  }
+
+  return NextResponse.json(updated);
 }
 
 // DELETE /api/books/[id]

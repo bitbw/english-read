@@ -1,5 +1,5 @@
 /**
- * 复习测验：近形词中文四选一 + 拼字块干扰（仿英语帮式）
+ * 复习测验：中文四选一（动态干扰项 + 多义项）+ 拼字块干扰
  */
 
 /** def=英文释义；zh=中文（加入生词本时从词典接口写入，复习四选一优先用 zh） */
@@ -9,6 +9,12 @@ export type QuizWord = {
   id: string;
   word: string;
   definition: string | null;
+};
+
+export type DictSense = {
+  partOfSpeech: string;
+  definition: string;
+  example?: string;
 };
 
 const GENERIC_MEANING_DECOYS = [
@@ -110,11 +116,11 @@ function levenshtein(a: string, b: string): number {
   return row[n];
 }
 
-function normalizeWordKey(w: string): string {
+export function normalizeWordKey(w: string): string {
   return w.toLowerCase().replace(/[^a-z]/g, "");
 }
 
-/** 从候选里选拼写最接近的若干词（用于近形干扰） */
+/** 从候选里选拼写最接近的若干词（用于拼字干扰） */
 export function pickSimilarWords(
   target: string,
   candidates: QuizWord[],
@@ -157,6 +163,20 @@ export function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+/** 按空白拆成片段（保留各词原有大小写，用于展示与点选） */
+export function splitPhraseTokens(s: string): string[] {
+  return s
+    .trim()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+/** 复习拼写：是否按「单词块」出题（含两个及以上词） */
+export function isPhraseSpellingTarget(targetWord: string): boolean {
+  return splitPhraseTokens(targetWord).length >= 2;
+}
+
 function defaultWordChunks(word: string): string[] {
   const w = normalizeWordKey(word);
   if (!w) return [];
@@ -164,6 +184,68 @@ function defaultWordChunks(word: string): string[] {
   if (w.length === 3) return [w.slice(0, 2), w.slice(2)];
   const mid = Math.floor(w.length / 2);
   return [w.slice(0, mid), w.slice(mid)];
+}
+
+/** 短语拼写干扰：从近形词/词组里拆出的英文单词 + 少量功能词，避免只有字母块 */
+const PHRASE_FALLBACK_DECOY_WORDS = [
+  "the",
+  "a",
+  "an",
+  "to",
+  "of",
+  "and",
+  "in",
+  "on",
+  "at",
+  "for",
+  "is",
+  "it",
+  "as",
+  "be",
+  "we",
+  "you",
+  "he",
+  "she",
+  "they",
+  "this",
+  "that",
+  "with",
+  "from",
+  "by",
+];
+
+function buildPhraseSpellingChunks(targetWord: string, similarEnglish: string[]): string[] {
+  const correct = splitPhraseTokens(targetWord);
+  const correctNorm = new Set(correct.map((t) => normalizeWordKey(t)));
+
+  const decoyPool: string[] = [];
+  const seenDecoyNorm = new Set<string>();
+
+  const tryAddDecoy = (raw: string) => {
+    const t = raw.trim();
+    if (!t) return;
+    const nk = normalizeWordKey(t);
+    if (!nk || correctNorm.has(nk) || seenDecoyNorm.has(nk)) return;
+    seenDecoyNorm.add(nk);
+    decoyPool.push(t);
+  };
+
+  for (const line of similarEnglish) {
+    for (const tok of splitPhraseTokens(line)) {
+      tryAddDecoy(tok);
+    }
+  }
+
+  for (const w of PHRASE_FALLBACK_DECOY_WORDS) {
+    if (decoyPool.length >= 12) break;
+    tryAddDecoy(w);
+  }
+
+  const wantExtra = Math.max(3, correct.length + 2);
+  const decoys = shuffle(decoyPool).slice(0, Math.min(decoyPool.length, wantExtra));
+
+  // 正确项保留重复词（如 had had）；不与 decoys 做按 normalize 的全局去重
+  return shuffle([...correct, ...decoys]);
 }
 
 function collectDecoyChunksFromWords(similarKeys: string[]): string[] {
@@ -203,15 +285,18 @@ function extraLetterDecoys(targetKey: string, similarKeys: string[], maxSingles:
   return singles;
 }
 
-/** 拼字块：含正确拆分 + 近形/字母干扰，洗牌后展示 */
+/** 拼字块：单词为字母块 + 干扰；词组为整词块 + 干扰词（便于点选） */
 export function buildSpellingChunks(targetWord: string, similarEnglish: string[]): string[] {
+  if (isPhraseSpellingTarget(targetWord)) {
+    return buildPhraseSpellingChunks(targetWord, similarEnglish);
+  }
+
   const key = normalizeWordKey(targetWord);
   const correct = defaultWordChunks(targetWord);
   const simKeys = similarEnglish.map(normalizeWordKey).filter(Boolean);
   const decoys = collectDecoyChunksFromWords(simKeys).filter((d) => d && !correct.includes(d));
 
-  const singles =
-    key.length >= 4 ? extraLetterDecoys(key, [key, ...simKeys], 6) : [];
+  const singles = key.length >= 4 ? extraLetterDecoys(key, [key, ...simKeys], 6) : [];
 
   const merged = [...correct, ...shuffle(decoys).slice(0, 8), ...shuffle(singles)];
   const uniq: string[] = [];
@@ -224,50 +309,166 @@ export function buildSpellingChunks(targetWord: string, similarEnglish: string[]
   return shuffle(uniq);
 }
 
+/** 翻面后展示：义项列表 */
+export type MeaningOption = {
+  key: string;
+  /** 干扰项可能无对应英文词（极少数兜底） */
+  english: string | null;
+  primaryZh: string;
+  fullDefs: DictSense[];
+  correct: boolean;
+};
+
 export type MeaningQuiz = {
-  options: { text: string; correct: boolean }[];
+  options: MeaningOption[];
   skipMeaning: boolean;
 };
 
+function glossDedupKey(zh: string): string {
+  return zh.trim().toLowerCase().replace(/\s+/g, "");
+}
+
+async function fetchFullDictClient(word: string): Promise<{
+  translation: string;
+  definitions: DictSense[];
+}> {
+  try {
+    const res = await fetch(`/api/dictionary?word=${encodeURIComponent(word.trim())}&full=1`);
+    if (!res.ok) return { translation: "", definitions: [] };
+    const data = (await res.json()) as {
+      translation?: string;
+      definitions?: DictSense[];
+    };
+    return {
+      translation: (data.translation ?? "").trim(),
+      definitions: Array.isArray(data.definitions) ? data.definitions : [],
+    };
+  } catch {
+    return { translation: "", definitions: [] };
+  }
+}
+
 /**
- * 四选一中文义：文案均为「整词中文翻译」（非英英长释义）。
- * glossById 由复习页对当前词 + 近形词调用 resolveChineseGloss 预先填好。
+ * 从 Datamuse 联想词 + 词库近形词中选出 3 个干扰英文词（尽量与正确项中文义不同）
  */
-export function buildMeaningQuizFromGlosses(
-  currentId: string,
-  glossById: Record<string, string>,
-  similar: QuizWord[]
-): MeaningQuiz {
-  const correct = (glossById[currentId] ?? "").trim();
-  if (!correct || !looksLikeChinese(correct)) {
+export function pickDistractorEnglishWords(
+  targetWord: string,
+  datamuseList: string[],
+  vocabSimilar: QuizWord[],
+  need: number
+): string[] {
+  const tk = normalizeWordKey(targetWord);
+  const seen = new Set<string>();
+  if (tk) seen.add(tk);
+
+  const tryAdd = (w: string, bucket: string[]) => {
+    const k = normalizeWordKey(w);
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    bucket.push(w.trim());
+    return true;
+  };
+
+  const out: string[] = [];
+  const shuffledDm = shuffle([...datamuseList]);
+  for (const w of shuffledDm) {
+    if (out.length >= need) break;
+    tryAdd(w, out);
+  }
+  for (const v of vocabSimilar) {
+    if (out.length >= need) break;
+    tryAdd(v.word, out);
+  }
+  return out;
+}
+
+/**
+ * 组装四选一：含多义项与翻面用的英文、释义列表
+ */
+export async function buildMeaningQuizEnriched(args: {
+  currentId: string;
+  currentWord: string;
+  currentDefinition: string | null;
+  distractorEnglish: string[];
+  glossCache: Map<string, string>;
+}): Promise<MeaningQuiz> {
+  const { currentId, currentWord, currentDefinition, distractorEnglish, glossCache } = args;
+
+  const correctZh = (
+    await resolveChineseGloss(currentWord, currentDefinition, glossCache)
+  ).trim();
+  if (!correctZh || !looksLikeChinese(correctZh)) {
     return { options: [], skipMeaning: true };
   }
 
-  const distractorTexts: string[] = [];
-  for (const w of similar) {
-    if (w.id === currentId) continue;
-    const g = (glossById[w.id] ?? "").trim();
-    if (!g || !looksLikeChinese(g) || g === correct || distractorTexts.includes(g)) continue;
-    distractorTexts.push(g);
-    if (distractorTexts.length >= 3) break;
+  const correctDict = await fetchFullDictClient(currentWord);
+  const correctDefs = correctDict.definitions.length > 0 ? correctDict.definitions : [];
+
+  type Row = {
+    key: string;
+    english: string | null;
+    primaryZh: string;
+    fullDefs: DictSense[];
+    correct: boolean;
+  };
+
+  const rows: Row[] = [
+    {
+      key: currentId,
+      english: currentWord.trim(),
+      primaryZh: correctZh,
+      fullDefs: correctDefs,
+      correct: true,
+    },
+  ];
+
+  const usedZh = new Set<string>([glossDedupKey(correctZh)]);
+  let genericIdx = 0;
+
+  const distractorMeta = await Promise.all(
+    distractorEnglish.map(async (en) => {
+      const zh = (await resolveChineseGloss(en, null, glossCache)).trim();
+      const d = await fetchFullDictClient(en);
+      return { en, zh, defs: d.definitions };
+    })
+  );
+
+  for (const { en, zh, defs } of distractorMeta) {
+    if (rows.length >= 4) break;
+    if (zh && looksLikeChinese(zh) && !usedZh.has(glossDedupKey(zh))) {
+      usedZh.add(glossDedupKey(zh));
+      rows.push({
+        key: `d-${normalizeWordKey(en)}-${rows.length}`,
+        english: en.trim(),
+        primaryZh: zh,
+        fullDefs: defs,
+        correct: false,
+      });
+    }
   }
 
-  let gIdx = 0;
-  while (distractorTexts.length < 3 && gIdx < GENERIC_MEANING_DECOYS.length) {
-    const g = GENERIC_MEANING_DECOYS[gIdx++];
-    if (g !== correct && !distractorTexts.includes(g)) distractorTexts.push(g);
+  while (rows.length < 4) {
+    const g = GENERIC_MEANING_DECOYS[genericIdx++] ?? `（干扰 ${rows.length}）`;
+    if (!usedZh.has(glossDedupKey(g))) {
+      usedZh.add(glossDedupKey(g));
+      rows.push({
+        key: `gen-${rows.length}`,
+        english: null,
+        primaryZh: g,
+        fullDefs: [],
+        correct: false,
+      });
+    }
+    if (genericIdx > GENERIC_MEANING_DECOYS.length + 5) break;
   }
 
-  let pad = 0;
-  while (distractorTexts.length < 3) {
-    pad += 1;
-    distractorTexts.push(`（干扰项 ${pad}）`);
-  }
-
-  const options = shuffle([
-    { text: correct, correct: true },
-    ...distractorTexts.slice(0, 3).map((text) => ({ text, correct: false as const })),
-  ]);
+  const options: MeaningOption[] = shuffle(rows).map((r) => ({
+    key: r.key,
+    english: r.english,
+    primaryZh: r.primaryZh,
+    fullDefs: r.fullDefs,
+    correct: r.correct,
+  }));
 
   return { options, skipMeaning: false };
 }
