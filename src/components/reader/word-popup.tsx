@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, BookmarkPlus, BookmarkCheck, X, Volume2 } from "lucide-react";
@@ -12,13 +12,70 @@ interface Definition {
   example?: string;
 }
 
+/** 与 epub-reader 中换算后的选区包围盒一致（宿主视口坐标） */
+export interface WordPopupAnchorRect {
+  top: number;
+  left: number;
+  right: number;
+  bottom: number;
+  width: number;
+  height: number;
+}
+
 interface WordPopupProps {
   word: string;
   context: string;
   contextCfi: string;
   bookId: string;
+  anchorRect: WordPopupAnchorRect;
   onClose: () => void;
   onSaved: () => void;
+}
+
+const VIEW_MARGIN = 8;
+/** 顶栏约 3.5rem，弹窗不要钻进顶栏下沿 */
+const TOP_MIN = 56;
+
+/**
+ * 根据选区在视口中的位置决定弹窗落点，尽量避免盖住选区：
+ * - 偏下：贴在选区上方；
+ * - 偏上且偏左：视口右下；
+ * - 偏上且偏右：视口左下；
+ * - 其余（含纵向中间）：贴在选区上方。
+ */
+function computePopupPosition(
+  anchor: WordPopupAnchorRect,
+  popupW: number,
+  popupH: number,
+  vw: number,
+  vh: number,
+): { top: number; left: number } {
+  const cx = (anchor.left + anchor.right) / 2;
+  const cy = (anchor.top + anchor.bottom) / 2;
+  const nx = cx / vw;
+  const ny = cy / vh;
+
+  let top: number;
+  let left: number;
+
+  if (ny > 0.48) {
+    top = anchor.top - popupH - VIEW_MARGIN;
+    left = cx - popupW / 2;
+  } else if (nx < 0.38) {
+    top = vh - popupH - VIEW_MARGIN;
+    left = vw - popupW - VIEW_MARGIN;
+  } else if (nx > 0.62) {
+    top = vh - popupH - VIEW_MARGIN;
+    left = VIEW_MARGIN;
+  } else {
+    top = anchor.top - popupH - VIEW_MARGIN;
+    left = cx - popupW / 2;
+  }
+
+  left = Math.min(Math.max(VIEW_MARGIN, left), vw - popupW - VIEW_MARGIN);
+  top = Math.min(Math.max(TOP_MIN, top), vh - popupH - VIEW_MARGIN);
+
+  return { top, left };
 }
 
 export function WordPopup({
@@ -26,9 +83,12 @@ export function WordPopup({
   context,
   contextCfi,
   bookId,
+  anchorRect,
   onClose,
   onSaved,
 }: WordPopupProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const [phonetic, setPhonetic] = useState("");
   const [definitions, setDefinitions] = useState<Definition[]>([]);
   const [translation, setTranslation] = useState("");
@@ -61,6 +121,22 @@ export function WordPopup({
     fetchDefinition();
     return () => { cancelled = true; };
   }, [word]);
+
+  useLayoutEffect(() => {
+    function measure() {
+      const el = rootRef.current;
+      if (!el) return;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      if (w === 0 || h === 0) return;
+      setPosition(computePopupPosition(anchorRect, w, h, vw, vh));
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [anchorRect, word, loading, definitions.length, translation, saved]);
 
   // Web Speech API 发音
   function speak() {
@@ -116,10 +192,14 @@ export function WordPopup({
   }
 
   return (
-    // 固定在阅读区右上角（top 计算：顶栏 3.5rem + 阅读器顶栏约 2.5rem，共约 6rem；right 留 8px）
     <div
-      className="fixed z-[100] right-2 top-24 w-72 bg-popover border border-border rounded-xl shadow-xl p-3 text-sm"
-      style={{ maxHeight: "65vh", overflowY: "auto" }}
+      ref={rootRef}
+      className="fixed z-[100] w-[min(18rem,calc(100vw-1rem))] max-h-[42vh] md:max-h-[65vh] bg-popover border border-border rounded-xl shadow-xl p-3 text-sm overflow-y-auto"
+      style={{
+        ...(position
+          ? { top: position.top, left: position.left, right: "auto", visibility: "visible" as const }
+          : { top: TOP_MIN, left: VIEW_MARGIN, visibility: "hidden" as const }),
+      }}
     >
       {/* 标题行：单词/词组 + 音标 + 发音 + 关闭 */}
       <div className="flex items-start justify-between gap-1 mb-2">

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { WordPopup } from "./word-popup";
+import { WordPopup, type WordPopupAnchorRect } from "./word-popup";
 
 interface SelectionInfo {
   word: string;
   context: string;
   cfi: string;
+  anchorRect: WordPopupAnchorRect;
 }
 
 export interface TocItem {
@@ -184,16 +185,49 @@ export function EpubReader({
         }, { passive: true });
       });
 
+      /** 合并多行选区为单一包围盒（iframe 内坐标） */
+      function unionSelectionRects(sel: Selection): DOMRect | null {
+        if (sel.rangeCount === 0) return null;
+        let u: DOMRect | null = null;
+        for (let i = 0; i < sel.rangeCount; i++) {
+          const r = sel.getRangeAt(i).getBoundingClientRect();
+          if (r.width === 0 && r.height === 0) continue;
+          if (!u) {
+            u = new DOMRect(r.left, r.top, r.width, r.height);
+          } else {
+            const left = Math.min(u.left, r.left);
+            const top = Math.min(u.top, r.top);
+            const right = Math.max(u.right, r.right);
+            const bottom = Math.max(u.bottom, r.bottom);
+            u = new DOMRect(left, top, right - left, bottom - top);
+          }
+        }
+        return u;
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       rendition.on("selected", (cfiRange: string, contents: any) => {
         if (!mounted) return;
         lastSelectedAt = Date.now();
-        const sel = contents.window.getSelection();
+        const win = contents.window as Window;
+        const sel = win.getSelection();
         if (!sel) return;
         const text = sel.toString().trim();
         if (!text || text.length > 200) return;
+        const local = unionSelectionRects(sel);
+        const iframe = win.frameElement as HTMLIFrameElement | null;
+        if (!local || !iframe) return;
+        const ir = iframe.getBoundingClientRect();
+        const anchorRect: WordPopupAnchorRect = {
+          top: local.top + ir.top,
+          left: local.left + ir.left,
+          right: local.right + ir.left,
+          bottom: local.bottom + ir.top,
+          width: local.width,
+          height: local.height,
+        };
         const context = sel.anchorNode?.parentElement?.closest("p")?.textContent ?? "";
-        setSelection({ word: text, context: context.slice(0, 300), cfi: cfiRange });
+        setSelection({ word: text, context: context.slice(0, 300), cfi: cfiRange, anchorRect });
       });
 
       rendition.on("click", () => {
@@ -265,6 +299,7 @@ export function EpubReader({
           context={selection.context}
           contextCfi={selection.cfi}
           bookId={bookId}
+          anchorRect={selection.anchorRect}
           onClose={() => setSelection(null)}
           onSaved={() => setSelection(null)}
         />
