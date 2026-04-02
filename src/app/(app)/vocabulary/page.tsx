@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, Search } from "lucide-react";
+import { GraduationCap, Search, Calendar } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
@@ -71,18 +71,40 @@ export default function VocabularyPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className="min-w-0 shrink-0">
           <h1 className="text-2xl font-bold">生词本</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">共 {words.length} 个单词</p>
+          <p className="text-sm text-muted-foreground mt-0.5 whitespace-nowrap sm:whitespace-normal">
+            共 {words.length} 个单词
+          </p>
         </div>
-        {dueCount > 0 && (
-          <Link href="/vocabulary/review" className={cn(buttonVariants())}>
-            <GraduationCap className="h-4 w-4 mr-2" />
-            开始复习
-            <Badge variant="secondary" className="ml-2">{dueCount}</Badge>
+        <div className="flex w-full flex-row flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+          <Link
+            href="/vocabulary/plan"
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial"
+            )}
+          >
+            <Calendar className="h-4 w-4 shrink-0" />
+            <span className="truncate">复习计划</span>
           </Link>
-        )}
+          {dueCount > 0 && (
+            <Link
+              href="/vocabulary/review"
+              className={cn(
+                buttonVariants(),
+                "inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial"
+              )}
+            >
+              <GraduationCap className="h-4 w-4 shrink-0" />
+              <span className="truncate">开始复习</span>
+              <Badge variant="secondary" className="shrink-0">
+                {dueCount}
+              </Badge>
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">

@@ -23,7 +23,7 @@ import {
   LayoutDashboard,
   Library,
   BookMarked,
-  GraduationCap,
+  Calendar,
   Settings,
 } from "lucide-react";
 import Link from "next/link";
@@ -34,7 +34,7 @@ const navItems = [
   { href: "/dashboard", label: "首页", icon: LayoutDashboard },
   { href: "/library", label: "书架", icon: Library },
   { href: "/vocabulary", label: "生词本", icon: BookMarked },
-  { href: "/vocabulary/review", label: "开始复习", icon: GraduationCap },
+  { href: "/vocabulary/plan", label: "复习计划", icon: Calendar },
   { href: "/settings", label: "设置", icon: Settings },
 ];
 
@@ -56,7 +56,10 @@ export function Topbar() {
           </div>
           <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
             {navItems.map(({ href, label, icon: Icon }) => {
-              const isActive = pathname === href;
+              const isActive =
+                href === "/vocabulary/plan"
+                  ? pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review")
+                  : pathname === href;
               return (
                 <Link
                   key={href}

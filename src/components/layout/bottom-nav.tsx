@@ -7,7 +7,7 @@ import {
   LayoutDashboard,
   Library,
   BookMarked,
-  GraduationCap,
+  Calendar,
   Settings,
 } from "lucide-react";
 
@@ -15,7 +15,7 @@ const navItems = [
   { href: "/dashboard", label: "首页", icon: LayoutDashboard },
   { href: "/library", label: "书架", icon: Library },
   { href: "/vocabulary", label: "生词本", icon: BookMarked },
-  { href: "/vocabulary/review", label: "复习", icon: GraduationCap },
+  { href: "/vocabulary/plan", label: "计划", icon: Calendar },
   { href: "/settings", label: "设置", icon: Settings },
 ];
 
@@ -28,7 +28,11 @@ export function BottomNav() {
         const isActive =
           href === "/dashboard"
             ? pathname === "/dashboard"
-            : pathname.startsWith(href);
+            : href === "/vocabulary/plan"
+              ? pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review")
+              : href === "/vocabulary"
+                ? pathname === "/vocabulary"
+                : pathname.startsWith(href);
         return (
           <Link
             key={href}

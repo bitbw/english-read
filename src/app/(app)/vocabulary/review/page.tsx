@@ -1,65 +1,20 @@
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { ReviewSession, type ReviewWord } from "@/components/review/review-session";
+import { Suspense } from "react";
+import { ReviewPageClient } from "./review-page-client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookMarked, ArrowLeft } from "lucide-react";
-import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button-variants";
-import { cn } from "@/lib/utils";
 
-type DistractorItem = { id: string; word: string; definition: string | null };
-
-export default function ReviewPage() {
-  const [words, setWords] = useState<ReviewWord[]>([]);
-  const [pool, setPool] = useState<DistractorItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/review")
-      .then((r) => r.json())
-      .then((data: ReviewWord[] | { words: ReviewWord[]; pool?: DistractorItem[] }) => {
-        if (Array.isArray(data)) {
-          setWords(data);
-          setPool([]);
-        } else {
-          setWords(data.words ?? []);
-          setPool(data.pool ?? []);
-        }
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleReviewComplete = useCallback(() => {}, []);
-
+function ReviewFallback() {
   return (
     <div className="max-w-2xl mx-auto space-y-4">
-      <div className="flex items-center gap-3">
-        <Link href="/vocabulary" className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <h1 className="text-2xl font-bold">今日复习</h1>
-      </div>
-
-      {loading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-64 w-full rounded-xl" />
-          <Skeleton className="h-10 w-full rounded-lg" />
-        </div>
-      ) : words.length === 0 ? (
-        <div className="flex flex-col items-center gap-4 py-20 text-center">
-          <BookMarked className="h-14 w-14 text-muted-foreground" />
-          <div>
-            <p className="text-xl font-semibold">今天没有需要复习的单词</p>
-            <p className="text-muted-foreground mt-1">继续阅读收集更多单词，或明天再来复习</p>
-          </div>
-          <Link href="/library" className={cn(buttonVariants({ variant: "outline" }))}>
-            去阅读
-          </Link>
-        </div>
-      ) : (
-        <ReviewSession words={words} distractorPool={pool} onComplete={handleReviewComplete} />
-      )}
+      <Skeleton className="h-10 w-64" />
+      <Skeleton className="h-64 w-full rounded-xl" />
     </div>
+  );
+}
+
+export default function ReviewPage() {
+  return (
+    <Suspense fallback={<ReviewFallback />}>
+      <ReviewPageClient />
+    </Suspense>
   );
 }

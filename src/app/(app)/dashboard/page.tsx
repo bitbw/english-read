@@ -121,14 +121,19 @@ export default async function DashboardPage() {
 
       {dueCount > 0 && (
         <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="flex items-center justify-between pt-6">
+          <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pt-6">
             <div>
               <p className="font-semibold">你有 {dueCount} 个单词等待复习</p>
               <p className="text-sm text-muted-foreground mt-0.5">趁热打铁，现在复习效果最好</p>
             </div>
-            <Link href="/vocabulary/review" className={cn(buttonVariants())}>
-              开始复习<ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <Link href="/vocabulary/plan" className={cn(buttonVariants({ variant: "outline" }))}>
+                复习计划
+              </Link>
+              <Link href="/vocabulary/review" className={cn(buttonVariants())}>
+                开始复习<ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </div>
           </CardContent>
         </Card>
       )}
