@@ -63,6 +63,22 @@ export function EpubReader({
     let lastSelectedAt = 0;
     const setupWindows = new WeakSet<Window>();
 
+    /** 长按选词（静止超过阈值）不弹出释义，避免与系统选区手柄冲突 */
+    const LONG_PRESS_MS = 450;
+    const LONG_PRESS_SLOP = 14;
+    const longPressByWin = new WeakMap<
+      Window,
+      { timer: ReturnType<typeof setTimeout> | null; skipNextPopup: boolean; lpStartX: number; lpStartY: number }
+    >();
+    function longPressState(win: Window) {
+      let s = longPressByWin.get(win);
+      if (!s) {
+        s = { timer: null, skipNextPopup: false, lpStartX: 0, lpStartY: 0 };
+        longPressByWin.set(win, s);
+      }
+      return s;
+    }
+
     // 保存进度到服务端（支持页面卸载场景用 keepalive）
     function saveToServer(cfi: string, pct: number) {
       fetch(`/api/books/${bookId}/progress`, {
@@ -173,10 +189,36 @@ export function EpubReader({
         let startX = 0;
         let startY = 0;
         win.addEventListener("touchstart", (e: TouchEvent) => {
-          startX = e.touches[0].clientX;
-          startY = e.touches[0].clientY;
+          const t = e.touches[0];
+          startX = t.clientX;
+          startY = t.clientY;
+          const lp = longPressState(win);
+          if (lp.timer) clearTimeout(lp.timer);
+          lp.skipNextPopup = false;
+          lp.lpStartX = t.clientX;
+          lp.lpStartY = t.clientY;
+          lp.timer = setTimeout(() => {
+            lp.skipNextPopup = true;
+            lp.timer = null;
+          }, LONG_PRESS_MS);
+        }, { passive: true });
+        win.addEventListener("touchmove", (e: TouchEvent) => {
+          const lp = longPressState(win);
+          if (!lp.timer || !e.touches[0]) return;
+          const t = e.touches[0];
+          const dx = Math.abs(t.clientX - lp.lpStartX);
+          const dy = Math.abs(t.clientY - lp.lpStartY);
+          if (dx > LONG_PRESS_SLOP || dy > LONG_PRESS_SLOP) {
+            clearTimeout(lp.timer);
+            lp.timer = null;
+          }
         }, { passive: true });
         win.addEventListener("touchend", (e: TouchEvent) => {
+          const lp = longPressState(win);
+          if (lp.timer) {
+            clearTimeout(lp.timer);
+            lp.timer = null;
+          }
           const diffX = startX - e.changedTouches[0].clientX;
           const diffY = startY - e.changedTouches[0].clientY;
           if (Math.abs(diffX) < 70 || Math.abs(diffX) < Math.abs(diffY) * 1.5) return;
@@ -226,6 +268,11 @@ export function EpubReader({
           width: local.width,
           height: local.height,
         };
+        const lp = longPressState(win);
+        if (lp.skipNextPopup) {
+          lp.skipNextPopup = false;
+          return;
+        }
         const context = sel.anchorNode?.parentElement?.closest("p")?.textContent ?? "";
         setSelection({ word: text, context: context.slice(0, 300), cfi: cfiRange, anchorRect });
       });
