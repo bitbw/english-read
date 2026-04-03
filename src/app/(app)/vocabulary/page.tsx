@@ -12,6 +12,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { clientFetch } from "@/lib/client-fetch";
+import { toastConfirmAction } from "@/lib/toast-confirm";
 
 type FilterType = "all" | "pending" | "mastered";
 
@@ -63,12 +64,21 @@ export default function VocabularyPage() {
   useEffect(() => { fetchWords(); }, [filter, search]);
   useEffect(() => { fetchDueCount(); }, []);
 
-  async function handleDelete(id: string) {
-    const res = await clientFetch(`/api/vocabulary/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      setWords((prev) => prev.filter((w) => w.id !== id));
-      toast.success("已从生词本删除");
-    }
+  function handleDelete(id: string) {
+    const word = words.find((w) => w.id === id);
+    const label = word?.word ?? "该单词";
+    toastConfirmAction({
+      message: `确定从生词本删除「${label}」？`,
+      description: "删除后需在阅读中重新添加才会回到生词本。",
+      confirmLabel: "确认删除",
+      onConfirm: async () => {
+        const res = await clientFetch(`/api/vocabulary/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          setWords((prev) => prev.filter((w) => w.id !== id));
+          toast.success("已从生词本删除");
+        }
+      },
+    });
   }
 
   const filters: { value: FilterType; label: string }[] = [

@@ -7,6 +7,7 @@ import { ImageIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { postCoverUpload } from "@/lib/post-cover-upload";
 import { CLIENT_FETCH_NETWORK_ERROR, clientFetch } from "@/lib/client-fetch";
+import { toastConfirmAction } from "@/lib/toast-confirm";
 
 interface ChangeCoverButtonProps {
   bookId: string;
@@ -44,24 +45,31 @@ export function ChangeCoverButton({ bookId, hasCover }: ChangeCoverButtonProps) 
     }
   }
 
-  async function removeCover() {
-    setLoading(true);
-    try {
-      const patchRes = await clientFetch(`/api/books/${bookId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ coverUrl: null }),
-      });
-      if (!patchRes.ok) return;
-      toast.success("已移除封面");
-      router.refresh();
-    } catch (err) {
-      if (!(err instanceof Error && err.message === CLIENT_FETCH_NETWORK_ERROR)) {
-        toast.error("移除失败，请重试");
-      }
-    } finally {
-      setLoading(false);
-    }
+  function requestRemoveCover() {
+    toastConfirmAction({
+      message: "确定移除封面？",
+      description: "移除后书架将显示默认占位图，可随时重新上传。",
+      confirmLabel: "确认移除",
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          const patchRes = await clientFetch(`/api/books/${bookId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ coverUrl: null }),
+          });
+          if (!patchRes.ok) return;
+          toast.success("已移除封面");
+          router.refresh();
+        } catch (err) {
+          if (!(err instanceof Error && err.message === CLIENT_FETCH_NETWORK_ERROR)) {
+            toast.error("移除失败，请重试");
+          }
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   }
 
   return (
@@ -91,7 +99,7 @@ export function ChangeCoverButton({ bookId, hasCover }: ChangeCoverButtonProps) 
           size="sm"
           className="h-7 px-1.5 text-xs text-muted-foreground"
           disabled={loading}
-          onClick={removeCover}
+          onClick={requestRemoveCover}
         >
           移除
         </Button>
