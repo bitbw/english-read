@@ -20,6 +20,8 @@ import {
   type QuizWord,
 } from "@/lib/review-quiz";
 import { markReviewClearedForScope } from "@/lib/review-session-cache";
+import { clientFetch } from "@/lib/client-fetch";
+import { linkifyToReactNodes } from "@/components/linkified-text";
 
 export interface ReviewWord {
   id: string;
@@ -90,7 +92,7 @@ function ReviewContextQuote({
               {p.text}
             </mark>
           ) : (
-            <span key={i}>{p.text}</span>
+            <span key={i}>{linkifyToReactNodes(p.text)}</span>
           )
         )}
       </p>
@@ -171,8 +173,9 @@ export function ReviewSession({
     (async () => {
       let datamuse: string[] = [];
       try {
-        const r = await fetch(
-          `/api/review/similar-words?word=${encodeURIComponent(current.word.trim())}`
+        const r = await clientFetch(
+          `/api/review/similar-words?word=${encodeURIComponent(current.word.trim())}`,
+          { showErrorToast: false }
         );
         if (r.ok) {
           const j = (await r.json()) as { words?: string[] };
@@ -297,13 +300,17 @@ export function ReviewSession({
 
     setSubmitting(true);
     try {
-      await fetch("/api/review/submit", {
+      const res = await clientFetch("/api/review/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vocabularyId: current.id, result: "remembered" }),
       });
+      if (!res.ok) {
+        setSubmitting(false);
+        return;
+      }
     } catch {
-      toast.error("提交失败，请重试");
+      // 网络错误已由 clientFetch 提示
       setSubmitting(false);
       return;
     }
@@ -413,8 +420,8 @@ export function ReviewSession({
             <>
               <p className="text-sm font-medium text-center">
                 {meaningPhase === "pick"
-                  ? "选择正确的中文释义（翻面后可见英文与义项）"
-                  : "翻面：对应英文与词典义项"}
+                  ? "选择正确的中文释义（翻面后可见英文）"
+                  : "翻面：对应英文"}
               </p>
               <div className="grid gap-3">
                 {meaningQuiz.options.map((opt, i) => {
@@ -453,39 +460,21 @@ export function ReviewSession({
                               {opt.primaryZh}
                             </p>
                           </div>
-                          {/* 背面：英文 + 完整义项 */}
+                          {/* 背面：仅英文 */}
                           <div
                             className={cn(
-                              "absolute inset-0 flex flex-col gap-2 rounded-xl border bg-muted/40 p-4 shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)]",
+                              "absolute inset-0 flex flex-col justify-center rounded-xl border bg-muted/40 p-4 shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)]",
                               backHighlight
                             )}
                           >
-                            <p className="text-xl font-bold tracking-tight text-foreground">
+                            <p className="text-xl font-bold tracking-tight text-foreground text-center">
                               {opt.english ?? "—"}
                             </p>
-                            {opt.fullDefs.length > 0 ? (
-                              <ul className="text-xs text-foreground/90 space-y-2 max-h-48 overflow-y-auto">
-                                {opt.fullDefs.map((d, j) => (
-                                  <li key={j} className="leading-relaxed">
-                                    <span className="font-medium text-muted-foreground">
-                                      {d.partOfSpeech ? `${d.partOfSpeech}. ` : ""}
-                                    </span>
-                                    {d.definition}
-                                    {d.example ? (
-                                      <span className="block mt-0.5 italic text-muted-foreground">
-                                        e.g. {d.example}
-                                      </span>
-                                    ) : null}
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-xs text-muted-foreground">
-                                {opt.english
-                                  ? "暂无英英词典义项（可来自短语或非词典收录词）"
-                                  : "此为占位干扰项"}
+                            {!opt.english ? (
+                              <p className="text-xs text-muted-foreground text-center mt-2">
+                                此为占位干扰项
                               </p>
-                            )}
+                            ) : null}
                           </div>
                         </div>
                       </button>

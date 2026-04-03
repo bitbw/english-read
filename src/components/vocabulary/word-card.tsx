@@ -7,6 +7,8 @@ import { getStageName, getStageColor } from "@/lib/srs";
 import { Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { linkifyToReactNodes } from "@/components/linkified-text";
+import { VocabularyDefinitionView } from "@/components/vocabulary/vocabulary-definition-view";
 
 interface VocabWord {
   id: string;
@@ -26,15 +28,6 @@ interface WordCardProps {
 }
 
 export function WordCard({ word, onDelete }: WordCardProps) {
-  const definitions = (() => {
-    if (!word.definition) return [];
-    try {
-      return JSON.parse(word.definition) as { pos: string; def: string; zh?: string }[];
-    } catch {
-      return [];
-    }
-  })();
-
   const nextReview = new Date(word.nextReviewAt);
   const isPastDue = !word.isMastered && nextReview <= new Date();
 
@@ -58,31 +51,17 @@ export function WordCard({ word, onDelete }: WordCardProps) {
             )}
           </div>
 
-          {/* 释义 */}
-          {definitions.length > 0 ? (
-            <div className="mt-1.5 space-y-0.5">
-              {definitions.slice(0, 2).map((d, i) => (
-                <p key={i} className="text-sm text-foreground">
-                  <span className="text-muted-foreground text-xs mr-1">{d.pos}.</span>
-                  {d.zh ? (
-                    <>
-                      <span>{d.zh}</span>
-                      <span className="text-muted-foreground text-xs ml-1">({d.def})</span>
-                    </>
-                  ) : (
-                    d.def
-                  )}
-                </p>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-1 text-sm text-muted-foreground">暂无释义</p>
-          )}
+          {/* 释义：「译」条单独展示中文，下为英义 */}
+          <VocabularyDefinitionView
+            definition={word.definition}
+            className="mt-1.5"
+            emptyFallback={<p className="mt-1 text-sm text-muted-foreground">暂无释义</p>}
+          />
 
           {/* 上下文 */}
           {word.context && (
-            <p className="mt-1.5 text-xs text-muted-foreground italic line-clamp-1 border-l-2 border-muted pl-2">
-              {word.context}
+            <p className="mt-1.5 text-xs text-muted-foreground italic line-clamp-3 wrap-break-word border-l-2 border-muted pl-2">
+              {linkifyToReactNodes(word.context)}
             </p>
           )}
 

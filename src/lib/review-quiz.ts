@@ -1,20 +1,18 @@
+"use client";
+
+import { clientFetch } from "@/lib/client-fetch";
+
 /**
  * 复习测验：中文四选一（动态干扰项 + 多义项）+ 拼字块干扰
  */
 
-/** def=英文释义；zh=中文（加入生词本时从词典接口写入，复习四选一优先用 zh） */
+/** def=英文释义；中文仅出现在 pos「译」条，且与 zh 同文 */
 export type DefEntry = { pos: string; def: string; zh?: string };
 
 export type QuizWord = {
   id: string;
   word: string;
   definition: string | null;
-};
-
-export type DictSense = {
-  partOfSpeech: string;
-  definition: string;
-  example?: string;
 };
 
 const GENERIC_MEANING_DECOYS = [
@@ -38,11 +36,11 @@ export function parseDefinitions(definition: string | null): DefEntry[] {
   }
 }
 
-/** 生词本里已保存的中文（仅 JSON 的 zh 字段） */
+/** 生词本里已保存的中文：仅 pos「译」的 zh（无则退回 def） */
 export function storedChineseGloss(definition: string | null): string | null {
-  const defs = parseDefinitions(definition);
-  const zh = defs[0]?.zh?.trim();
-  return zh || null;
+  const yi = parseDefinitions(definition).find((d) => d.pos === "译");
+  const s = yi?.zh?.trim() || yi?.def?.trim();
+  return s || null;
 }
 
 /** 是否像中文（含 CJK），用于复习选项避免再出现整段英文释义 */
@@ -68,7 +66,9 @@ export async function resolveChineseGloss(
   }
 
   try {
-    const res = await fetch(`/api/dictionary?word=${encodeURIComponent(word.trim())}`);
+    const res = await clientFetch(`/api/dictionary?word=${encodeURIComponent(word.trim())}`, {
+      showErrorToast: false,
+    });
     if (!res.ok) throw new Error("dict");
     const data = (await res.json()) as { translation?: string };
     const t = (data.translation ?? "").trim();
@@ -84,15 +84,14 @@ export async function resolveChineseGloss(
   return "";
 }
 
-/** 取首要义（列表展示等：优先 zh，否则英文 def） */
+/** 取首要义：有「译」条用其 zh/def，否则用首条英文 def */
 export function primaryGloss(definition: string | null): string | null {
   const defs = parseDefinitions(definition);
-  const first = defs[0];
-  if (!first) return null;
-  const zh = typeof first.zh === "string" ? first.zh.trim() : "";
-  if (zh) return zh;
-  const en = first.def?.trim();
-  return en || null;
+  if (defs.length === 0) return null;
+  const yi = defs.find((d) => d.pos === "译");
+  const fromYi = yi?.zh?.trim() || yi?.def?.trim();
+  if (fromYi) return fromYi;
+  return defs[0].def?.trim() || null;
 }
 
 function levenshtein(a: string, b: string): number {
@@ -309,13 +308,12 @@ export function buildSpellingChunks(targetWord: string, similarEnglish: string[]
   return shuffle(uniq);
 }
 
-/** 翻面后展示：义项列表 */
+/** 翻面后展示：对应英文词 */
 export type MeaningOption = {
   key: string;
   /** 干扰项可能无对应英文词（极少数兜底） */
   english: string | null;
   primaryZh: string;
-  fullDefs: DictSense[];
   correct: boolean;
 };
 
@@ -326,26 +324,6 @@ export type MeaningQuiz = {
 
 function glossDedupKey(zh: string): string {
   return zh.trim().toLowerCase().replace(/\s+/g, "");
-}
-
-async function fetchFullDictClient(word: string): Promise<{
-  translation: string;
-  definitions: DictSense[];
-}> {
-  try {
-    const res = await fetch(`/api/dictionary?word=${encodeURIComponent(word.trim())}&full=1`);
-    if (!res.ok) return { translation: "", definitions: [] };
-    const data = (await res.json()) as {
-      translation?: string;
-      definitions?: DictSense[];
-    };
-    return {
-      translation: (data.translation ?? "").trim(),
-      definitions: Array.isArray(data.definitions) ? data.definitions : [],
-    };
-  } catch {
-    return { translation: "", definitions: [] };
-  }
 }
 
 /**
@@ -383,7 +361,7 @@ export function pickDistractorEnglishWords(
 }
 
 /**
- * 组装四选一：含多义项与翻面用的英文、释义列表
+ * 组装四选一：中文选项 + 翻面仅展示对应英文词
  */
 export async function buildMeaningQuizEnriched(args: {
   currentId: string;
@@ -401,14 +379,10 @@ export async function buildMeaningQuizEnriched(args: {
     return { options: [], skipMeaning: true };
   }
 
-  const correctDict = await fetchFullDictClient(currentWord);
-  const correctDefs = correctDict.definitions.length > 0 ? correctDict.definitions : [];
-
   type Row = {
     key: string;
     english: string | null;
     primaryZh: string;
-    fullDefs: DictSense[];
     correct: boolean;
   };
 
@@ -417,7 +391,6 @@ export async function buildMeaningQuizEnriched(args: {
       key: currentId,
       english: currentWord.trim(),
       primaryZh: correctZh,
-      fullDefs: correctDefs,
       correct: true,
     },
   ];
@@ -428,12 +401,11 @@ export async function buildMeaningQuizEnriched(args: {
   const distractorMeta = await Promise.all(
     distractorEnglish.map(async (en) => {
       const zh = (await resolveChineseGloss(en, null, glossCache)).trim();
-      const d = await fetchFullDictClient(en);
-      return { en, zh, defs: d.definitions };
+      return { en, zh };
     })
   );
 
-  for (const { en, zh, defs } of distractorMeta) {
+  for (const { en, zh } of distractorMeta) {
     if (rows.length >= 4) break;
     if (zh && looksLikeChinese(zh) && !usedZh.has(glossDedupKey(zh))) {
       usedZh.add(glossDedupKey(zh));
@@ -441,7 +413,6 @@ export async function buildMeaningQuizEnriched(args: {
         key: `d-${normalizeWordKey(en)}-${rows.length}`,
         english: en.trim(),
         primaryZh: zh,
-        fullDefs: defs,
         correct: false,
       });
     }
@@ -455,7 +426,6 @@ export async function buildMeaningQuizEnriched(args: {
         key: `gen-${rows.length}`,
         english: null,
         primaryZh: g,
-        fullDefs: [],
         correct: false,
       });
     }
@@ -466,7 +436,6 @@ export async function buildMeaningQuizEnriched(args: {
     key: r.key,
     english: r.english,
     primaryZh: r.primaryZh,
-    fullDefs: r.fullDefs,
     correct: r.correct,
   }));
 

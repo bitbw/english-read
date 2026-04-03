@@ -32,7 +32,7 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
 
   return (
     <Card
-      className="group relative cursor-pointer hover:shadow-md transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+      className="group relative cursor-pointer hover:shadow-md transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background py-0"
       role="link"
       tabIndex={0}
       onClick={goRead}
@@ -45,31 +45,35 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
       }}
       aria-label={`阅读《${book.title}》`}
     >
-      <CardContent className="p-4">
-        <div className="w-full aspect-[2/3] rounded-md overflow-hidden mb-3 bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center group-hover:opacity-90 transition-opacity">
+      <CardContent className="p-2.5 sm:p-4">
+        <div className="w-full aspect-[2/3] rounded-md overflow-hidden mb-2 sm:mb-3 bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center group-hover:opacity-90 transition-opacity">
           {book.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={book.coverUrl} alt="" className="w-full h-full object-cover" />
           ) : (
-            <BookOpen className="h-12 w-12 text-primary/40" />
+            <BookOpen className="h-8 w-8 sm:h-12 sm:w-12 text-primary/40" />
           )}
         </div>
 
-        <div className="space-y-1">
-          <p className="font-medium text-sm line-clamp-2 leading-tight">{book.title}</p>
-          {book.author && <p className="text-xs text-muted-foreground">{book.author}</p>}
+        <div className="space-y-0.5 sm:space-y-1">
+          <p className="font-medium text-xs sm:text-sm line-clamp-2 leading-tight">{book.title}</p>
+          {book.author && (
+            <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1">{book.author}</p>
+          )}
         </div>
 
-        <div className="mt-3 space-y-1">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>阅读进度</span>
-            <span>{book.readingProgress ?? 0}%</span>
+        <div className="mt-2 sm:mt-3 space-y-1">
+          <div className="flex justify-between gap-1 text-[11px] sm:text-xs text-muted-foreground">
+            <span className="min-w-0 shrink-0 truncate">阅读进度</span>
+            <span className="tabular-nums shrink-0">{book.readingProgress ?? 0}%</span>
           </div>
-          <Progress value={book.readingProgress ?? 0} className="h-1.5" />
+          <Progress value={book.readingProgress ?? 0} className="h-1 sm:h-1.5" />
         </div>
 
-        <div className="flex items-center justify-between mt-3 gap-2">
-          <p className="text-xs text-muted-foreground min-w-0">{lastRead}</p>
+        <div className="mt-2 sm:mt-3 flex items-center justify-between gap-1 sm:gap-2">
+          <p className="min-w-0 line-clamp-1 text-[11px] sm:text-xs text-muted-foreground">
+            {lastRead}
+          </p>
           <div
             data-library-book-actions
             className="flex shrink-0"

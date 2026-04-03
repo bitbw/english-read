@@ -6,11 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, Search, Calendar } from "lucide-react";
+import { GraduationCap, Search, Calendar, Plus } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { clientFetch } from "@/lib/client-fetch";
+import { toastConfirmAction } from "@/lib/toast-confirm";
+import { ManualAddVocabularyDialog } from "@/components/vocabulary/manual-add-vocabulary-dialog";
 
 type FilterType = "all" | "pending" | "mastered";
 
@@ -32,11 +35,18 @@ export default function VocabularyPage() {
   const [filter, setFilter] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
   const [dueCount, setDueCount] = useState(0);
+  const [addOpen, setAddOpen] = useState(false);
 
   async function fetchWords() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/vocabulary?filter=${filter}&search=${encodeURIComponent(search)}`);
+      const res = await clientFetch(
+        `/api/vocabulary?filter=${filter}&search=${encodeURIComponent(search)}`
+      );
+      if (!res.ok) {
+        setWords([]);
+        return;
+      }
       const data = await res.json();
       setWords(data);
     } finally {
@@ -45,7 +55,8 @@ export default function VocabularyPage() {
   }
 
   async function fetchDueCount() {
-    const res = await fetch("/api/review");
+    const res = await clientFetch("/api/review", { showErrorToast: false });
+    if (!res.ok) return;
     const data = await res.json();
     const n = Array.isArray(data) ? data.length : (data.words?.length ?? 0);
     setDueCount(n);
@@ -55,12 +66,26 @@ export default function VocabularyPage() {
   useEffect(() => { fetchWords(); }, [filter, search]);
   useEffect(() => { fetchDueCount(); }, []);
 
-  async function handleDelete(id: string) {
-    const res = await fetch(`/api/vocabulary/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      setWords((prev) => prev.filter((w) => w.id !== id));
-      toast.success("已从生词本删除");
-    }
+  async function handleManualAdded() {
+    await fetchWords();
+    await fetchDueCount();
+  }
+
+  function handleDelete(id: string) {
+    const word = words.find((w) => w.id === id);
+    const label = word?.word ?? "该单词";
+    toastConfirmAction({
+      message: `确定从生词本删除「${label}」？`,
+      description: "删除后需在阅读中重新添加才会回到生词本。",
+      confirmLabel: "确认删除",
+      onConfirm: async () => {
+        const res = await clientFetch(`/api/vocabulary/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          setWords((prev) => prev.filter((w) => w.id !== id));
+          toast.success("已从生词本删除");
+        }
+      },
+    });
   }
 
   const filters: { value: FilterType; label: string }[] = [
@@ -75,10 +100,24 @@ export default function VocabularyPage() {
         <div className="min-w-0 shrink-0">
           <h1 className="text-2xl font-bold">生词本</h1>
           <p className="text-sm text-muted-foreground mt-0.5 whitespace-nowrap sm:whitespace-normal">
-            共 {words.length} 个单词
+            共 {words.length} 条
           </p>
         </div>
         <div className="flex w-full flex-row flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            className="inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial"
+            onClick={() => setAddOpen(true)}
+          >
+            <Plus className="h-4 w-4 shrink-0" />
+            <span className="truncate">手动添加</span>
+          </Button>
+          <ManualAddVocabularyDialog
+            open={addOpen}
+            onOpenChange={setAddOpen}
+            onAdded={handleManualAdded}
+          />
           <Link
             href="/vocabulary/plan"
             className={cn(
@@ -148,7 +187,11 @@ export default function VocabularyPage() {
       ) : (
         <div className="text-center py-16 text-muted-foreground">
           <p className="text-lg">{search ? `没有找到"${search}"` : "生词本还没有单词"}</p>
-          {!search && <p className="text-sm mt-2">阅读电子书时选中单词即可加入生词本</p>}
+          {!search && (
+            <p className="text-sm mt-2">
+              点击「手动添加」或阅读时选中单词即可加入生词本
+            </p>
+          )}
         </div>
       )}
     </div>

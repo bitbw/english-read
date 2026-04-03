@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, BookmarkPlus, BookmarkCheck, X, Volume2 } from "lucide-react";
 import { toast } from "sonner";
+import { clientFetch } from "@/lib/client-fetch";
+import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
+import { linkifyToReactNodes } from "@/components/linkified-text";
 
 interface Definition {
   partOfSpeech: string;
@@ -117,8 +120,21 @@ export function WordPopup({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [audioUk, setAudioUk] = useState("");
+  const [audioUs, setAudioUs] = useState("");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 查询释义 + 中文翻译
+  /** 与 /api/dictionary 一致：多词/整句不展示发音（无词典音频，也不 TTS 念整段） */
+  const isPhrase = word.trim().split(/\s+/).length > 1;
+
+  useEffect(() => {
+    audioRef.current?.pause();
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, [word]);
+
+  // 查询释义 + 中文翻译 + dictionaryapi.dev 英/美 mp3
   useEffect(() => {
     let cancelled = false;
     async function fetchDefinition() {
@@ -126,14 +142,21 @@ export function WordPopup({
       setPhonetic("");
       setDefinitions([]);
       setTranslation("");
+      setAudioUk("");
+      setAudioUs("");
       setSaved(false);
       try {
-        const res = await fetch(`/api/dictionary?word=${encodeURIComponent(word)}`);
+        const res = await clientFetch(`/api/dictionary?word=${encodeURIComponent(word)}`, {
+          showErrorToast: false,
+        });
+        if (!res.ok) return;
         const data = await res.json();
         if (cancelled) return;
         setPhonetic(data.phonetic ?? "");
         setDefinitions(data.definitions ?? []);
         setTranslation(data.translation ?? "");
+        setAudioUk(typeof data.audioUk === "string" ? data.audioUk : "");
+        setAudioUs(typeof data.audioUs === "string" ? data.audioUs : "");
       } catch {
         if (!cancelled) setDefinitions([]);
       } finally {
@@ -158,10 +181,9 @@ export function WordPopup({
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [anchorRect, word, loading, definitions.length, translation, saved]);
+  }, [anchorRect, word, loading, definitions.length, translation, saved, audioUk, audioUs]);
 
-  // Web Speech API 发音
-  function speak() {
+  function speakTts() {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(word);
@@ -169,26 +191,27 @@ export function WordPopup({
     window.speechSynthesis.speak(utterance);
   }
 
+  /** 优先用词典 CDN 的 mp3（可直连播放）；失败时退回 TTS（仅单词） */
+  function playPronunciationMp3(url: string) {
+    if (typeof window === "undefined") return;
+    try {
+      audioRef.current?.pause();
+      const a = new Audio(url);
+      audioRef.current = a;
+      void a.play().catch(() => {
+        speakTts();
+      });
+    } catch {
+      speakTts();
+    }
+  }
+
   async function handleSave() {
     setSaving(true);
     try {
-      const translationTrim = translation.trim();
-      const definitionStr =
-        definitions.length > 0
-          ? JSON.stringify(
-              definitions.slice(0, 3).map((d) => ({
-                pos: d.partOfSpeech,
-                def: d.definition,
-                ...(translationTrim ? { zh: translationTrim } : {}),
-              }))
-            )
-          : translationTrim
-            ? JSON.stringify([
-                { pos: "译", def: translationTrim, zh: translationTrim },
-              ])
-            : undefined;
+      const definitionStr = serializeVocabularyDefinition(definitions, translation);
 
-      const res = await fetch("/api/vocabulary", {
+      const res = await clientFetch("/api/vocabulary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -216,7 +239,7 @@ export function WordPopup({
   return (
     <div
       ref={rootRef}
-      className="fixed z-[100] w-[min(18rem,calc(100vw-1rem))] max-h-[22vh] md:max-h-[65vh] bg-popover border border-border rounded-xl shadow-xl p-3 text-sm overflow-y-auto"
+      className="fixed z-[100] flex min-h-0 w-[min(18rem,calc(100vw-1rem))] flex-col gap-2 overflow-hidden rounded-xl border border-border bg-popover p-3 text-sm shadow-xl h-[22vh] md:h-auto md:max-h-[65vh]"
       style={{
         ...(position
           ? { top: position.top, left: position.left, right: "auto", visibility: "visible" as const }
@@ -224,7 +247,7 @@ export function WordPopup({
       }}
     >
       {/* 标题行：单词/词组 + 音标 + 发音 + 关闭 */}
-      <div className="flex items-start justify-between gap-1 mb-2">
+      <div className="flex shrink-0 items-start justify-between gap-1">
         <div className="flex-1 min-w-0">
           <span className="font-bold text-base break-words leading-snug">{word}</span>
           {phonetic && (
@@ -232,13 +255,48 @@ export function WordPopup({
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={speak}
-            className="text-muted-foreground hover:text-foreground p-0.5 rounded"
-            title="发音"
-          >
-            <Volume2 className="h-3.5 w-3.5" />
-          </button>
+          {!isPhrase && !loading && (
+            <>
+              {audioUs && audioUk ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => playPronunciationMp3(audioUs)}
+                    className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium leading-none"
+                    title="美音"
+                  >
+                    美
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => playPronunciationMp3(audioUk)}
+                    className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium leading-none"
+                    title="英音"
+                  >
+                    英
+                  </button>
+                </>
+              ) : audioUs || audioUk ? (
+                <button
+                  type="button"
+                  onClick={() => playPronunciationMp3(audioUs || audioUk)}
+                  className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+                  title={audioUs ? "美音" : "英音"}
+                >
+                  <Volume2 className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={speakTts}
+                  className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+                  title="发音（语音合成）"
+                >
+                  <Volume2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </>
+          )}
           <button
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground p-0.5 rounded"
@@ -248,58 +306,60 @@ export function WordPopup({
         </div>
       </div>
 
-      {/* 查询中 */}
-      {loading ? (
-        <div className="flex items-center gap-2 text-muted-foreground py-2">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          <span className="text-xs">查询中...</span>
-        </div>
-      ) : (
-        <>
-          {/* 中文翻译（放在英文释义前面，更直观） */}
-          {translation && (
-            <div className="mb-2 px-2 py-1.5 bg-muted/60 rounded-md">
-              <p className="text-xs font-medium text-foreground">{translation}</p>
-            </div>
-          )}
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+        {/* 查询中 */}
+        {loading ? (
+          <div className="flex items-center gap-2 py-2 text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span className="text-xs">查询中...</span>
+          </div>
+        ) : (
+          <>
+            {/* 中文翻译（放在英文释义前面，更直观） */}
+            {translation && (
+              <div className="mb-2 rounded-md bg-muted/60 px-2 py-1.5">
+                <p className="text-xs font-medium text-foreground">{translation}</p>
+              </div>
+            )}
 
-          {/* 英文释义（单词时才有） */}
-          {definitions.length > 0 && (
-            <div className="space-y-1.5 mb-2 max-h-32 overflow-y-auto">
-              {definitions.slice(0, 3).map((def, i) => (
-                <div key={i}>
-                  <Badge variant="secondary" className="text-xs mr-1 px-1 py-0">
-                    {def.partOfSpeech}
-                  </Badge>
-                  <span className="text-xs text-foreground">{def.definition}</span>
-                  {def.example && (
-                    <p className="text-xs text-muted-foreground italic mt-0.5 pl-2">
-                      {def.example}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+            {/* 英文释义（单词时才有） */}
+            {definitions.length > 0 && (
+              <div className="mb-2 space-y-1.5">
+                {definitions.slice(0, 2).map((def, i) => (
+                  <div key={i}>
+                    <Badge variant="secondary" className="mr-1 px-1 py-0 text-xs">
+                      {def.partOfSpeech}
+                    </Badge>
+                    <span className="text-xs text-foreground">{def.definition}</span>
+                    {def.example && (
+                      <p className="mt-0.5 pl-2 text-xs italic text-muted-foreground">
+                        {def.example}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
-          {/* 无释义也无翻译 */}
-          {!translation && definitions.length === 0 && (
-            <p className="text-xs text-muted-foreground mb-2">暂无释义</p>
-          )}
-        </>
-      )}
+            {/* 无释义也无翻译 */}
+            {!translation && definitions.length === 0 && (
+              <p className="mb-2 text-xs text-muted-foreground">暂无释义</p>
+            )}
+          </>
+        )}
 
-      {/* 上下文 */}
-      {context && (
-        <p className="text-xs text-muted-foreground italic mb-2 line-clamp-2 border-l-2 border-muted pl-2">
-          {context}
-        </p>
-      )}
+        {/* 上下文 */}
+        {context && (
+          <p className="text-xs italic text-muted-foreground line-clamp-2 wrap-break-word border-l-2 border-muted pl-2">
+            {linkifyToReactNodes(context)}
+          </p>
+        )}
+      </div>
 
       {/* 加入生词本 */}
       <Button
         size="sm"
-        className="w-full text-xs h-7"
+        className="h-7 w-full shrink-0 text-xs"
         onClick={handleSave}
         disabled={saving || saved}
         variant={saved ? "secondary" : "default"}

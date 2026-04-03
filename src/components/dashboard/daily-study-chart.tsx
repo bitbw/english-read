@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface DailyStudyChartProps {
@@ -10,41 +13,83 @@ function formatDayLabel(isoDay: string) {
   return `${m}/${d}`;
 }
 
+function formatBarMinutes(seconds: number) {
+  const m = seconds / 60;
+  if (m <= 0) return "0";
+  if (m < 1) return "<1";
+  return String(Math.round(m));
+}
+
 export function DailyStudyChart({ series }: DailyStudyChartProps) {
-  const minutes = series.map((s) => s.seconds / 60);
+  const [narrow, setNarrow] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => setNarrow(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  const displaySeries = narrow ? series.slice(-7) : series;
+  const minutes = displaySeries.map((s) => s.seconds / 60);
   const maxMin = Math.max(...minutes, 0.01);
+  const maxBarPx = 96;
+
   const totalToday = series.length > 0 ? series[series.length - 1]!.seconds : 0;
   const todayMin = Math.round(totalToday / 60);
 
   return (
     <div className="space-y-4">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-sm text-muted-foreground">近 {series.length} 天（按 UTC 日历）</p>
+        <p className="text-sm text-muted-foreground">
+          近 {displaySeries.length} 天（按 UTC 日历）
+        </p>
         <p className="text-sm tabular-nums text-muted-foreground">
           当前 UTC 日约 <span className="font-semibold text-foreground">{todayMin}</span> 分钟
         </p>
       </div>
-      <div className="flex items-end gap-1.5 h-36 px-1">
-        {series.map((s) => {
-          const m = s.seconds / 60;
-          const hasTime = m > 0;
-          const hPct = hasTime ? Math.max(10, (m / maxMin) * 100) : 0;
-          return (
-            <div key={s.day} className="flex-1 min-w-0 flex flex-col items-center gap-1.5 h-full justify-end">
+
+      <div className="flex flex-col gap-1">
+        <div className="flex items-end gap-1 sm:gap-1.5 min-h-[118px] px-0.5">
+          {displaySeries.map((s) => {
+            const m = s.seconds / 60;
+            const hasTime = m > 0;
+            const barPx = hasTime ? Math.max(6, (m / maxMin) * maxBarPx) : 3;
+            const label = formatBarMinutes(s.seconds);
+
+            return (
               <div
-                className={cn(
-                  "w-full max-w-[28px] mx-auto rounded-md transition-[height]",
-                  hasTime ? "bg-primary/90 dark:bg-primary/80" : "bg-muted h-1"
-                )}
-                style={hasTime ? { height: `${hPct}%` } : undefined}
-                title={`${formatDayLabel(s.day)}：${Math.round(m)} 分钟`}
-              />
+                key={s.day}
+                className="flex-1 min-w-0 flex flex-col items-center justify-end gap-0.5"
+              >
+                <span
+                  className="text-[10px] sm:text-xs font-medium tabular-nums text-foreground leading-none min-h-[14px] flex items-end justify-center"
+                  title={`${formatDayLabel(s.day)}：${label === "<1" ? "不足 1 分钟" : `${label} 分钟`}`}
+                >
+                  {label}
+                </span>
+                <div
+                  className={cn(
+                    "w-full max-w-[28px] mx-auto rounded-md transition-[height]",
+                    hasTime ? "bg-primary/90 dark:bg-primary/80" : "bg-muted"
+                  )}
+                  style={{ height: `${barPx}px` }}
+                  title={`${formatDayLabel(s.day)}：${Math.round(m)} 分钟`}
+                />
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex gap-1 sm:gap-1.5 px-0.5">
+          {displaySeries.map((s) => (
+            <div key={`d-${s.day}`} className="flex-1 min-w-0 flex justify-center">
               <span className="text-[10px] text-muted-foreground tabular-nums leading-none">
                 {formatDayLabel(s.day)}
               </span>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
     </div>
   );

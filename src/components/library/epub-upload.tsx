@@ -7,6 +7,11 @@ import { Upload, FileText, X, Loader2, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { postCoverUpload } from "@/lib/post-cover-upload";
+import {
+  extractCoverFileFromEpubBook,
+  type EpubBookForCover,
+} from "@/lib/extract-epub-cover";
+import { CLIENT_FETCH_NETWORK_ERROR, clientFetch } from "@/lib/client-fetch";
 
 export function EpubUpload() {
   const [dragging, setDragging] = useState(false);
@@ -45,14 +50,11 @@ export function EpubUpload() {
       // Step 1: 上传文件到 Vercel Blob
       const formData = new FormData();
       formData.append("file", file);
-      const uploadRes = await fetch("/api/upload", {
+      const uploadRes = await clientFetch("/api/upload", {
         method: "POST",
         body: formData,
       });
-      if (!uploadRes.ok) {
-        const err = await uploadRes.json();
-        throw new Error(err.error ?? "上传失败");
-      }
+      if (!uploadRes.ok) return;
       const { url, pathname, size } = await uploadRes.json();
 
       let coverUrl: string | undefined;
@@ -65,7 +67,7 @@ export function EpubUpload() {
         }
       }
 
-      // Step 2: 尝试从 EPUB 读取元数据
+      // Step 2: 从 EPUB 读元数据；未选手动封面时尝试解析内置封面
       let title = file.name.replace(/\.epub$/i, "");
       let author = "";
       try {
@@ -75,13 +77,26 @@ export function EpubUpload() {
         const meta = await book.loaded.metadata;
         title = (meta as { title?: string }).title || title;
         author = (meta as { creator?: string }).creator || "";
+
+        if (!coverUrl) {
+          try {
+            const extracted = await extractCoverFileFromEpubBook(book as EpubBookForCover);
+            if (extracted) {
+              const cover = await postCoverUpload(extracted);
+              coverUrl = cover.url;
+            }
+          } catch {
+            /* 无可用封面或上传失败则略过 */
+          }
+        }
+
         book.destroy();
       } catch {
         // 元数据读取失败时使用文件名
       }
 
       // Step 3: 创建书籍数据库记录
-      const bookRes = await fetch("/api/books", {
+      const bookRes = await clientFetch("/api/books", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -93,13 +108,17 @@ export function EpubUpload() {
           ...(coverUrl ? { coverUrl } : {}),
         }),
       });
-      if (!bookRes.ok) throw new Error("书籍创建失败");
+      if (!bookRes.ok) return;
       const book = await bookRes.json();
 
       toast.success(`《${title}》上传成功！`);
       router.push(`/read/${book.id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "上传出错，请重试");
+      if (err instanceof Error && err.message === CLIENT_FETCH_NETWORK_ERROR) {
+        /* clientFetch 已 toast */
+      } else {
+        toast.error(err instanceof Error ? err.message : "上传出错，请重试");
+      }
     } finally {
       setUploading(false);
     }
@@ -163,7 +182,9 @@ export function EpubUpload() {
             <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
               <p className="font-medium">封面（可选）</p>
-              <p className="text-xs text-muted-foreground">JPG / PNG / WebP，最大 5MB</p>
+              <p className="text-xs text-muted-foreground">
+                JPG / PNG / WebP，最大 5MB；不选时将尝试从 EPUB 内嵌封面提取
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
