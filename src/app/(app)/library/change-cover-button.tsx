@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ImageIcon, Loader2 } from "lucide-react";
+import { ImageIcon, ImageOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { postCoverUpload } from "@/lib/post-cover-upload";
 import { CLIENT_FETCH_NETWORK_ERROR, clientFetch } from "@/lib/client-fetch";
@@ -81,27 +81,29 @@ export function ChangeCoverButton({ bookId, hasCover }: ChangeCoverButtonProps) 
         className="hidden"
         onChange={onFile}
       />
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 text-muted-foreground"
-        disabled={loading}
-        title="更换封面"
-        onClick={() => inputRef.current?.click()}
-      >
-        {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
-      </Button>
-      {hasCover && (
+      {hasCover ? (
         <Button
           type="button"
           variant="ghost"
-          size="sm"
-          className="h-7 px-1.5 text-xs text-muted-foreground"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground"
           disabled={loading}
+          title="移除封面"
           onClick={requestRemoveCover}
         >
-          移除
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageOff className="h-3.5 w-3.5" />}
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground"
+          disabled={loading}
+          title="添加封面"
+          onClick={() => inputRef.current?.click()}
+        >
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
         </Button>
       )}
     </div>
