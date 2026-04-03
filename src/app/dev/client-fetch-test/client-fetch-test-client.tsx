@@ -19,7 +19,8 @@ export function ClientFetchTestClient() {
       <div className="space-y-1">
         <h1 className="text-xl font-bold">clientFetch 调试</h1>
         <p className="text-sm text-muted-foreground">
-          仅本地 development；应出现 Sonner toast。HTTP 错误不抛异常，网络错误会 throw。
+          路由 <code className="rounded bg-muted px-1 py-0.5 text-xs">/dev/client-fetch-test</code>
+          ，仅本地 development；应出现 Sonner toast。HTTP 错误不抛异常，网络错误会 throw。
         </p>
       </div>
 
