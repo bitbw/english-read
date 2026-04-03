@@ -11,12 +11,6 @@ export type QuizWord = {
   definition: string | null;
 };
 
-export type DictSense = {
-  partOfSpeech: string;
-  definition: string;
-  example?: string;
-};
-
 const GENERIC_MEANING_DECOYS = [
   "那里；那儿",
   "这里；这儿",
@@ -309,13 +303,12 @@ export function buildSpellingChunks(targetWord: string, similarEnglish: string[]
   return shuffle(uniq);
 }
 
-/** 翻面后展示：义项列表 */
+/** 翻面后展示：对应英文词 */
 export type MeaningOption = {
   key: string;
   /** 干扰项可能无对应英文词（极少数兜底） */
   english: string | null;
   primaryZh: string;
-  fullDefs: DictSense[];
   correct: boolean;
 };
 
@@ -326,26 +319,6 @@ export type MeaningQuiz = {
 
 function glossDedupKey(zh: string): string {
   return zh.trim().toLowerCase().replace(/\s+/g, "");
-}
-
-async function fetchFullDictClient(word: string): Promise<{
-  translation: string;
-  definitions: DictSense[];
-}> {
-  try {
-    const res = await fetch(`/api/dictionary?word=${encodeURIComponent(word.trim())}&full=1`);
-    if (!res.ok) return { translation: "", definitions: [] };
-    const data = (await res.json()) as {
-      translation?: string;
-      definitions?: DictSense[];
-    };
-    return {
-      translation: (data.translation ?? "").trim(),
-      definitions: Array.isArray(data.definitions) ? data.definitions : [],
-    };
-  } catch {
-    return { translation: "", definitions: [] };
-  }
 }
 
 /**
@@ -383,7 +356,7 @@ export function pickDistractorEnglishWords(
 }
 
 /**
- * 组装四选一：含多义项与翻面用的英文、释义列表
+ * 组装四选一：中文选项 + 翻面仅展示对应英文词
  */
 export async function buildMeaningQuizEnriched(args: {
   currentId: string;
@@ -401,14 +374,10 @@ export async function buildMeaningQuizEnriched(args: {
     return { options: [], skipMeaning: true };
   }
 
-  const correctDict = await fetchFullDictClient(currentWord);
-  const correctDefs = correctDict.definitions.length > 0 ? correctDict.definitions : [];
-
   type Row = {
     key: string;
     english: string | null;
     primaryZh: string;
-    fullDefs: DictSense[];
     correct: boolean;
   };
 
@@ -417,7 +386,6 @@ export async function buildMeaningQuizEnriched(args: {
       key: currentId,
       english: currentWord.trim(),
       primaryZh: correctZh,
-      fullDefs: correctDefs,
       correct: true,
     },
   ];
@@ -428,12 +396,11 @@ export async function buildMeaningQuizEnriched(args: {
   const distractorMeta = await Promise.all(
     distractorEnglish.map(async (en) => {
       const zh = (await resolveChineseGloss(en, null, glossCache)).trim();
-      const d = await fetchFullDictClient(en);
-      return { en, zh, defs: d.definitions };
+      return { en, zh };
     })
   );
 
-  for (const { en, zh, defs } of distractorMeta) {
+  for (const { en, zh } of distractorMeta) {
     if (rows.length >= 4) break;
     if (zh && looksLikeChinese(zh) && !usedZh.has(glossDedupKey(zh))) {
       usedZh.add(glossDedupKey(zh));
@@ -441,7 +408,6 @@ export async function buildMeaningQuizEnriched(args: {
         key: `d-${normalizeWordKey(en)}-${rows.length}`,
         english: en.trim(),
         primaryZh: zh,
-        fullDefs: defs,
         correct: false,
       });
     }
@@ -455,7 +421,6 @@ export async function buildMeaningQuizEnriched(args: {
         key: `gen-${rows.length}`,
         english: null,
         primaryZh: g,
-        fullDefs: [],
         correct: false,
       });
     }
@@ -466,7 +431,6 @@ export async function buildMeaningQuizEnriched(args: {
     key: r.key,
     english: r.english,
     primaryZh: r.primaryZh,
-    fullDefs: r.fullDefs,
     correct: r.correct,
   }));
 
