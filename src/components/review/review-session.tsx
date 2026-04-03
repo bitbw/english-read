@@ -20,6 +20,7 @@ import {
   type QuizWord,
 } from "@/lib/review-quiz";
 import { markReviewClearedForScope } from "@/lib/review-session-cache";
+import { clientFetch } from "@/lib/client-fetch";
 
 export interface ReviewWord {
   id: string;
@@ -297,13 +298,17 @@ export function ReviewSession({
 
     setSubmitting(true);
     try {
-      await fetch("/api/review/submit", {
+      const res = await clientFetch("/api/review/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vocabularyId: current.id, result: "remembered" }),
       });
+      if (!res.ok) {
+        setSubmitting(false);
+        return;
+      }
     } catch {
-      toast.error("提交失败，请重试");
+      // 网络错误已由 clientFetch 提示
       setSubmitting(false);
       return;
     }
