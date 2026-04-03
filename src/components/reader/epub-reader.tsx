@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { WordPopup, type WordPopupAnchorRect } from "./word-popup";
+import { clientFetch } from "@/lib/client-fetch";
 
 interface SelectionInfo {
   word: string;
@@ -81,11 +82,12 @@ export function EpubReader({
 
     // 保存进度到服务端（支持页面卸载场景用 keepalive）
     function saveToServer(cfi: string, pct: number) {
-      fetch(`/api/books/${bookId}/progress`, {
+      void clientFetch(`/api/books/${bookId}/progress`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        keepalive: true, // 页面卸载/组件卸载时请求依然会完成
+        keepalive: true,
         body: JSON.stringify({ currentCfi: cfi, readingProgress: Math.round(pct) }),
+        showErrorToast: false,
       }).catch(() => {});
     }
 

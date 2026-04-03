@@ -172,8 +172,9 @@ export function ReviewSession({
     (async () => {
       let datamuse: string[] = [];
       try {
-        const r = await fetch(
-          `/api/review/similar-words?word=${encodeURIComponent(current.word.trim())}`
+        const r = await clientFetch(
+          `/api/review/similar-words?word=${encodeURIComponent(current.word.trim())}`,
+          { showErrorToast: false }
         );
         if (r.ok) {
           const j = (await r.json()) as { words?: string[] };

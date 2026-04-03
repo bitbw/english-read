@@ -1,3 +1,7 @@
+"use client";
+
+import { clientFetch } from "@/lib/client-fetch";
+
 /**
  * 复习测验：中文四选一（动态干扰项 + 多义项）+ 拼字块干扰
  */
@@ -62,7 +66,9 @@ export async function resolveChineseGloss(
   }
 
   try {
-    const res = await fetch(`/api/dictionary?word=${encodeURIComponent(word.trim())}`);
+    const res = await clientFetch(`/api/dictionary?word=${encodeURIComponent(word.trim())}`, {
+      showErrorToast: false,
+    });
     if (!res.ok) throw new Error("dict");
     const data = (await res.json()) as { translation?: string };
     const t = (data.translation ?? "").trim();

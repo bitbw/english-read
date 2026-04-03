@@ -7,6 +7,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRef, useState, useEffect, Fragment } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { clientFetch } from "@/lib/client-fetch";
 import type { TocItem } from "@/components/reader/epub-reader";
 
 const EpubReader = dynamic(
@@ -74,11 +75,12 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
       if (n < 1) return;
       const capped = Math.min(120, n);
       const body = JSON.stringify({ seconds: capped });
-      fetch("/api/reading/time", {
+      void clientFetch("/api/reading/time", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body,
         keepalive: true,
+        showErrorToast: false,
       }).catch(() => {});
     }
 

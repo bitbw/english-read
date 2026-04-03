@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, BookmarkPlus, BookmarkCheck, X, Volume2 } from "lucide-react";
 import { toast } from "sonner";
+import { clientFetch } from "@/lib/client-fetch";
 
 interface Definition {
   partOfSpeech: string;
@@ -128,7 +129,10 @@ export function WordPopup({
       setTranslation("");
       setSaved(false);
       try {
-        const res = await fetch(`/api/dictionary?word=${encodeURIComponent(word)}`);
+        const res = await clientFetch(`/api/dictionary?word=${encodeURIComponent(word)}`, {
+          showErrorToast: false,
+        });
+        if (!res.ok) return;
         const data = await res.json();
         if (cancelled) return;
         setPhonetic(data.phonetic ?? "");
@@ -188,7 +192,7 @@ export function WordPopup({
               ])
             : undefined;
 
-      const res = await fetch("/api/vocabulary", {
+      const res = await clientFetch("/api/vocabulary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

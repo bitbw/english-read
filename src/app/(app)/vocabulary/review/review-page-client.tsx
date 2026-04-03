@@ -13,6 +13,7 @@ import {
   filterOutClearedReviews,
   getReviewScopeDay,
 } from "@/lib/review-session-cache";
+import { clientFetch } from "@/lib/client-fetch";
 
 type DistractorItem = { id: string; word: string; definition: string | null };
 
@@ -57,7 +58,8 @@ export function ReviewPageClient() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch(fetchUrl);
+      const r = await clientFetch(fetchUrl);
+      if (!r.ok) return;
       const data = (await r.json()) as ReviewApiResponse;
       if (Array.isArray(data)) {
         const next = !preview ? filterOutClearedReviews(data, reviewScopeDay) : data;

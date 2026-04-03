@@ -2,10 +2,14 @@
 
 import { toast } from "sonner";
 
+const fetchErrorToastOptions = { position: "top-right" as const };
+
+export const CLIENT_FETCH_NETWORK_ERROR = "网络异常，请检查连接后重试";
+
 async function messageFromErrorResponse(res: Response): Promise<string> {
   const fallback = `请求失败（HTTP ${res.status}）`;
   try {
-    const err = (await res.json()) as { error?: unknown };
+    const err = (await res.clone().json()) as { error?: unknown };
     if (typeof err.error === "string") return err.error;
     if (err.error) return "请求被拒绝，请刷新页面或重新登录后再试";
   } catch {
@@ -31,12 +35,11 @@ export async function clientFetch(
   try {
     const res = await fetch(input, fetchInit);
     if (!res.ok && showErrorToast) {
-      toast.error(await messageFromErrorResponse(res));
+      toast.error(await messageFromErrorResponse(res), fetchErrorToastOptions);
     }
     return res;
   } catch {
-    const msg = "网络异常，请检查连接后重试";
-    if (showErrorToast) toast.error(msg);
-    throw new Error(msg);
+    if (showErrorToast) toast.error(CLIENT_FETCH_NETWORK_ERROR, fetchErrorToastOptions);
+    throw new Error(CLIENT_FETCH_NETWORK_ERROR);
   }
 }

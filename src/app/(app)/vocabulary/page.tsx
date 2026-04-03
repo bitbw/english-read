@@ -11,6 +11,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { clientFetch } from "@/lib/client-fetch";
 
 type FilterType = "all" | "pending" | "mastered";
 
@@ -36,7 +37,13 @@ export default function VocabularyPage() {
   async function fetchWords() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/vocabulary?filter=${filter}&search=${encodeURIComponent(search)}`);
+      const res = await clientFetch(
+        `/api/vocabulary?filter=${filter}&search=${encodeURIComponent(search)}`
+      );
+      if (!res.ok) {
+        setWords([]);
+        return;
+      }
       const data = await res.json();
       setWords(data);
     } finally {
@@ -45,7 +52,8 @@ export default function VocabularyPage() {
   }
 
   async function fetchDueCount() {
-    const res = await fetch("/api/review");
+    const res = await clientFetch("/api/review", { showErrorToast: false });
+    if (!res.ok) return;
     const data = await res.json();
     const n = Array.isArray(data) ? data.length : (data.words?.length ?? 0);
     setDueCount(n);
@@ -56,7 +64,7 @@ export default function VocabularyPage() {
   useEffect(() => { fetchDueCount(); }, []);
 
   async function handleDelete(id: string) {
-    const res = await fetch(`/api/vocabulary/${id}`, { method: "DELETE" });
+    const res = await clientFetch(`/api/vocabulary/${id}`, { method: "DELETE" });
     if (res.ok) {
       setWords((prev) => prev.filter((w) => w.id !== id));
       toast.success("已从生词本删除");

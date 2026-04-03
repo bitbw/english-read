@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ImageIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { postCoverUpload } from "@/lib/post-cover-upload";
+import { CLIENT_FETCH_NETWORK_ERROR, clientFetch } from "@/lib/client-fetch";
 
 interface ChangeCoverButtonProps {
   bookId: string;
@@ -24,16 +25,20 @@ export function ChangeCoverButton({ bookId, hasCover }: ChangeCoverButtonProps) 
     setLoading(true);
     try {
       const { url } = await postCoverUpload(file);
-      const patchRes = await fetch(`/api/books/${bookId}`, {
+      const patchRes = await clientFetch(`/api/books/${bookId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ coverUrl: url }),
       });
-      if (!patchRes.ok) throw new Error("更新封面失败");
+      if (!patchRes.ok) return;
       toast.success("封面已更新");
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "操作失败");
+      if (err instanceof Error && err.message === CLIENT_FETCH_NETWORK_ERROR) {
+        /* clientFetch 已 toast */
+      } else {
+        toast.error(err instanceof Error ? err.message : "操作失败");
+      }
     } finally {
       setLoading(false);
     }
@@ -42,16 +47,18 @@ export function ChangeCoverButton({ bookId, hasCover }: ChangeCoverButtonProps) 
   async function removeCover() {
     setLoading(true);
     try {
-      const patchRes = await fetch(`/api/books/${bookId}`, {
+      const patchRes = await clientFetch(`/api/books/${bookId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ coverUrl: null }),
       });
-      if (!patchRes.ok) throw new Error("移除封面失败");
+      if (!patchRes.ok) return;
       toast.success("已移除封面");
       router.refresh();
-    } catch {
-      toast.error("移除失败，请重试");
+    } catch (err) {
+      if (!(err instanceof Error && err.message === CLIENT_FETCH_NETWORK_ERROR)) {
+        toast.error("移除失败，请重试");
+      }
     } finally {
       setLoading(false);
     }

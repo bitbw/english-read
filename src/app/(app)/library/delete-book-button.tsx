@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { CLIENT_FETCH_NETWORK_ERROR, clientFetch } from "@/lib/client-fetch";
 
 interface DeleteBookButtonProps {
   bookId: string;
@@ -28,13 +29,15 @@ export function DeleteBookButton({ bookId, bookTitle }: DeleteBookButtonProps) {
   async function handleDelete() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/books/${bookId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("删除失败");
+      const res = await clientFetch(`/api/books/${bookId}`, { method: "DELETE" });
+      if (!res.ok) return;
       toast.success("书籍已删除");
       setOpen(false);
       router.refresh();
-    } catch {
-      toast.error("删除失败，请重试");
+    } catch (err) {
+      if (!(err instanceof Error && err.message === CLIENT_FETCH_NETWORK_ERROR)) {
+        toast.error("删除失败，请重试");
+      }
     } finally {
       setLoading(false);
     }

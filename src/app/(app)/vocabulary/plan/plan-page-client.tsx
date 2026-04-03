@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { padMonthGrid } from "@/lib/review-plan";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { clientFetch } from "@/lib/client-fetch";
 
 type DayCell = { scheduled: number; dueNow: number };
 
@@ -46,7 +47,7 @@ export function PlanPageClient() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch(`/api/review/plan?year=${year}&month=${month}`);
+      const r = await clientFetch(`/api/review/plan?year=${year}&month=${month}`);
       if (!r.ok) return;
       const data = (await r.json()) as PlanResponse;
       setPlan(data);
