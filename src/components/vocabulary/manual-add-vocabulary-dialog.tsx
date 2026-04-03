@@ -306,7 +306,7 @@ export function ManualAddVocabularyDialog({
                   ) : null}
                   {definitions.length > 0 ? (
                     <div className="space-y-1.5 max-h-36 overflow-y-auto">
-                      {definitions.slice(0, 3).map((def, i) => (
+                      {definitions.slice(0, 2).map((def, i) => (
                         <div key={i}>
                           <Badge variant="secondary" className="text-xs mr-1 px-1 py-0">
                             {def.partOfSpeech}

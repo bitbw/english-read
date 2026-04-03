@@ -6,7 +6,7 @@ import { clientFetch } from "@/lib/client-fetch";
  * 复习测验：中文四选一（动态干扰项 + 多义项）+ 拼字块干扰
  */
 
-/** def=英文释义；zh=中文（加入生词本时从词典接口写入，复习四选一优先用 zh） */
+/** def=英文释义；中文仅出现在 pos「译」条，且与 zh 同文 */
 export type DefEntry = { pos: string; def: string; zh?: string };
 
 export type QuizWord = {
@@ -36,11 +36,11 @@ export function parseDefinitions(definition: string | null): DefEntry[] {
   }
 }
 
-/** 生词本里已保存的中文（仅 JSON 的 zh 字段） */
+/** 生词本里已保存的中文：仅 pos「译」的 zh（无则退回 def） */
 export function storedChineseGloss(definition: string | null): string | null {
-  const defs = parseDefinitions(definition);
-  const zh = defs[0]?.zh?.trim();
-  return zh || null;
+  const yi = parseDefinitions(definition).find((d) => d.pos === "译");
+  const s = yi?.zh?.trim() || yi?.def?.trim();
+  return s || null;
 }
 
 /** 是否像中文（含 CJK），用于复习选项避免再出现整段英文释义 */
@@ -84,15 +84,14 @@ export async function resolveChineseGloss(
   return "";
 }
 
-/** 取首要义（列表展示等：优先 zh，否则英文 def） */
+/** 取首要义：有「译」条用其 zh/def，否则用首条英文 def */
 export function primaryGloss(definition: string | null): string | null {
   const defs = parseDefinitions(definition);
-  const first = defs[0];
-  if (!first) return null;
-  const zh = typeof first.zh === "string" ? first.zh.trim() : "";
-  if (zh) return zh;
-  const en = first.def?.trim();
-  return en || null;
+  if (defs.length === 0) return null;
+  const yi = defs.find((d) => d.pos === "译");
+  const fromYi = yi?.zh?.trim() || yi?.def?.trim();
+  if (fromYi) return fromYi;
+  return defs[0].def?.trim() || null;
 }
 
 function levenshtein(a: string, b: string): number {
