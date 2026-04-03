@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect } from "react";
 import { WordCard } from "@/components/vocabulary/word-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,15 +13,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { clientFetch } from "@/lib/client-fetch";
 import { toastConfirmAction } from "@/lib/toast-confirm";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { ManualAddVocabularyDialog } from "@/components/vocabulary/manual-add-vocabulary-dialog";
 
 type FilterType = "all" | "pending" | "mastered";
 
@@ -44,9 +36,6 @@ export default function VocabularyPage() {
   const [search, setSearch] = useState("");
   const [dueCount, setDueCount] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
-  const [addWord, setAddWord] = useState("");
-  const [addReference, setAddReference] = useState("");
-  const [addSubmitting, setAddSubmitting] = useState(false);
 
   async function fetchWords() {
     setLoading(true);
@@ -77,42 +66,9 @@ export default function VocabularyPage() {
   useEffect(() => { fetchWords(); }, [filter, search]);
   useEffect(() => { fetchDueCount(); }, []);
 
-  async function handleManualAdd(e: FormEvent) {
-    e.preventDefault();
-    const w = addWord.trim();
-    if (!w) {
-      toast.error("请填写单词或短语");
-      return;
-    }
-    setAddSubmitting(true);
-    try {
-      const res = await clientFetch("/api/vocabulary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          word: w,
-          context: addReference.trim() || undefined,
-        }),
-      });
-      const data = (await res.json()) as VocabWord & { alreadyExists?: boolean };
-      if (!res.ok) {
-        toast.error("添加失败，请稍后再试");
-        return;
-      }
-      if (data.alreadyExists) {
-        toast.message(`「${w}」已在生词本中`);
-        setAddOpen(false);
-        return;
-      }
-      toast.success(`「${w}」已加入生词本，将按复习计划提醒`);
-      setAddWord("");
-      setAddReference("");
-      setAddOpen(false);
-      await fetchWords();
-      await fetchDueCount();
-    } finally {
-      setAddSubmitting(false);
-    }
+  async function handleManualAdded() {
+    await fetchWords();
+    await fetchDueCount();
   }
 
   function handleDelete(id: string) {
@@ -148,60 +104,20 @@ export default function VocabularyPage() {
           </p>
         </div>
         <div className="flex w-full flex-row flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <Button
-              type="button"
-              variant="outline"
-              className="inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial"
-              onClick={() => setAddOpen(true)}
-            >
-              <Plus className="h-4 w-4 shrink-0" />
-              <span className="truncate">手动添加</span>
-            </Button>
-            <DialogContent className="sm:max-w-md" showCloseButton>
-              <form onSubmit={handleManualAdd}>
-                <DialogHeader>
-                  <DialogTitle>手动添加生词</DialogTitle>
-                  <DialogDescription>
-                    与阅读中选词加入相同，会进入艾宾浩斯复习计划（新词次日首次复习）。
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-3 py-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="vocab-manual-word">单词或短语</Label>
-                    <Input
-                      id="vocab-manual-word"
-                      value={addWord}
-                      onChange={(e) => setAddWord(e.target.value)}
-                      placeholder="例如：serendipity 或 in spite of"
-                      maxLength={500}
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="vocab-manual-ref">引用（可选）</Label>
-                    <Textarea
-                      id="vocab-manual-ref"
-                      value={addReference}
-                      onChange={(e) => setAddReference(e.target.value)}
-                      placeholder="原文句子、书名章节或你自己的笔记…"
-                      rows={4}
-                      maxLength={4000}
-                      className="resize-y min-h-[88px]"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-                  <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
-                    取消
-                  </Button>
-                  <Button type="submit" disabled={addSubmitting}>
-                    {addSubmitting ? "添加中…" : "加入生词本"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button
+            type="button"
+            variant="outline"
+            className="inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial"
+            onClick={() => setAddOpen(true)}
+          >
+            <Plus className="h-4 w-4 shrink-0" />
+            <span className="truncate">手动添加</span>
+          </Button>
+          <ManualAddVocabularyDialog
+            open={addOpen}
+            onOpenChange={setAddOpen}
+            onAdded={handleManualAdded}
+          />
           <Link
             href="/vocabulary/plan"
             className={cn(
