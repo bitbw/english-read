@@ -81,7 +81,7 @@ export function WordCard({ word, onDelete }: WordCardProps) {
 
           {/* 上下文 */}
           {word.context && (
-            <p className="mt-1.5 text-xs text-muted-foreground italic line-clamp-1 border-l-2 border-muted pl-2">
+            <p className="mt-1.5 text-xs text-muted-foreground italic line-clamp-3 break-words border-l-2 border-muted pl-2">
               {word.context}
             </p>
           )}

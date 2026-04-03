@@ -7,9 +7,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 const addWordSchema = z.object({
-  word: z.string().min(1).max(100),
+  word: z.string().min(1).max(500),
   bookId: z.string().optional(),
-  context: z.string().optional(),
+  context: z.string().max(4000).optional(),
   contextCfi: z.string().optional(),
   definition: z.string().optional(),
   phonetic: z.string().optional(),
@@ -87,10 +87,11 @@ export async function POST(req: Request) {
       word: parsed.data.word.trim(),
       normalizedWord,
       bookId: parsed.data.bookId ?? null,
-      context: parsed.data.context ?? null,
+      context: parsed.data.context?.trim() || null,
       contextCfi: parsed.data.contextCfi ?? null,
       definition: parsed.data.definition ?? null,
       phonetic: parsed.data.phonetic ?? null,
+      reviewStage: 0,
       nextReviewAt: getInitialReviewDate(),
     })
     .returning();
