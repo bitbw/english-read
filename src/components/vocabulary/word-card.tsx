@@ -8,6 +8,7 @@ import { Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { linkifyToReactNodes } from "@/components/linkified-text";
+import { VocabularyDefinitionView } from "@/components/vocabulary/vocabulary-definition-view";
 
 interface VocabWord {
   id: string;
@@ -26,24 +27,7 @@ interface WordCardProps {
   onDelete?: (id: string) => void;
 }
 
-type DefRow = { pos: string; def: string; zh?: string };
-
 export function WordCard({ word, onDelete }: WordCardProps) {
-  const definitions = (() => {
-    if (!word.definition) return [];
-    try {
-      return JSON.parse(word.definition) as DefRow[];
-    } catch {
-      return [];
-    }
-  })();
-
-  const translateRow = definitions.find((d) => d.pos === "译");
-  const nonTranslate = definitions.filter((d) => d.pos !== "译");
-  const chineseLine = translateRow
-    ? (translateRow.zh ?? translateRow.def)
-    : "";
-
   const nextReview = new Date(word.nextReviewAt);
   const isPastDue = !word.isMastered && nextReview <= new Date();
 
@@ -68,27 +52,11 @@ export function WordCard({ word, onDelete }: WordCardProps) {
           </div>
 
           {/* 释义：「译」条单独展示中文，下为英义 */}
-          {definitions.length > 0 ? (
-            <div className="mt-1.5 space-y-1">
-              {chineseLine ? (
-                <div className="px-2 py-1.5 bg-muted/60 rounded-md">
-                  <p className="text-sm font-medium text-foreground">{chineseLine}</p>
-                </div>
-              ) : null}
-              {nonTranslate.length > 0 ? (
-                <div className="space-y-0.5">
-                  {nonTranslate.slice(0, 2).map((d, i) => (
-                    <p key={i} className="text-sm text-foreground">
-                      <span className="text-muted-foreground text-xs mr-1">{d.pos}.</span>
-                      {d.def}
-                    </p>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <p className="mt-1 text-sm text-muted-foreground">暂无释义</p>
-          )}
+          <VocabularyDefinitionView
+            definition={word.definition}
+            className="mt-1.5"
+            emptyFallback={<p className="mt-1 text-sm text-muted-foreground">暂无释义</p>}
+          />
 
           {/* 上下文 */}
           {word.context && (

@@ -9,6 +9,7 @@ import { BookMarked, ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { VocabularyDefinitionView } from "@/components/vocabulary/vocabulary-definition-view";
 import {
   filterOutClearedReviews,
   getReviewScopeDay,
@@ -122,7 +123,17 @@ export function ReviewPageClient() {
             <Card key={w.id} className="p-4">
               <p className="font-semibold text-lg">{w.word}</p>
               {w.phonetic && <p className="text-sm text-muted-foreground">{w.phonetic}</p>}
-              {w.definition && <p className="text-sm mt-2">{w.definition}</p>}
+              <VocabularyDefinitionView
+                definition={w.definition ?? null}
+                className="mt-2"
+                emptyFallback={
+                  w.definition ? (
+                    <p className="text-sm text-muted-foreground mt-2">{w.definition}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-2">暂无释义</p>
+                  )
+                }
+              />
               {w.nextReviewAt && (
                 <p className="text-xs text-muted-foreground mt-2">
                   排期：{new Date(w.nextReviewAt).toISOString().slice(0, 10)} (UTC)
