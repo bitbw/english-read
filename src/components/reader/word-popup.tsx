@@ -134,6 +134,7 @@ export function WordPopup({
         });
         if (!res.ok) return;
         const data = await res.json();
+        console.log("[word-popup] GET /api/dictionary?word=… 返回:", data);
         if (cancelled) return;
         setPhonetic(data.phonetic ?? "");
         setDefinitions(data.definitions ?? []);
