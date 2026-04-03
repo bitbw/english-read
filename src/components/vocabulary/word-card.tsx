@@ -7,6 +7,7 @@ import { getStageName, getStageColor } from "@/lib/srs";
 import { Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { linkifyToReactNodes } from "@/components/linkified-text";
 
 interface VocabWord {
   id: string;
@@ -92,7 +93,7 @@ export function WordCard({ word, onDelete }: WordCardProps) {
           {/* 上下文 */}
           {word.context && (
             <p className="mt-1.5 text-xs text-muted-foreground italic line-clamp-3 wrap-break-word border-l-2 border-muted pl-2">
-              {word.context}
+              {linkifyToReactNodes(word.context)}
             </p>
           )}
 

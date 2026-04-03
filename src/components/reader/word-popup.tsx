@@ -7,6 +7,7 @@ import { Loader2, BookmarkPlus, BookmarkCheck, X, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { clientFetch } from "@/lib/client-fetch";
 import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
+import { linkifyToReactNodes } from "@/components/linkified-text";
 
 interface Definition {
   partOfSpeech: string;
@@ -349,8 +350,8 @@ export function WordPopup({
 
         {/* 上下文 */}
         {context && (
-          <p className="text-xs italic text-muted-foreground line-clamp-2 border-l-2 border-muted pl-2">
-            {context}
+          <p className="text-xs italic text-muted-foreground line-clamp-2 wrap-break-word border-l-2 border-muted pl-2">
+            {linkifyToReactNodes(context)}
           </p>
         )}
       </div>

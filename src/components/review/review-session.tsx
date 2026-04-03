@@ -21,6 +21,7 @@ import {
 } from "@/lib/review-quiz";
 import { markReviewClearedForScope } from "@/lib/review-session-cache";
 import { clientFetch } from "@/lib/client-fetch";
+import { linkifyToReactNodes } from "@/components/linkified-text";
 
 export interface ReviewWord {
   id: string;
@@ -91,7 +92,7 @@ function ReviewContextQuote({
               {p.text}
             </mark>
           ) : (
-            <span key={i}>{p.text}</span>
+            <span key={i}>{linkifyToReactNodes(p.text)}</span>
           )
         )}
       </p>
