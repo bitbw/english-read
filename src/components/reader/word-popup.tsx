@@ -118,8 +118,21 @@ export function WordPopup({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [audioUk, setAudioUk] = useState("");
+  const [audioUs, setAudioUs] = useState("");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 查询释义 + 中文翻译
+  /** 与 /api/dictionary 一致：多词/整句不展示发音（无词典音频，也不 TTS 念整段） */
+  const isPhrase = word.trim().split(/\s+/).length > 1;
+
+  useEffect(() => {
+    audioRef.current?.pause();
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, [word]);
+
+  // 查询释义 + 中文翻译 + dictionaryapi.dev 英/美 mp3
   useEffect(() => {
     let cancelled = false;
     async function fetchDefinition() {
@@ -127,6 +140,8 @@ export function WordPopup({
       setPhonetic("");
       setDefinitions([]);
       setTranslation("");
+      setAudioUk("");
+      setAudioUs("");
       setSaved(false);
       try {
         const res = await clientFetch(`/api/dictionary?word=${encodeURIComponent(word)}`, {
@@ -139,6 +154,8 @@ export function WordPopup({
         setPhonetic(data.phonetic ?? "");
         setDefinitions(data.definitions ?? []);
         setTranslation(data.translation ?? "");
+        setAudioUk(typeof data.audioUk === "string" ? data.audioUk : "");
+        setAudioUs(typeof data.audioUs === "string" ? data.audioUs : "");
       } catch {
         if (!cancelled) setDefinitions([]);
       } finally {
@@ -163,15 +180,29 @@ export function WordPopup({
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [anchorRect, word, loading, definitions.length, translation, saved]);
+  }, [anchorRect, word, loading, definitions.length, translation, saved, audioUk, audioUs]);
 
-  // Web Speech API 发音
-  function speak() {
+  function speakTts() {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(word);
     utterance.lang = "en-US";
     window.speechSynthesis.speak(utterance);
+  }
+
+  /** 优先用词典 CDN 的 mp3（可直连播放）；失败时退回 TTS（仅单词） */
+  function playPronunciationMp3(url: string) {
+    if (typeof window === "undefined") return;
+    try {
+      audioRef.current?.pause();
+      const a = new Audio(url);
+      audioRef.current = a;
+      void a.play().catch(() => {
+        speakTts();
+      });
+    } catch {
+      speakTts();
+    }
   }
 
   async function handleSave() {
@@ -237,13 +268,48 @@ export function WordPopup({
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={speak}
-            className="text-muted-foreground hover:text-foreground p-0.5 rounded"
-            title="发音"
-          >
-            <Volume2 className="h-3.5 w-3.5" />
-          </button>
+          {!isPhrase && !loading && (
+            <>
+              {audioUs && audioUk ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => playPronunciationMp3(audioUs)}
+                    className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium leading-none"
+                    title="美音"
+                  >
+                    美
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => playPronunciationMp3(audioUk)}
+                    className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium leading-none"
+                    title="英音"
+                  >
+                    英
+                  </button>
+                </>
+              ) : audioUs || audioUk ? (
+                <button
+                  type="button"
+                  onClick={() => playPronunciationMp3(audioUs || audioUk)}
+                  className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+                  title={audioUs ? "美音" : "英音"}
+                >
+                  <Volume2 className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={speakTts}
+                  className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+                  title="发音（语音合成）"
+                >
+                  <Volume2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </>
+          )}
           <button
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground p-0.5 rounded"
