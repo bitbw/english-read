@@ -7,6 +7,10 @@ import { Upload, FileText, X, Loader2, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { postCoverUpload } from "@/lib/post-cover-upload";
+import {
+  extractCoverFileFromEpubBook,
+  type EpubBookForCover,
+} from "@/lib/extract-epub-cover";
 import { CLIENT_FETCH_NETWORK_ERROR, clientFetch } from "@/lib/client-fetch";
 
 export function EpubUpload() {
@@ -63,7 +67,7 @@ export function EpubUpload() {
         }
       }
 
-      // Step 2: 尝试从 EPUB 读取元数据
+      // Step 2: 从 EPUB 读元数据；未选手动封面时尝试解析内置封面
       let title = file.name.replace(/\.epub$/i, "");
       let author = "";
       try {
@@ -73,6 +77,19 @@ export function EpubUpload() {
         const meta = await book.loaded.metadata;
         title = (meta as { title?: string }).title || title;
         author = (meta as { creator?: string }).creator || "";
+
+        if (!coverUrl) {
+          try {
+            const extracted = await extractCoverFileFromEpubBook(book as EpubBookForCover);
+            if (extracted) {
+              const cover = await postCoverUpload(extracted);
+              coverUrl = cover.url;
+            }
+          } catch {
+            /* 无可用封面或上传失败则略过 */
+          }
+        }
+
         book.destroy();
       } catch {
         // 元数据读取失败时使用文件名
@@ -165,7 +182,9 @@ export function EpubUpload() {
             <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
               <p className="font-medium">封面（可选）</p>
-              <p className="text-xs text-muted-foreground">JPG / PNG / WebP，最大 5MB</p>
+              <p className="text-xs text-muted-foreground">
+                JPG / PNG / WebP，最大 5MB；不选时将尝试从 EPUB 内嵌封面提取
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
