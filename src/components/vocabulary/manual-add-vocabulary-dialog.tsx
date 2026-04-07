@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, Volume2 } from "lucide-react";
 import { toast } from "sonner";
-import { clientFetch } from "@/lib/client-fetch";
+import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
+import { VOCAB_DAILY_LIMIT_CODE } from "@/lib/vocabulary-daily-limit";
+import { VocabularyDailyLimitDialog } from "@/components/vocabulary/vocabulary-daily-limit-dialog";
 import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
 
 interface Definition {
@@ -50,6 +52,7 @@ export function ManualAddVocabularyDialog({
   const [translation, setTranslation] = useState("");
   const [audioUk, setAudioUk] = useState("");
   const [audioUs, setAudioUs] = useState("");
+  const [dailyLimitOpen, setDailyLimitOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -184,10 +187,27 @@ export function ManualAddVocabularyDialog({
           ...(definitionStr ? { definition: definitionStr } : {}),
           ...(phonetic.trim() ? { phonetic: phonetic.trim() } : {}),
         }),
+        showErrorToast: false,
       });
-      const data = (await res.json()) as VocabWord & { alreadyExists?: boolean };
+      const data = (await res.json().catch(() => ({}))) as VocabWord & {
+        alreadyExists?: boolean;
+        error?: unknown;
+        code?: string;
+      };
+
+      if (res.status === 429 && data.code === VOCAB_DAILY_LIMIT_CODE) {
+        setDailyLimitOpen(true);
+        return;
+      }
+
       if (!res.ok) {
-        toast.error("添加失败，请稍后再试");
+        const msg =
+          typeof data.error === "string"
+            ? data.error
+            : data.error
+              ? "请求被拒绝，请刷新页面或重新登录后再试"
+              : `请求失败（HTTP ${res.status}）`;
+        toast.error(msg);
         return;
       }
       if (data.alreadyExists) {
@@ -205,12 +225,15 @@ export function ManualAddVocabularyDialog({
       setAudioUs("");
       onOpenChange(false);
       await onAdded();
+    } catch {
+      toast.error(CLIENT_FETCH_NETWORK_ERROR);
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[min(85vh,calc(100dvh-2rem))] overflow-y-auto" showCloseButton>
         <form onSubmit={handleSubmit}>
@@ -352,5 +375,7 @@ export function ManualAddVocabularyDialog({
         </form>
       </DialogContent>
     </Dialog>
+    <VocabularyDailyLimitDialog open={dailyLimitOpen} onOpenChange={setDailyLimitOpen} />
+    </>
   );
 }

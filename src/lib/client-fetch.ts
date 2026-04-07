@@ -6,7 +6,7 @@ const fetchErrorToastOptions = { position: "top-right" as const };
 
 export const CLIENT_FETCH_NETWORK_ERROR = "网络异常，请检查连接后重试";
 
-async function messageFromErrorResponse(res: Response): Promise<string> {
+export async function fetchErrorMessageFromResponse(res: Response): Promise<string> {
   const fallback = `请求失败（HTTP ${res.status}）`;
   try {
     const err = (await res.clone().json()) as { error?: unknown };
@@ -35,7 +35,7 @@ export async function clientFetch(
   try {
     const res = await fetch(input, fetchInit);
     if (!res.ok && showErrorToast) {
-      toast.error(await messageFromErrorResponse(res), fetchErrorToastOptions);
+      toast.error(await fetchErrorMessageFromResponse(res), fetchErrorToastOptions);
     }
     return res;
   } catch {
