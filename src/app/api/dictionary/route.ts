@@ -84,6 +84,27 @@ export async function GET(req: Request) {
   }
 
   if (!translation) {
+    /*
+    try {
+      const res = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(trimmed)}&langpair=en|zh`,
+        // 86400s = 24h，与 Next 数据缓存策略一致
+        { next: { revalidate: 86400 } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const t = data.responseData?.translatedText ?? "";
+        // 免费额度用尽或异常时，MyMemory 常在 translatedText 里返回提示英文
+        //（如 PLEASE SELECT、MYMEMORY 字样）；过滤掉，避免当「译文」展示。
+        if (t && !t.startsWith("PLEASE SELECT") && !t.includes("MYMEMORY")) {
+          translation = t;
+        }
+      }
+    } catch {
+      // 翻译失败不影响返回英英部分，静默即可
+    }
+    */
+
     const google = await fetchGoogleTranslateEnToZh(trimmed);
     if (google) translation = google;
   }
