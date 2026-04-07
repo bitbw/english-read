@@ -114,7 +114,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         code: VOCAB_DAILY_LIMIT_CODE,
-        error: `今日已添加 ${VOCABULARY_DAILY_ADD_LIMIT} 个生词，请明天再继续`,
+        message: `今日已添加 ${VOCABULARY_DAILY_ADD_LIMIT} 个生词，请明天再继续`,
       },
       { status: 429 }
     );

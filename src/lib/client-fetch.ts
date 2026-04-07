@@ -6,16 +6,39 @@ const fetchErrorToastOptions = { position: "top-right" as const };
 
 export const CLIENT_FETCH_NETWORK_ERROR = "网络异常，请检查连接后重试";
 
-export async function fetchErrorMessageFromResponse(res: Response): Promise<string> {
-  const fallback = `请求失败（HTTP ${res.status}）`;
+type ApiErrorBody = {
+  message?: unknown;
+  error?: unknown;
+};
+
+async function parseApiErrorBody(res: Response): Promise<ApiErrorBody | null> {
   try {
-    const err = (await res.clone().json()) as { error?: unknown };
-    if (typeof err.error === "string") return err.error;
-    if (err.error) return "请求被拒绝，请刷新页面或重新登录后再试";
+    return (await res.clone().json()) as ApiErrorBody;
   } catch {
-    /* 非 JSON 响应 */
+    return null;
   }
+}
+
+/**
+ * 从 API JSON 体提取可读错误文案。
+ * 优先级：`message` → `error`（字符串原样；对象等非字符串则用固定提示）→ `HTTP status` 兜底。
+ */
+export function errorMessageFromApiBody(body: ApiErrorBody | null, status: number): string {
+  const fallback = `请求失败（HTTP ${status}）`;
+  if (!body) return fallback;
+  if (typeof body.message === "string" && body.message.trim() !== "") {
+    return body.message.trim();
+  }
+  // 常见：{ error: "Unauthorized" }
+  if (typeof body.error === "string") return body.error;
+  // 常见：Zod safeParse 失败时的 { error: flatten 对象 }，不宜整段展示给用户
+  if (body.error) return "请求被拒绝，请刷新页面或重新登录后再试";
   return fallback;
+}
+
+async function toastForFailedResponse(res: Response): Promise<void> {
+  const body = await parseApiErrorBody(res);
+  toast.error(errorMessageFromApiBody(body, res.status), fetchErrorToastOptions);
 }
 
 export type ClientFetchInit = RequestInit & {
@@ -24,7 +47,8 @@ export type ClientFetchInit = RequestInit & {
 };
 
 /**
- * 浏览器端统一 fetch：网络失败或非 2xx 时默认 Sonner toast（Next 无内置全局劫持）
+ * 浏览器端统一 fetch：网络失败或非 2xx 时默认 Sonner toast（Next 无内置全局劫持）。
+ * 错误文案优先使用响应 JSON 的 `message`，否则使用字符串 `error`。
  */
 export async function clientFetch(
   input: RequestInfo | URL,
@@ -35,7 +59,7 @@ export async function clientFetch(
   try {
     const res = await fetch(input, fetchInit);
     if (!res.ok && showErrorToast) {
-      toast.error(await fetchErrorMessageFromResponse(res), fetchErrorToastOptions);
+      await toastForFailedResponse(res);
     }
     return res;
   } catch {

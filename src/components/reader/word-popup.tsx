@@ -5,13 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, BookmarkPlus, BookmarkCheck, BookmarkMinus, X, Volume2 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  clientFetch,
-  CLIENT_FETCH_NETWORK_ERROR,
-  fetchErrorMessageFromResponse,
-} from "@/lib/client-fetch";
-import { VOCAB_DAILY_LIMIT_CODE } from "@/lib/vocabulary-daily-limit";
-import { toastVocabDailyLimit } from "@/lib/toast-vocab-daily-limit";
+import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
 import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
 import { linkifyToReactNodes } from "@/components/linkified-text";
 
@@ -279,39 +273,26 @@ export function WordPopup({
           definition: definitionStr,
           phonetic,
         }),
-        showErrorToast: false,
       });
 
-      if (res.status === 429) {
-        const errBody = (await res.clone().json().catch(() => ({}))) as {
-          code?: string;
-          error?: string;
-        };
-        if (errBody.code === VOCAB_DAILY_LIMIT_CODE) {
-          toastVocabDailyLimit(
-            typeof errBody.error === "string" ? errBody.error : undefined,
-          );
-          return;
-        }
+      const data = (await res.json().catch(() => ({}))) as {
+        id?: string;
+        alreadyExists?: boolean;
+      };
+
+      if (!res.ok) {
+        return;
       }
 
-      if (res.ok) {
-        const data = (await res.json().catch(() => ({}))) as {
-          id?: string;
-          alreadyExists?: boolean;
-        };
-        if (data.alreadyExists && data.id) {
-          setExistingEntryId(data.id);
-          toast.message(`「${word}」已在生词本`);
-          return;
-        }
-        if (data.id) setExistingEntryId(data.id);
-        setSaved(true);
-        toast.success(`"${word}" 已加入生词本`);
-        onSaved();
-      } else {
-        toast.error(await fetchErrorMessageFromResponse(res));
+      if (data.alreadyExists && data.id) {
+        setExistingEntryId(data.id);
+        toast.message(`「${word}」已在生词本`);
+        return;
       }
+      if (data.id) setExistingEntryId(data.id);
+      setSaved(true);
+      toast.success(`"${word}" 已加入生词本`);
+      onSaved();
     } catch {
       toast.error(CLIENT_FETCH_NETWORK_ERROR);
     } finally {
@@ -325,13 +306,10 @@ export function WordPopup({
     try {
       const res = await clientFetch(`/api/vocabulary/${existingEntryId}`, {
         method: "DELETE",
-        showErrorToast: false,
       });
       if (res.ok) {
         setExistingEntryId(null);
         toast.success(`已从生词本移除「${word}」`);
-      } else {
-        toast.error(await fetchErrorMessageFromResponse(res));
       }
     } catch {
       toast.error(CLIENT_FETCH_NETWORK_ERROR);
