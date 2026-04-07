@@ -40,6 +40,41 @@ function cfiKey(bookId: string) {
   return `reader-cfi-${bookId}`;
 }
 
+const CONTEXT_SENTENCE_MAX = 320;
+
+/**
+ * 生词「原文引用」：取包含选中词的一句（按 .!? 切分），压缩空白；避免整段过长。
+ */
+function excerptSentenceForVocabulary(paragraph: string, selected: string): string {
+  const flat = paragraph.replace(/\s+/g, " ").trim();
+  const sel = selected.trim();
+  if (!flat) return sel;
+  if (!sel) return flat.slice(0, CONTEXT_SENTENCE_MAX);
+
+  const lowerSel = sel.toLowerCase();
+  const sentences = flat
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const hit =
+    sentences.find((s) => s.toLowerCase().includes(lowerSel)) ??
+    sentences.find((s) => {
+      const w = sel.split(/\s+/).find(Boolean);
+      return w ? s.toLowerCase().includes(w.toLowerCase()) : false;
+    });
+
+  let out = (hit ?? sentences[0] ?? flat).trim();
+  const firstTok = sel.split(/\s+/).find(Boolean)?.toLowerCase() ?? lowerSel;
+  if (firstTok && !out.toLowerCase().includes(firstTok)) {
+    out = sel;
+  }
+  if (out.length > CONTEXT_SENTENCE_MAX) {
+    out = `${out.slice(0, CONTEXT_SENTENCE_MAX)}…`;
+  }
+  return out;
+}
+
 export function EpubReader({
   bookId,
   blobUrl,
@@ -277,8 +312,12 @@ export function EpubReader({
           lp.skipNextPopup = false;
           return;
         }
-        const context = sel.anchorNode?.parentElement?.closest("p")?.textContent ?? "";
-        setSelection({ word: text, context: context.slice(0, 300), cfi: cfiRange, anchorRect });
+        const raw =
+          sel.anchorNode?.parentElement?.closest("p")?.textContent?.trim() ??
+          sel.anchorNode?.parentElement?.textContent?.trim() ??
+          "";
+        const context = excerptSentenceForVocabulary(raw, text);
+        setSelection({ word: text, context, cfi: cfiRange, anchorRect });
       });
 
       rendition.on("click", () => {
