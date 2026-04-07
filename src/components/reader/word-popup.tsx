@@ -3,9 +3,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, BookmarkPlus, BookmarkCheck, X, Volume2 } from "lucide-react";
+import { Loader2, BookmarkPlus, BookmarkCheck, BookmarkMinus, X, Volume2 } from "lucide-react";
 import { toast } from "sonner";
-import { clientFetch } from "@/lib/client-fetch";
+import {
+  clientFetch,
+  CLIENT_FETCH_NETWORK_ERROR,
+  fetchErrorMessageFromResponse,
+} from "@/lib/client-fetch";
+import { VOCAB_DAILY_LIMIT_CODE } from "@/lib/vocabulary-daily-limit";
+import { VocabularyDailyLimitDialog } from "@/components/vocabulary/vocabulary-daily-limit-dialog";
 import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
 import { linkifyToReactNodes } from "@/components/linkified-text";
 
@@ -122,6 +128,10 @@ export function WordPopup({
   const [saved, setSaved] = useState(false);
   const [audioUk, setAudioUk] = useState("");
   const [audioUs, setAudioUs] = useState("");
+  const [dailyLimitOpen, setDailyLimitOpen] = useState(false);
+  const [existingEntryId, setExistingEntryId] = useState<string | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(true);
+  const [removing, setRemoving] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   /** 与 /api/dictionary 一致：多词/整句不展示发音（无词典音频，也不 TTS 念整段） */
@@ -131,6 +141,38 @@ export function WordPopup({
     audioRef.current?.pause();
     return () => {
       audioRef.current?.pause();
+    };
+  }, [word]);
+
+  // 是否已在生词本（与 POST 的 normalizedWord 规则一致）
+  useEffect(() => {
+    let cancelled = false;
+    const key = word.trim().toLowerCase();
+    async function fetchLookup() {
+      setLookupLoading(true);
+      setExistingEntryId(null);
+      if (!key) {
+        if (!cancelled) setLookupLoading(false);
+        return;
+      }
+      try {
+        const res = await clientFetch(
+          `/api/vocabulary?lookup=${encodeURIComponent(key)}`,
+          { showErrorToast: false },
+        );
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { entry?: { id: string } | null };
+        if (cancelled) return;
+        setExistingEntryId(data.entry?.id ?? null);
+      } catch {
+        if (!cancelled) setExistingEntryId(null);
+      } finally {
+        if (!cancelled) setLookupLoading(false);
+      }
+    }
+    void fetchLookup();
+    return () => {
+      cancelled = true;
     };
   }, [word]);
 
@@ -181,7 +223,19 @@ export function WordPopup({
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [anchorRect, word, loading, definitions.length, translation, saved, audioUk, audioUs]);
+  }, [
+    anchorRect,
+    word,
+    loading,
+    definitions.length,
+    translation,
+    saved,
+    audioUk,
+    audioUs,
+    existingEntryId,
+    lookupLoading,
+    removing,
+  ]);
 
   function speakTts() {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -206,7 +260,11 @@ export function WordPopup({
     }
   }
 
+  const hasSavableDefinition =
+    definitions.length > 0 || translation.trim().length > 0;
+
   async function handleSave() {
+    if (!hasSavableDefinition || loading) return;
     setSaving(true);
     try {
       const definitionStr = serializeVocabularyDefinition(definitions, translation);
@@ -222,21 +280,64 @@ export function WordPopup({
           definition: definitionStr,
           phonetic,
         }),
+        showErrorToast: false,
       });
 
+      if (res.status === 429) {
+        const errBody = (await res.clone().json().catch(() => ({}))) as { code?: string };
+        if (errBody.code === VOCAB_DAILY_LIMIT_CODE) {
+          setDailyLimitOpen(true);
+          return;
+        }
+      }
+
       if (res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          id?: string;
+          alreadyExists?: boolean;
+        };
+        if (data.alreadyExists && data.id) {
+          setExistingEntryId(data.id);
+          toast.message(`「${word}」已在生词本`);
+          return;
+        }
+        if (data.id) setExistingEntryId(data.id);
         setSaved(true);
         toast.success(`"${word}" 已加入生词本`);
         onSaved();
+      } else {
+        toast.error(await fetchErrorMessageFromResponse(res));
       }
     } catch {
-      // silent
+      toast.error(CLIENT_FETCH_NETWORK_ERROR);
     } finally {
       setSaving(false);
     }
   }
 
+  async function handleRemove() {
+    if (!existingEntryId) return;
+    setRemoving(true);
+    try {
+      const res = await clientFetch(`/api/vocabulary/${existingEntryId}`, {
+        method: "DELETE",
+        showErrorToast: false,
+      });
+      if (res.ok) {
+        setExistingEntryId(null);
+        toast.success(`已从生词本移除「${word}」`);
+      } else {
+        toast.error(await fetchErrorMessageFromResponse(res));
+      }
+    } catch {
+      toast.error(CLIENT_FETCH_NETWORK_ERROR);
+    } finally {
+      setRemoving(false);
+    }
+  }
+
   return (
+    <>
     <div
       ref={rootRef}
       className="fixed z-[100] flex min-h-0 w-[min(18rem,calc(100vw-1rem))] flex-col gap-2 overflow-hidden rounded-xl border border-border bg-popover p-3 text-sm shadow-xl h-[22vh] md:h-auto md:max-h-[65vh]"
@@ -356,23 +457,55 @@ export function WordPopup({
         )}
       </div>
 
-      {/* 加入生词本 */}
-      <Button
-        size="sm"
-        className="h-7 w-full shrink-0 text-xs"
-        onClick={handleSave}
-        disabled={saving || saved}
-        variant={saved ? "secondary" : "default"}
-      >
-        {saving ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-        ) : saved ? (
-          <BookmarkCheck className="h-3.5 w-3.5 mr-1" />
-        ) : (
-          <BookmarkPlus className="h-3.5 w-3.5 mr-1" />
-        )}
-        {saved ? "已加入生词本" : "加入生词本"}
-      </Button>
+      {/* 生词本：已收录可移除；未收录须等释义加载完成且有可保存内容 */}
+      {existingEntryId ? (
+        <Button
+          size="sm"
+          className="h-7 w-full shrink-0 text-xs"
+          onClick={handleRemove}
+          disabled={removing}
+          variant="outline"
+        >
+          {removing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+          ) : (
+            <BookmarkMinus className="h-3.5 w-3.5 mr-1" />
+          )}
+          移除生词本
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          className="h-7 w-full shrink-0 text-xs"
+          onClick={handleSave}
+          disabled={
+            saving ||
+            saved ||
+            loading ||
+            lookupLoading ||
+            !hasSavableDefinition
+          }
+          variant={saved ? "secondary" : "default"}
+          title={
+            loading
+              ? "请等待释义加载完成"
+              : !hasSavableDefinition && !loading
+                ? "暂无词典释义或翻译，无法保存"
+                : undefined
+          }
+        >
+          {saving ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+          ) : saved ? (
+            <BookmarkCheck className="h-3.5 w-3.5 mr-1" />
+          ) : (
+            <BookmarkPlus className="h-3.5 w-3.5 mr-1" />
+          )}
+          {saved ? "已加入生词本" : "加入生词本"}
+        </Button>
+      )}
     </div>
+    <VocabularyDailyLimitDialog open={dailyLimitOpen} onOpenChange={setDailyLimitOpen} />
+    </>
   );
 }
