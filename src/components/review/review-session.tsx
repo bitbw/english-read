@@ -47,26 +47,33 @@ interface ReviewSessionProps {
 
 type Step = "meaning" | "spelling";
 
-/** 拼字托盘：用稳定 id 保持「撤销 / 清空」后选项顺序与首次洗牌一致 */
+/** 拼字托盘：rankById 固定格子顺序；已选 id 记入 usedIds，格子上仍显示但禁用 */
 type SpellingTrayState = {
   labels: string[];
   rankById: number[];
-  availableIds: number[];
   usedIds: number[];
 };
 
 function initSpellingTray(labels: string[]): SpellingTrayState {
   const n = labels.length;
   if (n === 0) {
-    return { labels: [], rankById: [], availableIds: [], usedIds: [] };
+    return { labels: [], rankById: [], usedIds: [] };
   }
   const ids = Array.from({ length: n }, (_, i) => i);
-  const shuffled = shuffle(ids);
+  const multi: number[] = [];
+  const single: number[] = [];
+  for (const id of ids) {
+    const len = (labels[id] ?? "").length;
+    if (len > 1) multi.push(id);
+    else single.push(id);
+  }
+  /** 分块/单词在上，单字母在下；组内仍随机，避免固定位置背答案 */
+  const ordered = [...shuffle(multi), ...shuffle(single)];
   const rankById = new Array<number>(n);
-  shuffled.forEach((id, idx) => {
+  ordered.forEach((id, idx) => {
     rankById[id] = idx;
   });
-  return { labels, rankById, availableIds: shuffled, usedIds: [] };
+  return { labels, rankById, usedIds: [] };
 }
 
 function splitContextWithHighlight(
@@ -307,39 +314,22 @@ export function ReviewSession({
     setStep("spelling");
   };
 
-  const takeChip = (index: number) => {
+  const takeChip = (id: number) => {
     setSpelling((s) => {
-      const id = s.availableIds[index];
-      if (id === undefined) return s;
-      return {
-        ...s,
-        availableIds: s.availableIds.filter((_, j) => j !== index),
-        usedIds: [...s.usedIds, id],
-      };
+      if (s.usedIds.includes(id)) return s;
+      return { ...s, usedIds: [...s.usedIds, id] };
     });
   };
 
   const undoChip = () => {
     setSpelling((s) => {
       if (s.usedIds.length === 0) return s;
-      const id = s.usedIds[s.usedIds.length - 1]!;
-      const r = s.rankById[id] ?? 0;
-      const insertAt = s.availableIds.findIndex((oid) => (s.rankById[oid] ?? 0) > r);
-      const newAvail =
-        insertAt === -1
-          ? [...s.availableIds, id]
-          : [...s.availableIds.slice(0, insertAt), id, ...s.availableIds.slice(insertAt)];
-      return { ...s, usedIds: s.usedIds.slice(0, -1), availableIds: newAvail };
+      return { ...s, usedIds: s.usedIds.slice(0, -1) };
     });
   };
 
   const clearSpelling = () => {
-    setSpelling((s) => {
-      const all = [...s.availableIds, ...s.usedIds].sort(
-        (a, b) => (s.rankById[a] ?? 0) - (s.rankById[b] ?? 0)
-      );
-      return { ...s, availableIds: all, usedIds: [] };
-    });
+    setSpelling((s) => ({ ...s, usedIds: [] }));
   };
 
   const onSpellingWrong = useCallback(() => {
@@ -440,6 +430,14 @@ export function ReviewSession({
             return `${spellKeyNorm.slice(0, k)}${"·".repeat(spellKeyNorm.length - k)}`;
           })()
         : null;
+
+  const spellingSlotOrder =
+    spelling.labels.length === 0
+      ? []
+      : Array.from({ length: spelling.labels.length }, (_, i) => i).sort(
+          (a, b) => (spelling.rankById[a] ?? 0) - (spelling.rankById[b] ?? 0)
+        );
+  const spellingUsedSet = new Set(spelling.usedIds);
 
   return (
     <div className="flex flex-col items-center gap-6 max-w-lg mx-auto w-full py-6">
@@ -623,18 +621,26 @@ export function ReviewSession({
 
           <p className="text-sm font-medium text-center">
             {phraseSpelling
-              ? "根据中文义点选字母拼出该词组（按连续字母、不含空格）"
-              : "根据中文义点选字母拼出该词"}
+              ? "根据中文义点选单词块，按顺序拼出该词组"
+              : "根据中文义点选字母或 2～3 字母小块、对半大块组合拼出该词"}
           </p>
           <div
             className="min-h-14 rounded-lg border border-dashed border-muted-foreground/40 px-3 py-3 flex flex-wrap gap-2 items-center justify-center bg-muted/30"
             aria-live="polite"
           >
             {spelling.usedIds.length === 0 ? (
-              <span className="text-sm text-muted-foreground">点击下方字母按顺序组合</span>
+              <span className="text-sm text-muted-foreground">
+                {phraseSpelling ? "点击下方单词块按顺序组合" : "点击下方字母或字块按顺序组合"}
+              </span>
             ) : (
               spelling.usedIds.map((id, i) => (
-                <span key={`${id}-slot-${i}`} className="text-xl font-mono font-semibold">
+                <span
+                  key={`${id}-slot-${i}`}
+                  className={cn(
+                    "font-semibold",
+                    phraseSpelling ? "text-lg tracking-tight" : "text-xl font-mono"
+                  )}
+                >
                   {spelling.labels[id]}
                 </span>
               ))
@@ -642,18 +648,25 @@ export function ReviewSession({
           </div>
 
           <div className="flex flex-wrap gap-2 justify-center">
-            {spelling.availableIds.map((id, i) => (
-              <Button
-                key={id}
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="font-mono text-base min-w-9 px-3"
-                onClick={() => takeChip(i)}
-              >
-                {spelling.labels[id]}
-              </Button>
-            ))}
+            {spellingSlotOrder.map((id) => {
+              const picked = spellingUsedSet.has(id);
+              return (
+                <Button
+                  key={id}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={picked}
+                  className={cn(
+                    phraseSpelling ? "text-base px-3" : "font-mono text-base min-w-9 px-3",
+                    picked && "opacity-45 cursor-not-allowed"
+                  )}
+                  onClick={() => takeChip(id)}
+                >
+                  {spelling.labels[id]}
+                </Button>
+              );
+            })}
           </div>
 
           <div className="flex gap-2">
@@ -679,7 +692,7 @@ export function ReviewSession({
       )}
 
       <p className="text-xs text-muted-foreground text-center px-2">
-        释义干扰项优先来自与当前词相关的英文联想词（Datamuse），不足时辅以词库中近形词；拼写环节按归一化后的字母逐字出题（重复字母多块），并混入近形词拆出的字母串作干扰。
+        释义干扰项优先来自与当前词相关的英文联想词（Datamuse），不足时辅以词库中近形词；拼写环节单词含逐字母、词内 2～3 字母子串与对半大块并混干扰，词组仅按空格拆词并混干扰词。
       </p>
     </div>
   );
