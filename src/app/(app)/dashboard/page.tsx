@@ -70,41 +70,65 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
-              <GraduationCap className="h-4 w-4" />今日待复习
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-primary">{dueCount}</p>
-            <p className="text-xs text-muted-foreground mt-1">个单词</p>
-          </CardContent>
-        </Card>
+        <Link
+          href="/vocabulary/review"
+          aria-label={`今日待复习，共 ${dueCount} 个单词，前往复习`}
+          className={cn(
+            "block rounded-xl outline-offset-2 transition-[box-shadow,background-color] hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
+          )}
+        >
+          <Card className="h-full transition-colors hover:bg-muted/40">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                <GraduationCap className="h-4 w-4" />今日待复习
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold text-primary">{dueCount}</p>
+              <p className="text-xs text-muted-foreground mt-1">个单词</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
-              <BookMarked className="h-4 w-4" />生词本总计
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{totalVocab}</p>
-            <p className="text-xs text-muted-foreground mt-1">已掌握 {masteredCount} 个</p>
-          </CardContent>
-        </Card>
+        <Link
+          href="/vocabulary"
+          aria-label={`生词本总计 ${totalVocab} 条，前往生词本`}
+          className={cn(
+            "block rounded-xl outline-offset-2 transition-[box-shadow,background-color] hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
+          )}
+        >
+          <Card className="h-full transition-colors hover:bg-muted/40">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                <BookMarked className="h-4 w-4" />生词本总计
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">{totalVocab}</p>
+              <p className="text-xs text-muted-foreground mt-1">已掌握 {masteredCount} 个</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
-              <Library className="h-4 w-4" />书架
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{recentBooks.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">本书</p>
-          </CardContent>
-        </Card>
+        <Link
+          href="/library"
+          aria-label="前往书架"
+          className={cn(
+            "block rounded-xl outline-offset-2 transition-[box-shadow,background-color] hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
+          )}
+        >
+          <Card className="h-full transition-colors hover:bg-muted/40">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                <Library className="h-4 w-4" />书架
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">{recentBooks.length}</p>
+              <p className="text-xs text-muted-foreground mt-1">本书</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <Card>
