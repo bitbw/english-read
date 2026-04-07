@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, Volume2 } from "lucide-react";
 import { toast } from "sonner";
-import { clientFetch } from "@/lib/client-fetch";
+import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
 import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
 
 interface Definition {
@@ -185,9 +185,11 @@ export function ManualAddVocabularyDialog({
           ...(phonetic.trim() ? { phonetic: phonetic.trim() } : {}),
         }),
       });
-      const data = (await res.json()) as VocabWord & { alreadyExists?: boolean };
+      const data = (await res.json().catch(() => ({}))) as VocabWord & {
+        alreadyExists?: boolean;
+      };
+
       if (!res.ok) {
-        toast.error("添加失败，请稍后再试");
         return;
       }
       if (data.alreadyExists) {
@@ -205,6 +207,8 @@ export function ManualAddVocabularyDialog({
       setAudioUs("");
       onOpenChange(false);
       await onAdded();
+    } catch {
+      toast.error(CLIENT_FETCH_NETWORK_ERROR);
     } finally {
       setSubmitting(false);
     }

@@ -171,11 +171,12 @@ export function splitPhraseTokens(s: string): string[] {
     .filter(Boolean);
 }
 
-/** 复习拼写：是否按「单词块」出题（含两个及以上词） */
+/** 复习拼写：是否按「多个单词」出题（含两个及以上 token） */
 export function isPhraseSpellingTarget(targetWord: string): boolean {
   return splitPhraseTokens(targetWord).length >= 2;
 }
 
+/** 单词：按长度拆成两段（归一化小写），如 sudden→sud+den、frosts→fro+sts */
 function defaultWordChunks(word: string): string[] {
   const w = normalizeWordKey(word);
   if (!w) return [];
@@ -185,7 +186,51 @@ function defaultWordChunks(word: string): string[] {
   return [w.slice(0, mid), w.slice(mid)];
 }
 
-/** 短语拼写干扰：从近形词/词组里拆出的英文单词 + 少量功能词，避免只有字母块 */
+/** 词内所有连续 2、3 字母子串（去重，归一化小写） */
+function uniqueLen23Substrings(key: string): string[] {
+  const set = new Set<string>();
+  for (const len of [2, 3] as const) {
+    for (let i = 0; i + len <= key.length; i++) {
+      set.add(key.slice(i, i + len));
+    }
+  }
+  return Array.from(set);
+}
+
+/** 单个单词：每位字母各一块 + 词内 2～3 字母子串 + 对半大块 + 干扰 */
+function buildSingleWordSpellingChunks(targetWord: string, similarEnglish: string[]): string[] {
+  const key = normalizeWordKey(targetWord);
+  if (!key) return [];
+
+  const letterChunks = key.split("");
+  const multiSet = new Set<string>(uniqueLen23Substrings(key));
+  for (const part of defaultWordChunks(targetWord)) {
+    if (part.length >= 2) multiSet.add(part);
+  }
+  const multiChunks = Array.from(multiSet);
+
+  const correctSide = [...letterChunks, ...multiChunks];
+  const correctLabelSet = new Set(correctSide);
+
+  const simKeys = similarEnglish.map(normalizeWordKey).filter(Boolean);
+  const decoysRaw = collectDecoyChunksFromWords(simKeys);
+  const singles = key.length >= 4 ? extraLetterDecoys(key, [key, ...simKeys], 6) : [];
+
+  const decoyMerged = [...shuffle(decoysRaw).slice(0, 10), ...shuffle(singles)];
+  const decoySeen = new Set<string>();
+  const decoyOut: string[] = [];
+  for (const p of decoyMerged) {
+    if (!p) continue;
+    if (correctLabelSet.has(p)) continue;
+    if (decoySeen.has(p)) continue;
+    decoySeen.add(p);
+    decoyOut.push(p);
+  }
+
+  return shuffle([...correctSide, ...decoyOut]);
+}
+
+/** 短语拼写干扰：近形词/词组拆词 + 少量功能词 */
 const PHRASE_FALLBACK_DECOY_WORDS = [
   "the",
   "a",
@@ -243,7 +288,6 @@ function buildPhraseSpellingChunks(targetWord: string, similarEnglish: string[])
   const wantExtra = Math.max(3, correct.length + 2);
   const decoys = shuffle(decoyPool).slice(0, Math.min(decoyPool.length, wantExtra));
 
-  // 正确项保留重复词（如 had had）；不与 decoys 做按 normalize 的全局去重
   return shuffle([...correct, ...decoys]);
 }
 
@@ -284,28 +328,15 @@ function extraLetterDecoys(targetKey: string, similarKeys: string[], maxSingles:
   return singles;
 }
 
-/** 拼字块：单词为字母块 + 干扰；词组为整词块 + 干扰词（便于点选） */
+/**
+ * 拼字块：单词 = 逐字母（重复字母多块）+ 词内 2～3 字母子串 + 对半大块 + 干扰；
+ * 词组 = 按空格分词 + 干扰词（见 buildPhraseSpellingChunks）。
+ */
 export function buildSpellingChunks(targetWord: string, similarEnglish: string[]): string[] {
   if (isPhraseSpellingTarget(targetWord)) {
     return buildPhraseSpellingChunks(targetWord, similarEnglish);
   }
-
-  const key = normalizeWordKey(targetWord);
-  const correct = defaultWordChunks(targetWord);
-  const simKeys = similarEnglish.map(normalizeWordKey).filter(Boolean);
-  const decoys = collectDecoyChunksFromWords(simKeys).filter((d) => d && !correct.includes(d));
-
-  const singles = key.length >= 4 ? extraLetterDecoys(key, [key, ...simKeys], 6) : [];
-
-  const merged = [...correct, ...shuffle(decoys).slice(0, 8), ...shuffle(singles)];
-  const uniq: string[] = [];
-  const used = new Set<string>();
-  for (const p of merged) {
-    if (!p || used.has(p)) continue;
-    used.add(p);
-    uniq.push(p);
-  }
-  return shuffle(uniq);
+  return buildSingleWordSpellingChunks(targetWord, similarEnglish);
 }
 
 /** 翻面后展示：对应英文词 */

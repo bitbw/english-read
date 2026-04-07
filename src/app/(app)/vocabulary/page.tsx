@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { WordCard } from "@/components/vocabulary/word-card";
+import { VocabularyWordTable } from "@/components/vocabulary/vocabulary-word-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, Search, Calendar, Plus } from "lucide-react";
+import { GraduationCap, LayoutGrid, Plus, Search, Table2, Calendar } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,10 @@ interface VocabWord {
   createdAt: string;
 }
 
+const VOCAB_VIEW_STORAGE_KEY = "english-read-vocabulary-view";
+
+type VocabViewMode = "card" | "table";
+
 export default function VocabularyPage() {
   const [words, setWords] = useState<VocabWord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +41,24 @@ export default function VocabularyPage() {
   const [search, setSearch] = useState("");
   const [dueCount, setDueCount] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<VocabViewMode>("card");
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(VOCAB_VIEW_STORAGE_KEY);
+      if (raw === "card" || raw === "table") setViewMode(raw);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(VOCAB_VIEW_STORAGE_KEY, viewMode);
+    } catch {
+      /* ignore */
+    }
+  }, [viewMode]);
 
   async function fetchWords() {
     setLoading(true);
@@ -95,7 +118,12 @@ export default function VocabularyPage() {
   ];
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div
+      className={cn(
+        "mx-auto space-y-6",
+        viewMode === "table" ? "max-w-6xl" : "max-w-3xl"
+      )}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div className="min-w-0 shrink-0">
           <h1 className="text-2xl font-bold">生词本</h1>
@@ -146,20 +174,50 @@ export default function VocabularyPage() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex gap-1">
-          {filters.map((f) => (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-1">
+            {filters.map((f) => (
+              <Button
+                key={f.value}
+                variant={filter === f.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilter(f.value)}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </div>
+          <div
+            className="inline-flex rounded-lg border border-foreground/10 bg-muted/30 p-0.5"
+            role="group"
+            aria-label="展示形式"
+          >
             <Button
-              key={f.value}
-              variant={filter === f.value ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilter(f.value)}
+              type="button"
+              variant={viewMode === "card" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setViewMode("card")}
+              title="卡片"
+              aria-pressed={viewMode === "card"}
             >
-              {f.label}
+              <LayoutGrid className="h-4 w-4" />
             </Button>
-          ))}
+            <Button
+              type="button"
+              variant={viewMode === "table" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setViewMode("table")}
+              title="表格"
+              aria-pressed={viewMode === "table"}
+            >
+              <Table2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <div className="relative flex-1">
+        <div className="relative flex-1 sm:max-w-xs sm:min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="搜索单词..."
@@ -171,19 +229,32 @@ export default function VocabularyPage() {
       </div>
 
       {loading ? (
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)}
-        </div>
+        viewMode === "table" ? (
+          <div className="overflow-hidden rounded-xl border border-foreground/10">
+            <Skeleton className="h-9 w-full rounded-none" />
+            {[...Array(8)].map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full rounded-none border-t border-foreground/5" />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)}
+          </div>
+        )
       ) : words.length > 0 ? (
-        <div className="space-y-3">
-          {words.map((word) => (
-            <WordCard
-              key={word.id}
-              word={{ ...word, nextReviewAt: new Date(word.nextReviewAt), createdAt: new Date(word.createdAt) }}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
+        viewMode === "table" ? (
+          <VocabularyWordTable words={words} onDelete={handleDelete} />
+        ) : (
+          <div className="space-y-3">
+            {words.map((word) => (
+              <WordCard
+                key={word.id}
+                word={{ ...word, nextReviewAt: new Date(word.nextReviewAt), createdAt: new Date(word.createdAt) }}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        )
       ) : (
         <div className="text-center py-16 text-muted-foreground">
           <p className="text-lg">{search ? `没有找到"${search}"` : "生词本还没有单词"}</p>

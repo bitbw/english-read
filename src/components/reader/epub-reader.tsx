@@ -40,6 +40,41 @@ function cfiKey(bookId: string) {
   return `reader-cfi-${bookId}`;
 }
 
+const CONTEXT_SENTENCE_MAX = 320;
+
+/**
+ * 生词「原文引用」：取包含选中词的一句（按 .!? 切分），压缩空白；避免整段过长。
+ */
+function excerptSentenceForVocabulary(paragraph: string, selected: string): string {
+  const flat = paragraph.replace(/\s+/g, " ").trim();
+  const sel = selected.trim();
+  if (!flat) return sel;
+  if (!sel) return flat.slice(0, CONTEXT_SENTENCE_MAX);
+
+  const lowerSel = sel.toLowerCase();
+  const sentences = flat
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const hit =
+    sentences.find((s) => s.toLowerCase().includes(lowerSel)) ??
+    sentences.find((s) => {
+      const w = sel.split(/\s+/).find(Boolean);
+      return w ? s.toLowerCase().includes(w.toLowerCase()) : false;
+    });
+
+  let out = (hit ?? sentences[0] ?? flat).trim();
+  const firstTok = sel.split(/\s+/).find(Boolean)?.toLowerCase() ?? lowerSel;
+  if (firstTok && !out.toLowerCase().includes(firstTok)) {
+    out = sel;
+  }
+  if (out.length > CONTEXT_SENTENCE_MAX) {
+    out = `${out.slice(0, CONTEXT_SENTENCE_MAX)}…`;
+  }
+  return out;
+}
+
 export function EpubReader({
   bookId,
   blobUrl,
@@ -95,14 +130,17 @@ export function EpubReader({
       if (!viewerRef.current) return;
 
       const { width, height } = viewerRef.current.getBoundingClientRect();
+      const w = Math.floor(width) || 600;
+      const h = Math.floor(height) || 800;
+
       const ePub = (await import("epubjs")).default;
       const book = ePub(blobUrl);
       bookRef.current = book;
 
       const rendition = book.renderTo(viewerRef.current, {
-        width: Math.floor(width) || 600,
-        height: Math.floor(height) || 800,
-        flow: "paginated",
+        width: w,
+        height: h,
+        flow: "scrolled-doc",
         spread: "none",
       });
       renditionRef.current = rendition;
@@ -114,8 +152,7 @@ export function EpubReader({
       });
 
       // 在 display() 之前加载导航目录，后续 relocated 中直接同步使用
-      // ⚠️ ResizeObserver 必须在 display() 之后再启动，否则它会在首次展示前
-      //    触发 resize()，改变分页布局，导致 display(cfi) 定位到错误页面。
+      // ⚠️ ResizeObserver 必须在 display() 之后再启动，否则首次展示前 resize 会破坏定位。
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let navToc: any[] = [];
       try {
@@ -137,7 +174,7 @@ export function EpubReader({
         return "";
       }
 
-      /** 分页模式下用当前 spine 片段的页码 / 总页数，得到章节内 0–100% */
+      /** 分页模式下用页码/总页；滚动模式无分页信息时返回 null，上层回退全书进度 */
       function chapterPercentFromDisplayed(displayed: { page?: number; total?: number } | undefined): number | null {
         const total = displayed?.total;
         const page = displayed?.page;
@@ -173,7 +210,7 @@ export function EpubReader({
           return;
         }
 
-        // 用户翻页产生的 relocated：正常保存
+        // 用户翻页或滚动导致锚点变化：正常保存
         try {
           localStorage.setItem(cfiKey(bookId), cfi);
           console.log("[Reader] 记录位置 → localStorage:", cfi);
@@ -275,14 +312,27 @@ export function EpubReader({
           lp.skipNextPopup = false;
           return;
         }
-        const context = sel.anchorNode?.parentElement?.closest("p")?.textContent ?? "";
-        setSelection({ word: text, context: context.slice(0, 300), cfi: cfiRange, anchorRect });
+        const raw =
+          sel.anchorNode?.parentElement?.closest("p")?.textContent?.trim() ??
+          sel.anchorNode?.parentElement?.textContent?.trim() ??
+          "";
+        const context = excerptSentenceForVocabulary(raw, text);
+        setSelection({ word: text, context, cfi: cfiRange, anchorRect });
       });
 
       rendition.on("click", () => {
         if (!mounted) return;
         if (Date.now() - lastSelectedAt < 300) return;
         setSelection(null);
+      });
+
+      // 滚动模式：在内容注入前注册，首节也会生效（减轻 Chromium scroll anchoring 回弹）
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      rendition.hooks.content.register((contents: any) => {
+        const doc = contents?.document as Document | undefined;
+        if (!doc) return;
+        doc.documentElement.style.setProperty("overflow-anchor", "none", "important");
+        doc.body.style.setProperty("overflow-anchor", "none", "important");
       });
 
       // ── 事件绑定完毕后再 display ──
@@ -298,13 +348,17 @@ export function EpubReader({
       rendition.themes.fontSize(`${fontSize}px`);
       book.locations.generate(1600).catch(() => {});
 
-      // ── display() 完成后再启动 ResizeObserver，避免提前 resize 破坏分页布局 ──
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const stage = ((rendition as any).manager?.container ?? null) as HTMLElement | null;
+      stage?.style.setProperty("overflow-anchor", "none");
+
+      // ── display() 完成后再启动 ResizeObserver ──
       resizeObserver = new ResizeObserver((entries) => {
         const entry = entries[0];
         if (!entry || !renditionRef.current) return;
-        const { width: w, height: h } = entry.contentRect;
-        if (w > 0 && h > 0) {
-          renditionRef.current.resize(Math.floor(w), Math.floor(h));
+        const { width: rw, height: rh } = entry.contentRect;
+        if (rw > 0 && rh > 0) {
+          renditionRef.current.resize(Math.floor(rw), Math.floor(rh));
         }
       });
       resizeObserver.observe(viewerRef.current);
@@ -332,16 +386,20 @@ export function EpubReader({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") renditionRef.current?.next();
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") renditionRef.current?.prev();
+      // 滚动模式：上下键留给正文内滚动，仅用左右键切换 spine 片段
+      if (e.key === "ArrowRight") renditionRef.current?.next();
+      if (e.key === "ArrowLeft") renditionRef.current?.prev();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   return (
-    <div className="relative w-full h-full">
-      <div ref={viewerRef} className="w-full h-full" />
+    <div className="relative h-full w-full min-h-0">
+      <div
+        ref={viewerRef}
+        className="h-full w-full min-h-0 overflow-hidden [overflow-anchor:none]"
+      />
       {selection && (
         <WordPopup
           word={selection.word}

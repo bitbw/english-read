@@ -11,6 +11,24 @@ export function parseVocabularyDefinitions(definition: string | null): Vocabular
   }
 }
 
+/** 单行预览（表格等密集布局用） */
+export function vocabularyDefinitionPreview(definition: string | null, maxLen = 120): string {
+  const definitions = parseVocabularyDefinitions(definition);
+  if (definitions.length === 0) {
+    if (!definition) return "";
+    const t = definition.trim();
+    return t.length > maxLen ? `${t.slice(0, maxLen)}…` : t;
+  }
+  const translateRow = definitions.find((d) => d.pos === "译");
+  const nonTranslate = definitions.filter((d) => d.pos !== "译");
+  const parts: string[] = [];
+  if (translateRow) parts.push(translateRow.zh ?? translateRow.def);
+  if (nonTranslate[0]) parts.push(`${nonTranslate[0].pos}. ${nonTranslate[0].def}`);
+  let s = parts.join(" · ");
+  if (s.length > maxLen) s = `${s.slice(0, maxLen)}…`;
+  return s;
+}
+
 interface VocabularyDefinitionViewProps {
   definition: string | null;
   /** 与 WordCard 一致：无有效 JSON 时显示 */

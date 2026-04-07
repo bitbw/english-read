@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Delete, Loader2, Undo2 } from "lucide-react";
+import { CheckCircle2, Delete, Lightbulb, Loader2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -13,9 +13,13 @@ import {
   buildMeaningQuizEnriched,
   buildSpellingChunks,
   isPhraseSpellingTarget,
+  looksLikeChinese,
+  normalizeWordKey,
   pickDistractorEnglishWords,
   pickSimilarWords,
+  resolveChineseGloss,
   shuffle,
+  storedChineseGloss,
   type MeaningQuiz,
   type QuizWord,
 } from "@/lib/review-quiz";
@@ -42,6 +46,35 @@ interface ReviewSessionProps {
 }
 
 type Step = "meaning" | "spelling";
+
+/** 拼字托盘：rankById 固定格子顺序；已选 id 记入 usedIds，格子上仍显示但禁用 */
+type SpellingTrayState = {
+  labels: string[];
+  rankById: number[];
+  usedIds: number[];
+};
+
+function initSpellingTray(labels: string[]): SpellingTrayState {
+  const n = labels.length;
+  if (n === 0) {
+    return { labels: [], rankById: [], usedIds: [] };
+  }
+  const ids = Array.from({ length: n }, (_, i) => i);
+  const multi: number[] = [];
+  const single: number[] = [];
+  for (const id of ids) {
+    const len = (labels[id] ?? "").length;
+    if (len > 1) multi.push(id);
+    else single.push(id);
+  }
+  /** 分块/单词在上，单字母在下；组内仍随机，避免固定位置背答案 */
+  const ordered = [...shuffle(multi), ...shuffle(single)];
+  const rankById = new Array<number>(n);
+  ordered.forEach((id, idx) => {
+    rankById[id] = idx;
+  });
+  return { labels, rankById, usedIds: [] };
+}
 
 function splitContextWithHighlight(
   context: string,
@@ -109,10 +142,11 @@ export function ReviewSession({
   const [queue, setQueue] = useState<ReviewWord[]>(words);
   const [failVersions, setFailVersions] = useState<Record<string, number>>({});
   const [step, setStep] = useState<Step>("meaning");
-  const [spelling, setSpelling] = useState<{ available: string[]; used: string[] }>({
-    available: [],
-    used: [],
-  });
+  const [spelling, setSpelling] = useState<SpellingTrayState>(() =>
+    initSpellingTray([])
+  );
+  const [spellHintLevel, setSpellHintLevel] = useState(0);
+  const [spellGlossDisplay, setSpellGlossDisplay] = useState("");
   const [rememberedCount, setRememberedCount] = useState(0);
   const [requeuedCount, setRequeuedCount] = useState(0);
   const [finished, setFinished] = useState(false);
@@ -204,6 +238,29 @@ export function ReviewSession({
     };
   }, [current, quizBase, quizRegenKey]);
 
+  useEffect(() => {
+    if (step !== "spelling" || !current) {
+      setSpellGlossDisplay("");
+      return;
+    }
+    const sync = storedChineseGloss(current.definition);
+    if (sync && looksLikeChinese(sync)) setSpellGlossDisplay(sync);
+    else setSpellGlossDisplay("");
+    let cancelled = false;
+    void (async () => {
+      const zh = (
+        await resolveChineseGloss(current.word, current.definition, glossCacheRef.current)
+      ).trim();
+      if (cancelled) return;
+      if (zh && looksLikeChinese(zh)) setSpellGlossDisplay(zh);
+      else if (sync && looksLikeChinese(sync)) setSpellGlossDisplay(sync);
+      else setSpellGlossDisplay(zh || "暂无中文释义");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [step, current, current?.id, current?.word, current?.definition]);
+
   const bumpFailForHead = useCallback(() => {
     const head = queue[0];
     if (!head) return;
@@ -232,7 +289,9 @@ export function ReviewSession({
   const proceedAfterMeaningReveal = () => {
     if (!quizBase || !meaningQuiz || !pickMeta) return;
     if (pickMeta.correct) {
-      setSpelling({ available: shuffle(quizBase.spellingChunks), used: [] });
+      setSpelling(initSpellingTray(quizBase.spellingChunks));
+      setSpellHintLevel(0);
+      setSpellGlossDisplay("");
       setStep("spelling");
     } else {
       onMeaningWrong();
@@ -249,37 +308,28 @@ export function ReviewSession({
 
   const onSkipMeaningToSpelling = () => {
     if (!quizBase || !meaningQuiz) return;
-    setSpelling({ available: shuffle(quizBase.spellingChunks), used: [] });
+    setSpelling(initSpellingTray(quizBase.spellingChunks));
+    setSpellHintLevel(0);
+    setSpellGlossDisplay("");
     setStep("spelling");
   };
 
-  const takeChip = (index: number) => {
+  const takeChip = (id: number) => {
     setSpelling((s) => {
-      const x = s.available[index];
-      if (x === undefined) return s;
-      return {
-        available: s.available.filter((_, j) => j !== index),
-        used: [...s.used, x],
-      };
+      if (s.usedIds.includes(id)) return s;
+      return { ...s, usedIds: [...s.usedIds, id] };
     });
   };
 
   const undoChip = () => {
     setSpelling((s) => {
-      if (s.used.length === 0) return s;
-      const last = s.used[s.used.length - 1];
-      return {
-        used: s.used.slice(0, -1),
-        available: [...s.available, last],
-      };
+      if (s.usedIds.length === 0) return s;
+      return { ...s, usedIds: s.usedIds.slice(0, -1) };
     });
   };
 
   const clearSpelling = () => {
-    setSpelling((s) => ({
-      available: shuffle([...s.available, ...s.used]),
-      used: [],
-    }));
+    setSpelling((s) => ({ ...s, usedIds: [] }));
   };
 
   const onSpellingWrong = useCallback(() => {
@@ -292,7 +342,7 @@ export function ReviewSession({
 
   const confirmSpelling = async () => {
     if (!current || !quizBase) return;
-    const built = spelling.used.join("");
+    const built = spelling.usedIds.map((id) => spelling.labels[id] ?? "").join("");
     if (!assembledMatchesTarget(built, current.word)) {
       onSpellingWrong();
       return;
@@ -370,6 +420,24 @@ export function ReviewSession({
   const totalInRound = rememberedCount + queue.length;
   const progress = totalInRound > 0 ? (rememberedCount / totalInRound) * 100 : 0;
   const phraseSpelling = current ? isPhraseSpellingTarget(current.word) : false;
+  const spellKeyNorm = current ? normalizeWordKey(current.word) : "";
+  const spellHintShown =
+    spellHintLevel >= 2
+      ? current.word.trim()
+      : spellHintLevel === 1 && spellKeyNorm.length > 0
+        ? (() => {
+            const k = Math.max(1, Math.floor(spellKeyNorm.length * 0.35));
+            return `${spellKeyNorm.slice(0, k)}${"·".repeat(spellKeyNorm.length - k)}`;
+          })()
+        : null;
+
+  const spellingSlotOrder =
+    spelling.labels.length === 0
+      ? []
+      : Array.from({ length: spelling.labels.length }, (_, i) => i).sort(
+          (a, b) => (spelling.rankById[a] ?? 0) - (spelling.rankById[b] ?? 0)
+        );
+  const spellingUsedSet = new Set(spelling.usedIds);
 
   return (
     <div className="flex flex-col items-center gap-6 max-w-lg mx-auto w-full py-6">
@@ -439,9 +507,19 @@ export function ReviewSession({
                     <div key={opt.key} className="w-full" style={{ perspective: "1000px" }}>
                       <button
                         type="button"
-                        disabled={flipped}
+                        aria-disabled={flipped}
+                        tabIndex={flipped ? -1 : 0}
                         onClick={() => onMeaningOptionClick(i, opt.correct)}
-                        className="relative w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl disabled:pointer-events-none"
+                        onKeyDown={(e) => {
+                          if (!flipped) return;
+                          if (e.key === "Enter" || e.key === " ") e.preventDefault();
+                        }}
+                        className={cn(
+                          "relative w-full text-left outline-none rounded-xl",
+                          meaningPhase === "pick" &&
+                            "cursor-pointer focus-visible:ring-2 focus-visible:ring-ring",
+                          flipped && "cursor-text"
+                        )}
                       >
                         <div
                           className={cn(
@@ -463,7 +541,7 @@ export function ReviewSession({
                           {/* 背面：仅英文 */}
                           <div
                             className={cn(
-                              "absolute inset-0 flex flex-col justify-center rounded-xl border bg-muted/40 p-4 shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)]",
+                              "absolute inset-0 flex flex-col justify-center rounded-xl border bg-muted/40 p-4 shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)] select-text",
                               backHighlight
                             )}
                           >
@@ -499,50 +577,96 @@ export function ReviewSession({
 
       {step === "spelling" && (
         <Card className="w-full p-6 space-y-5">
-          {current.context ? (
-            <ReviewContextQuote context={current.context} word={current.word} compact />
+          <div className="rounded-lg border border-border bg-muted/30 px-3 py-3 text-center space-y-1">
+            <p className="text-[11px] font-medium text-muted-foreground">中文释义</p>
+            {spellGlossDisplay ? (
+              <p className="text-sm font-medium text-foreground leading-snug">{spellGlossDisplay}</p>
+            ) : (
+              <div className="flex justify-center py-1">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
+              </div>
+            )}
+          </div>
+
+          {spellHintShown ? (
+            <div className="rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-center space-y-1">
+              <p className="text-[11px] font-medium text-amber-950/80 dark:text-amber-100/90">提示</p>
+              <p
+                className={cn(
+                  "font-semibold tracking-tight text-foreground",
+                  spellHintLevel >= 2 ? "text-lg" : "text-xl font-mono"
+                )}
+              >
+                {spellHintShown}
+              </p>
+            </div>
           ) : null}
+
+          <div className="flex justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={spellHintLevel >= 2 || !spellKeyNorm}
+              onClick={() => setSpellHintLevel((h) => Math.min(2, h + 1))}
+            >
+              <Lightbulb className="h-4 w-4 mr-2" />
+              {spellHintLevel === 0
+                ? "提示（先露出一部分）"
+                : spellHintLevel === 1
+                  ? "再提示（显示整词）"
+                  : "已全部提示"}
+            </Button>
+          </div>
+
           <p className="text-sm font-medium text-center">
             {phraseSpelling
-              ? "请按顺序点选单词拼出该词组（不再显示完整英文）"
-              : "请用下方字块拼出该词（不再显示英文）"}
+              ? "根据中文义点选单词块，按顺序拼出该词组"
+              : "根据中文义点选字母或 2～3 字母小块、对半大块组合拼出该词"}
           </p>
           <div
-            className="min-h-[3.5rem] rounded-lg border border-dashed border-muted-foreground/40 px-3 py-3 flex flex-wrap gap-2 items-center justify-center bg-muted/30"
+            className="min-h-14 rounded-lg border border-dashed border-muted-foreground/40 px-3 py-3 flex flex-wrap gap-2 items-center justify-center bg-muted/30"
             aria-live="polite"
           >
-            {spelling.used.length === 0 ? (
+            {spelling.usedIds.length === 0 ? (
               <span className="text-sm text-muted-foreground">
-                {phraseSpelling ? "点击下方单词组合" : "点击下方字块组合"}
+                {phraseSpelling ? "点击下方单词块按顺序组合" : "点击下方字母或字块按顺序组合"}
               </span>
             ) : (
-              spelling.used.map((chunk, i) => (
+              spelling.usedIds.map((id, i) => (
                 <span
-                  key={`${chunk}-${i}`}
+                  key={`${id}-slot-${i}`}
                   className={cn(
                     "font-semibold",
                     phraseSpelling ? "text-lg tracking-tight" : "text-xl font-mono"
                   )}
                 >
-                  {chunk}
+                  {spelling.labels[id]}
                 </span>
               ))
             )}
           </div>
 
           <div className="flex flex-wrap gap-2 justify-center">
-            {spelling.available.map((chunk, i) => (
-              <Button
-                key={`${chunk}-${i}`}
-                type="button"
-                variant="secondary"
-                size="sm"
-                className={cn(phraseSpelling ? "text-base px-3" : "font-mono text-base")}
-                onClick={() => takeChip(i)}
-              >
-                {chunk}
-              </Button>
-            ))}
+            {spellingSlotOrder.map((id) => {
+              const picked = spellingUsedSet.has(id);
+              return (
+                <Button
+                  key={id}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={picked}
+                  className={cn(
+                    phraseSpelling ? "text-base px-3" : "font-mono text-base min-w-9 px-3",
+                    picked && "opacity-45 cursor-not-allowed"
+                  )}
+                  onClick={() => takeChip(id)}
+                >
+                  {spelling.labels[id]}
+                </Button>
+              );
+            })}
           </div>
 
           <div className="flex gap-2">
@@ -558,7 +682,7 @@ export function ReviewSession({
 
           <Button
             className="w-full bg-green-600 hover:bg-green-700 text-white"
-            disabled={submitting || spelling.used.length === 0}
+            disabled={submitting || spelling.usedIds.length === 0}
             onClick={() => void confirmSpelling()}
           >
             <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -568,7 +692,7 @@ export function ReviewSession({
       )}
 
       <p className="text-xs text-muted-foreground text-center px-2">
-        释义干扰项优先来自与当前词相关的英文联想词（Datamuse），不足时辅以词库中近形词；拼写环节对词组按「单词」出题并混入干扰词，单词仍按字母块。
+        释义干扰项优先来自与当前词相关的英文联想词（Datamuse），不足时辅以词库中近形词；拼写环节单词含逐字母、词内 2～3 字母子串与对半大块并混干扰，词组仅按空格拆词并混干扰词。
       </p>
     </div>
   );

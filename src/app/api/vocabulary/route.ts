@@ -1,8 +1,13 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { vocabulary } from "@/lib/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte, lt, count } from "drizzle-orm";
 import { getInitialReviewDate } from "@/lib/srs";
+import {
+  VOCABULARY_DAILY_ADD_LIMIT,
+  VOCAB_DAILY_LIMIT_CODE,
+  vocabularyUtcDayBounds,
+} from "@/lib/vocabulary-daily-limit";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -23,6 +28,19 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
+  const lookup = searchParams.get("lookup")?.trim();
+  if (lookup) {
+    const normalizedWord = lookup.toLowerCase();
+    const [row] = await db
+      .select()
+      .from(vocabulary)
+      .where(
+        and(eq(vocabulary.userId, session.user.id), eq(vocabulary.normalizedWord, normalizedWord))
+      )
+      .limit(1);
+    return NextResponse.json({ entry: row ?? null });
+  }
+
   const filter = searchParams.get("filter") ?? "all";
   const search = searchParams.get("search") ?? "";
 
@@ -78,6 +96,28 @@ export async function POST(req: Request) {
 
   if (existing) {
     return NextResponse.json({ ...existing, alreadyExists: true });
+  }
+
+  const { dayStart, dayEndExclusive } = vocabularyUtcDayBounds();
+  const [todayRow] = await db
+    .select({ count: count() })
+    .from(vocabulary)
+    .where(
+      and(
+        eq(vocabulary.userId, session.user.id),
+        gte(vocabulary.createdAt, dayStart),
+        lt(vocabulary.createdAt, dayEndExclusive)
+      )
+    );
+
+  if ((todayRow?.count ?? 0) >= VOCABULARY_DAILY_ADD_LIMIT) {
+    return NextResponse.json(
+      {
+        code: VOCAB_DAILY_LIMIT_CODE,
+        message: `今日已添加 ${VOCABULARY_DAILY_ADD_LIMIT} 个生词，请明天再继续`,
+      },
+      { status: 429 }
+    );
   }
 
   const [word] = await db
