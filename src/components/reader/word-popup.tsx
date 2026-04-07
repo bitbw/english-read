@@ -11,7 +11,7 @@ import {
   fetchErrorMessageFromResponse,
 } from "@/lib/client-fetch";
 import { VOCAB_DAILY_LIMIT_CODE } from "@/lib/vocabulary-daily-limit";
-import { VocabularyDailyLimitDialog } from "@/components/vocabulary/vocabulary-daily-limit-dialog";
+import { toastVocabDailyLimit } from "@/lib/toast-vocab-daily-limit";
 import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
 import { linkifyToReactNodes } from "@/components/linkified-text";
 
@@ -128,7 +128,6 @@ export function WordPopup({
   const [saved, setSaved] = useState(false);
   const [audioUk, setAudioUk] = useState("");
   const [audioUs, setAudioUs] = useState("");
-  const [dailyLimitOpen, setDailyLimitOpen] = useState(false);
   const [existingEntryId, setExistingEntryId] = useState<string | null>(null);
   const [lookupLoading, setLookupLoading] = useState(true);
   const [removing, setRemoving] = useState(false);
@@ -284,9 +283,14 @@ export function WordPopup({
       });
 
       if (res.status === 429) {
-        const errBody = (await res.clone().json().catch(() => ({}))) as { code?: string };
+        const errBody = (await res.clone().json().catch(() => ({}))) as {
+          code?: string;
+          error?: string;
+        };
         if (errBody.code === VOCAB_DAILY_LIMIT_CODE) {
-          setDailyLimitOpen(true);
+          toastVocabDailyLimit(
+            typeof errBody.error === "string" ? errBody.error : undefined,
+          );
           return;
         }
       }
@@ -337,7 +341,6 @@ export function WordPopup({
   }
 
   return (
-    <>
     <div
       ref={rootRef}
       className="fixed z-[100] flex min-h-0 w-[min(18rem,calc(100vw-1rem))] flex-col gap-2 overflow-hidden rounded-xl border border-border bg-popover p-3 text-sm shadow-xl h-[22vh] md:h-auto md:max-h-[65vh]"
@@ -349,11 +352,16 @@ export function WordPopup({
     >
       {/* 标题行：单词/词组 + 音标 + 发音 + 关闭 */}
       <div className="flex shrink-0 items-start justify-between gap-1">
-        <div className="flex-1 min-w-0">
-          <span className="font-bold text-base break-words leading-snug">{word}</span>
-          {phonetic && (
-            <span className="ml-1.5 text-muted-foreground text-xs">{phonetic}</span>
-          )}
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div
+            className="line-clamp-2 min-h-0 wrap-break-word text-base font-bold leading-snug"
+            title={word}
+          >
+            {word}
+          </div>
+          {phonetic ? (
+            <span className="shrink-0 text-xs text-muted-foreground">{phonetic}</span>
+          ) : null}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {!isPhrase && !loading && (
@@ -449,12 +457,15 @@ export function WordPopup({
           </>
         )}
 
-        {/* 上下文 */}
-        {context && (
-          <p className="text-xs italic text-muted-foreground line-clamp-2 wrap-break-word border-l-2 border-muted pl-2">
+        {/* 上下文（与选词一致最多 2 行，避免占满卡片） */}
+        {context ? (
+          <div
+            className="mt-2 min-w-0 border-l-2 border-muted pl-2 text-xs italic text-muted-foreground line-clamp-2 wrap-break-word"
+            title={context}
+          >
             {linkifyToReactNodes(context)}
-          </p>
-        )}
+          </div>
+        ) : null}
       </div>
 
       {/* 生词本：已收录可移除；未收录须等释义加载完成且有可保存内容 */}
@@ -505,7 +516,5 @@ export function WordPopup({
         </Button>
       )}
     </div>
-    <VocabularyDailyLimitDialog open={dailyLimitOpen} onOpenChange={setDailyLimitOpen} />
-    </>
   );
 }
