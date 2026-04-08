@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { WordPopup, type WordPopupAnchorRect } from "./word-popup";
 import { clientFetch } from "@/lib/client-fetch";
+import { isReaderDebug, readerDebugLog } from "@/lib/reader-debug";
 
 interface SelectionInfo {
   word: string;
@@ -41,6 +42,19 @@ function cfiKey(bookId: string) {
 }
 
 const CONTEXT_SENTENCE_MAX = 320;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mgrScrollSnapshot(rendition: any) {
+  const c = rendition?.manager?.container as HTMLElement | undefined;
+  if (!c) return { container: false };
+  return {
+    scrollTop: Math.round(c.scrollTop),
+    scrollHeight: Math.round(c.scrollHeight),
+    clientHeight: Math.round(c.clientHeight),
+    scrollWidth: Math.round(c.scrollWidth),
+    clientWidth: Math.round(c.clientWidth),
+  };
+}
 
 /**
  * 生词「原文引用」：取包含选中词的一句（按 .!? 切分），压缩空白；避免整段过长。
@@ -129,9 +143,16 @@ export function EpubReader({
     async function initReader() {
       if (!viewerRef.current) return;
 
-      const { width, height } = viewerRef.current.getBoundingClientRect();
+      const vr = viewerRef.current.getBoundingClientRect();
+      const { width, height } = vr;
       const w = Math.floor(width) || 600;
       const h = Math.floor(height) || 800;
+      readerDebugLog("init: viewer getBoundingClientRect (renderTo 尺寸来源)", {
+        width: vr.width,
+        height: vr.height,
+        w,
+        h,
+      });
 
       const ePub = (await import("epubjs")).default;
       const book = ePub(blobUrl);
@@ -144,6 +165,34 @@ export function EpubReader({
         spread: "none",
       });
       renditionRef.current = rendition;
+
+      let displayFinishedAt = 0;
+      let relocatedCount = 0;
+      let resizeObserverCallCount = 0;
+
+      if (isReaderDebug()) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const r = rendition as any;
+        try {
+          await r.started;
+        } catch (e) {
+          readerDebugLog("rendition.started rejected", e);
+        }
+        readerDebugLog("rendition.started OK", {
+          manager: r.manager?.name,
+          flow: r.settings?.flow,
+        });
+        rendition.on("displayed", (section: { href?: string }) => {
+          readerDebugLog("event rendition.displayed", { href: section?.href });
+        });
+        const mgr = r.manager;
+        mgr?.on?.("scrolled", (payload: unknown) => {
+          readerDebugLog("event manager.scrolled", payload, mgrScrollSnapshot(rendition));
+        });
+        mgr?.on?.("resized", (payload: unknown) => {
+          readerDebugLog("event manager.resized", payload, mgrScrollSnapshot(rendition));
+        });
+      }
 
       onReady?.({
         prev: () => renditionRef.current?.prev(),
@@ -194,6 +243,17 @@ export function EpubReader({
       rendition.on("relocated", (location: any) => {
         if (!mounted) return;
         const cfi = location.start.cfi;
+        relocatedCount += 1;
+        if (isReaderDebug()) {
+          readerDebugLog(`relocated #${relocatedCount}`, {
+            cfi,
+            initialCfiRequested: initialCfi ?? null,
+            msSinceDisplayEnd: displayFinishedAt ? Date.now() - displayFinishedAt : null,
+            skipInitialSave: isInitialRelocated,
+            scroll: mgrScrollSnapshot(rendition),
+            href: location.start?.href,
+          });
+        }
         const rawBookPct = book.locations.percentageFromCfi(cfi);
         const bookPct = (rawBookPct ?? 0) * 100;
         const chapterPct = chapterPercentFromDisplayed(location.start?.displayed);
@@ -337,6 +397,7 @@ export function EpubReader({
 
       // 必须在 display 之前设置字号：先 display 再改字体会整体重排，滚动像素不变但视口顶端的正文会「漂移」，
       // scrolledLocation() 会误报成别的段落 CFI（例如 106→74），刷新后看起来「没回到上次位置」。
+      readerDebugLog("before themes.fontSize (init)", { fontSizePx: fontSize });
       rendition.themes.fontSize(`${fontSize}px`);
 
       // ── 事件绑定完毕后再 display ──
@@ -349,7 +410,18 @@ export function EpubReader({
       }
       if (!mounted) return;
 
-      book.locations.generate(1600).catch(() => {});
+      displayFinishedAt = Date.now();
+      readerDebugLog("display() promise resolved", {
+        initialCfi: initialCfi ?? null,
+        scroll: mgrScrollSnapshot(rendition),
+      });
+
+      book.locations
+        .generate(1600)
+        .then(() => {
+          readerDebugLog("book.locations.generate(1600) done", mgrScrollSnapshot(rendition));
+        })
+        .catch(() => {});
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const stage = ((rendition as any).manager?.container ?? null) as HTMLElement | null;
@@ -361,7 +433,17 @@ export function EpubReader({
         if (!entry || !renditionRef.current) return;
         const { width: rw, height: rh } = entry.contentRect;
         if (rw > 0 && rh > 0) {
+          resizeObserverCallCount += 1;
+          readerDebugLog(`ResizeObserver #${resizeObserverCallCount} → rendition.resize`, {
+            contentRect: { rw: Math.floor(rw), rh: Math.floor(rh) },
+            scrollBefore: mgrScrollSnapshot(renditionRef.current),
+          });
           renditionRef.current.resize(Math.floor(rw), Math.floor(rh));
+          requestAnimationFrame(() => {
+            readerDebugLog(`after resize rAF (#${resizeObserverCallCount})`, {
+              scrollAfter: mgrScrollSnapshot(renditionRef.current),
+            });
+          });
         }
       });
       resizeObserver.observe(viewerRef.current);
@@ -384,6 +466,7 @@ export function EpubReader({
   }, [blobUrl, initialCfi, bookId]);
 
   useEffect(() => {
+    readerDebugLog("useEffect[fontSize] → themes.fontSize", { fontSizePx: fontSize });
     renditionRef.current?.themes.fontSize(`${fontSize}px`);
   }, [fontSize]);
 

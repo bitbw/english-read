@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useRef, useState, useEffect, Fragment } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { clientFetch } from "@/lib/client-fetch";
+import { readerDebugLog } from "@/lib/reader-debug";
 import type { TocItem } from "@/components/reader/epub-reader";
 
 const EpubReader = dynamic(
@@ -56,13 +57,24 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     }
     // 优先 localStorage CFI，fallback 到服务端值
     const localCfi = localStorage.getItem(`reader-cfi-${bookId}`);
-    console.log("[ReaderClient] 服务端 initialCfi:", initialCfi);
-    console.log("[ReaderClient] localStorage CFI:", localCfi);
     const resolved = localCfi || initialCfi;
-    console.log("[ReaderClient] 最终使用的 CFI:", resolved);
+    readerDebugLog("ReaderClient 解析 CFI", {
+      服务端initialCfi: initialCfi,
+      localStorageCfi: localCfi,
+      最终effectiveCfi: resolved,
+      字号localStorage: saved ?? null,
+    });
     setEffectiveCfi(resolved);
     setCfiReady(true);
   }, [bookId, initialCfi]);
+
+  useEffect(() => {
+    if (!cfiReady) return;
+    readerDebugLog("ReaderClient 已就绪，即将渲染 EpubReader", {
+      effectiveCfi,
+      fontSizeState: fontSize,
+    });
+  }, [cfiReady, effectiveCfi, fontSize]);
 
   // 阅读页前台活跃时长 → 上报累加（与仪表盘柱状图一致，按 UTC 日聚合）
   useEffect(() => {
