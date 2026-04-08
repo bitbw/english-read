@@ -110,6 +110,9 @@ export function EpubReader({
   useEffect(() => {
     let mounted = true;
     let resizeObserver: ResizeObserver | null = null;
+    /** 首次进入阅读页：容器尺寸稳定后二次 display，纠正 fill()/resize 造成的滚动错位（scrolled-doc） */
+    let postOpenLayoutRedisplayTimer: ReturnType<typeof setTimeout> | null = null;
+    let didPostOpenLayoutRedisplay = false;
     let lastSelectedAt = 0;
     const setupWindows = new WeakSet<Window>();
 
@@ -234,22 +237,23 @@ export function EpubReader({
 
       // ── 所有事件必须在 display() 之前注册 ──
 
-      // display(initialCfi) 会触发一次 relocated，报告的是页首 CFI（与传入值不同），
-      // 这次不能覆盖 localStorage/服务端，否则每次打开都会把位置往前漂移。
-      // 后续用户手动翻页才真正保存。
-      let isInitialRelocated = true;
+      // 首轮 display 后的 relocated 不写入（视口顶端 CFI 可能尚未对齐）。
+      // 若 ResizeObserver 安排了「尺寸稳定后二次 display」，在触发前会 +1，以跳过二次 display 对应的那次 relocated。
+      let relocatedSaveSkipsRemaining = 1;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       rendition.on("relocated", (location: any) => {
         if (!mounted) return;
         const cfi = location.start.cfi;
         relocatedCount += 1;
+        const willSkipSave = relocatedSaveSkipsRemaining > 0;
         if (isReaderDebug()) {
           readerDebugLog(`relocated #${relocatedCount}`, {
             cfi,
             initialCfiRequested: initialCfi ?? null,
             msSinceDisplayEnd: displayFinishedAt ? Date.now() - displayFinishedAt : null,
-            skipInitialSave: isInitialRelocated,
+            willSkipSave,
+            skipsLeftAfter: willSkipSave ? relocatedSaveSkipsRemaining - 1 : 0,
             scroll: mgrScrollSnapshot(rendition),
             href: location.start?.href,
           });
@@ -263,10 +267,9 @@ export function EpubReader({
         const chapterName = findChapterLabel(location.start.href ?? "", navToc);
         onProgress?.(cfi, bookPct, chapterName, chapterPct);
 
-        if (isInitialRelocated) {
-          // display(initialCfi) 产生的首次 relocated：只更新 UI，不覆盖位置
-          isInitialRelocated = false;
-          console.log("[Reader] 初始 relocated（跳过保存）:", cfi);
+        if (relocatedSaveSkipsRemaining > 0) {
+          relocatedSaveSkipsRemaining -= 1;
+          console.log("[Reader] relocated（跳过保存）:", cfi, `还可跳过 ${relocatedSaveSkipsRemaining} 次`);
           return;
         }
 
@@ -444,6 +447,19 @@ export function EpubReader({
               scrollAfter: mgrScrollSnapshot(renditionRef.current),
             });
           });
+
+          // resize 会改变 iframe 高度与章节内排版，若不再次 display，视口顶端 CFI 会落在目标段落之前（如 258→218）
+          if (initialCfi && mounted && !didPostOpenLayoutRedisplay) {
+            if (postOpenLayoutRedisplayTimer) clearTimeout(postOpenLayoutRedisplayTimer);
+            postOpenLayoutRedisplayTimer = setTimeout(() => {
+              postOpenLayoutRedisplayTimer = null;
+              if (!mounted || !renditionRef.current || !initialCfi || didPostOpenLayoutRedisplay) return;
+              didPostOpenLayoutRedisplay = true;
+              readerDebugLog("容器尺寸稳定 → 二次 display(initialCfi)", { initialCfi });
+              relocatedSaveSkipsRemaining += 1;
+              void renditionRef.current.display(initialCfi);
+            }, 160);
+          }
         }
       });
       resizeObserver.observe(viewerRef.current);
@@ -453,6 +469,7 @@ export function EpubReader({
 
     return () => {
       mounted = false;
+      if (postOpenLayoutRedisplayTimer) clearTimeout(postOpenLayoutRedisplayTimer);
       resizeObserver?.disconnect();
       // 组件卸载（Next.js 客户端跳转）时再保存一次，keepalive 确保请求完成
       if (currentCfiRef.current) {
