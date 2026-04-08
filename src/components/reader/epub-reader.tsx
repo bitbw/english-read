@@ -335,6 +335,10 @@ export function EpubReader({
         doc.body.style.setProperty("overflow-anchor", "none", "important");
       });
 
+      // 必须在 display 之前设置字号：先 display 再改字体会整体重排，滚动像素不变但视口顶端的正文会「漂移」，
+      // scrolledLocation() 会误报成别的段落 CFI（例如 106→74），刷新后看起来「没回到上次位置」。
+      rendition.themes.fontSize(`${fontSize}px`);
+
       // ── 事件绑定完毕后再 display ──
       if (initialCfi) {
         console.log("[Reader] 回显位置 → display(initialCfi):", initialCfi);
@@ -345,7 +349,6 @@ export function EpubReader({
       }
       if (!mounted) return;
 
-      rendition.themes.fontSize(`${fontSize}px`);
       book.locations.generate(1600).catch(() => {});
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
