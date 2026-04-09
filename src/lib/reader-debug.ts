@@ -1,6 +1,9 @@
 const KEY = "reader-debug";
 
-/** 控制台执行 `localStorage.setItem("reader-debug", "1")` 后刷新即可打开；`removeItem` 关闭 */
+/**
+ * 控制台执行 `localStorage.setItem("reader-debug", "1")` 后刷新即可打开；`removeItem` 关闭。
+ * 打开后会输出 [ReaderDebug]：relocated 进度字段（rawBookPct、locIndex、locations 长度）、locations.generate 耗时/错误等。
+ */
 export function isReaderDebug(): boolean {
   if (typeof window === "undefined") return false;
   try {

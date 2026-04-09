@@ -250,23 +250,50 @@ export function EpubReader({
         const cfi = location.start.cfi;
         relocatedCount += 1;
         const willSkipSave = relocatedSaveSkipsRemaining > 0;
-        if (isReaderDebug()) {
-          readerDebugLog(`relocated #${relocatedCount}`, {
-            cfi,
-            initialCfiRequested: initialCfi ?? null,
-            msSinceDisplayEnd: displayFinishedAt ? Date.now() - displayFinishedAt : null,
-            willSkipSave,
-            skipsLeftAfter: willSkipSave ? relocatedSaveSkipsRemaining - 1 : 0,
-            scroll: mgrScrollSnapshot(rendition),
-            href: location.start?.href,
-            locationsLen: book.locations?.length?.() ?? null,
-          });
-        }
         // epubjs：locations.generate 完成前 _locations 为空，percentageFromCfi 返回 null —— 不能当成 0%，否则长期显示 0% 再在生成完后「突然」跳到真实值
         const rawBookPct = book.locations.percentageFromCfi(cfi);
         const bookPctUi = rawBookPct != null ? rawBookPct * 100 : null;
         const chapterPct = chapterPercentFromDisplayed(location.start?.displayed);
         const chapterName = findChapterLabel(location.start.href ?? "", navToc);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const locs = book.locations as any;
+        const locationsLen = typeof locs?.length === "function" ? locs.length() : -1;
+        const locationsTotal = typeof locs?.total === "number" ? locs.total : null;
+        const locIndex =
+          locationsLen > 0 && typeof locs?.locationFromCfi === "function" ? locs.locationFromCfi(cfi) : null;
+
+        if (isReaderDebug()) {
+          readerDebugLog(`relocated #${relocatedCount}`, {
+            cfi,
+            href: location.start?.href,
+            initialCfiRequested: initialCfi ?? null,
+            msSinceDisplayEnd: displayFinishedAt ? Date.now() - displayFinishedAt : null,
+            willSkipSave,
+            skipsLeftAfter: willSkipSave ? relocatedSaveSkipsRemaining - 1 : 0,
+            scroll: mgrScrollSnapshot(rendition),
+            locationsLen,
+            locationsTotal,
+            locIndex,
+            rawBookPct,
+            bookPctUi,
+            chapterPct,
+            startDisplayed: location.start?.displayed ?? null,
+            startPercentage: location.start?.percentage,
+            progressNote: (() => {
+              if (rawBookPct == null) {
+                return "rawBookPct=null：locations 未生成完时持久化会用 currentPctRef（常为 0）→ 服务端看到 0%";
+              }
+              if (rawBookPct === 0 && locIndex === 0 && (locationsTotal ?? 0) > 0) {
+                return "rawBookPct=0 且 locIndex=0：若在书末段仍如此，再查 CFI 与 location 表是否对齐";
+              }
+              if (rawBookPct === 0) {
+                return "rawBookPct=0：可能在全书最前，或 epubjs 对 loc 索引的边界处理";
+              }
+              return "ok";
+            })(),
+          });
+        }
 
         if (relocatedSaveSkipsRemaining > 0) {
           relocatedSaveSkipsRemaining -= 1;
@@ -279,6 +306,13 @@ export function EpubReader({
         const bookPctForPersist = bookPctUi ?? currentPctRef.current;
         currentCfiRef.current = cfi;
         currentPctRef.current = bookPctForPersist;
+
+        if (isReaderDebug()) {
+          readerDebugLog(`relocated #${relocatedCount} → 持久化`, {
+            bookPctForPersist,
+            usedFallbackRef: bookPctUi == null,
+          });
+        }
 
         onProgress?.(cfi, bookPctUi, chapterName, chapterPct);
 
@@ -428,15 +462,26 @@ export function EpubReader({
         scroll: mgrScrollSnapshot(rendition),
       });
 
+      const locationsGenStartedAt = Date.now();
+      readerDebugLog("book.locations.generate(1600) 已开始（异步，大书可能要几十秒）");
       book.locations
         .generate(1600)
         .then(() => {
-          readerDebugLog("book.locations.generate(1600) done", mgrScrollSnapshot(rendition));
+          readerDebugLog("book.locations.generate(1600) 完成", {
+            ms: Date.now() - locationsGenStartedAt,
+            locationsLen: book.locations?.length?.() ?? null,
+            // runtime 有 total；@types/epubjs 未声明
+            locationsTotal: (book.locations as { total?: number }).total ?? null,
+            scroll: mgrScrollSnapshot(rendition),
+          });
           if (mounted && renditionRef.current) {
             renditionRef.current.reportLocation();
           }
         })
-        .catch(() => {});
+        .catch((err: unknown) => {
+          readerDebugLog("book.locations.generate(1600) 失败（此后 percentageFromCfi 会一直为 null）", err);
+          console.error("[Reader] locations.generate 失败:", err);
+        });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const stage = ((rendition as any).manager?.container ?? null) as HTMLElement | null;
