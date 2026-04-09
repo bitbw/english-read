@@ -236,7 +236,8 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             onReady={(controls) => { controlsRef.current = controls; }}
             onTocReady={(items) => setToc(items)}
             onProgress={(_, bookPct, chapter, chapterPct) => {
-              setPercent(chapterPct != null ? chapterPct : bookPct);
+              const next = chapterPct ?? bookPct;
+              if (next != null) setPercent(next);
               if (chapter) setChapterName(chapter);
             }}
           />

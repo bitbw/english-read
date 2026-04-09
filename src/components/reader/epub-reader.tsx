@@ -30,8 +30,8 @@ interface EpubReaderProps {
   blobUrl: string;
   initialCfi?: string | null;
   fontSize: number;
-  /** chapterPct：当前章节内进度 0–100；无法分页计算时为 null，由上层决定是否回退全书进度 */
-  onProgress?: (cfi: string, bookPct: number, chapterName: string, chapterPct: number | null) => void;
+  /** chapterPct：当前章节内进度 0–100；无法分页计算时为 null。bookPct：全书进度；locations 未生成完时为 null，上层勿当作 0。 */
+  onProgress?: (cfi: string, bookPct: number | null, chapterName: string, chapterPct: number | null) => void;
   onReady?: (controls: ReaderControls) => void;
   onTocReady?: (toc: TocItem[]) => void;
 }
@@ -108,6 +108,9 @@ export function EpubReader({
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
 
   useEffect(() => {
+    currentCfiRef.current = initialCfi?.trim() ? initialCfi : "";
+    currentPctRef.current = 0;
+
     let mounted = true;
     let resizeObserver: ResizeObserver | null = null;
     /** 首次进入阅读页：容器尺寸稳定后二次 display，纠正 fill()/resize 造成的滚动错位（scrolled-doc） */
@@ -256,22 +259,28 @@ export function EpubReader({
             skipsLeftAfter: willSkipSave ? relocatedSaveSkipsRemaining - 1 : 0,
             scroll: mgrScrollSnapshot(rendition),
             href: location.start?.href,
+            locationsLen: book.locations?.length?.() ?? null,
           });
         }
+        // epubjs：locations.generate 完成前 _locations 为空，percentageFromCfi 返回 null —— 不能当成 0%，否则长期显示 0% 再在生成完后「突然」跳到真实值
         const rawBookPct = book.locations.percentageFromCfi(cfi);
-        const bookPct = (rawBookPct ?? 0) * 100;
+        const bookPctUi = rawBookPct != null ? rawBookPct * 100 : null;
         const chapterPct = chapterPercentFromDisplayed(location.start?.displayed);
-        currentCfiRef.current = cfi;
-        currentPctRef.current = bookPct;
-
         const chapterName = findChapterLabel(location.start.href ?? "", navToc);
-        onProgress?.(cfi, bookPct, chapterName, chapterPct);
 
         if (relocatedSaveSkipsRemaining > 0) {
           relocatedSaveSkipsRemaining -= 1;
           console.log("[Reader] relocated（跳过保存）:", cfi, `还可跳过 ${relocatedSaveSkipsRemaining} 次`);
+          // 视口顶端 CFI 可能尚未对齐：勿更新用于卸载/keepalive 的 ref，避免把错误位置写回服务端
+          onProgress?.(cfi, bookPctUi, chapterName, chapterPct);
           return;
         }
+
+        const bookPctForPersist = bookPctUi ?? currentPctRef.current;
+        currentCfiRef.current = cfi;
+        currentPctRef.current = bookPctForPersist;
+
+        onProgress?.(cfi, bookPctUi, chapterName, chapterPct);
 
         // 用户翻页或滚动导致锚点变化：正常保存
         try {
@@ -279,8 +288,8 @@ export function EpubReader({
           console.log("[Reader] 记录位置 → localStorage:", cfi);
         } catch { /* silent */ }
 
-        console.log("[Reader] 记录位置 → 服务端 PUT:", cfi, `${Math.round(bookPct)}%`);
-        saveToServer(cfi, bookPct);
+        console.log("[Reader] 记录位置 → 服务端 PUT:", cfi, `${Math.round(bookPctForPersist)}%`);
+        saveToServer(cfi, bookPctForPersist);
       });
 
       rendition.on("rendered", (_section: unknown, view: { window: Window }) => {
@@ -423,6 +432,9 @@ export function EpubReader({
         .generate(1600)
         .then(() => {
           readerDebugLog("book.locations.generate(1600) done", mgrScrollSnapshot(rendition));
+          if (mounted && renditionRef.current) {
+            renditionRef.current.reportLocation();
+          }
         })
         .catch(() => {});
 
