@@ -42,12 +42,18 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const controlsRef = useRef<ReaderControls | null>(null);
   const [fontSize, setFontSize] = useState(20);
   const [chapterName, setChapterName] = useState("");
-  const [percent, setPercent] = useState(0);
+  /** 仅全文进度；locations 未就绪时为 null，底栏显示占位而非章节内进度 */
+  const [percent, setPercent] = useState<number | null>(null);
   const [toc, setToc] = useState<TocItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
   // 优先使用 localStorage 中的 CFI，解决 Next.js 路由缓存导致服务端数据陈旧的问题
   const [effectiveCfi, setEffectiveCfi] = useState<string | null>(null);
   const [cfiReady, setCfiReady] = useState(false);
+
+  useEffect(() => {
+    setPercent(null);
+    setChapterName("");
+  }, [bookId]);
 
   useEffect(() => {
     const saved = localStorage.getItem(FONT_SIZE_KEY);
@@ -235,9 +241,8 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             fontSize={fontSize}
             onReady={(controls) => { controlsRef.current = controls; }}
             onTocReady={(items) => setToc(items)}
-            onProgress={(_, bookPct, chapter, chapterPct) => {
-              const next = chapterPct ?? bookPct;
-              if (next != null) setPercent(next);
+            onProgress={(_, bookPct, chapter) => {
+              if (bookPct != null) setPercent(bookPct);
               if (chapter) setChapterName(chapter);
             }}
           />
@@ -258,7 +263,9 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
           {chapterName && (
             <p className="text-xs text-muted-foreground truncate">{chapterName}</p>
           )}
-          <p className="text-xs text-muted-foreground tabular-nums">{Math.round(percent)}%</p>
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {percent == null ? "…" : `${Math.round(percent)}%`}
+          </p>
         </div>
 
         <button

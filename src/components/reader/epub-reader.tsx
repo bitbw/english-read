@@ -30,7 +30,7 @@ interface EpubReaderProps {
   blobUrl: string;
   initialCfi?: string | null;
   fontSize: number;
-  /** chapterPct：当前章节内进度 0–100；无法分页计算时为 null。bookPct：全书进度；locations 未生成完时为 null，上层勿当作 0。 */
+  /** bookPct：全文进度 0–100（仅 locations.generate 完成后有值，否则为 null）。chapterPct：章节内分页进度，勿当作全文进度展示。 */
   onProgress?: (cfi: string, bookPct: number | null, chapterName: string, chapterPct: number | null) => void;
   onReady?: (controls: ReaderControls) => void;
   onTocReady?: (toc: TocItem[]) => void;
@@ -293,7 +293,7 @@ export function EpubReader({
             startPercentage: location.start?.percentage,
             progressNote: (() => {
               if (locationsTotal < 1) {
-                return "locationsTotal<1：generate 未完成，全书百分比不可用（原 percentageFromCfi 会假 0）；可先看 chapterPct";
+                return "locationsTotal<1：generate 未完成，bookPct 为 null（chapterPct 仅供调试，不作全文进度）";
               }
               if (rawBookPct == null) {
                 return "rawBookPct=null：locIndex 异常";
@@ -314,16 +314,17 @@ export function EpubReader({
           return;
         }
 
-        // 全书百分比未就绪时，用章节内进度兜底，避免服务端长期收到假的 0%（CFI 仍准确）
-        const bookPctForPersist = bookPctUi ?? chapterPct ?? currentPctRef.current;
+        // 只持久化全文进度；未就绪时沿用上次已知的全书 %（不用 chapterPct，避免与全文语义混淆）
         currentCfiRef.current = cfi;
-        currentPctRef.current = bookPctForPersist;
+        if (bookPctUi != null) {
+          currentPctRef.current = bookPctUi;
+        }
+        const bookPctForPersist = bookPctUi ?? currentPctRef.current;
 
         if (isReaderDebug()) {
           readerDebugLog(`relocated #${relocatedCount} → 持久化`, {
             bookPctForPersist,
-            usedChapterFallback: bookPctUi == null && chapterPct != null,
-            usedRefFallback: bookPctUi == null && chapterPct == null,
+            wholeBookKnown: bookPctUi != null,
           });
         }
 
