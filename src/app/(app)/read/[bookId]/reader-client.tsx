@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useRef, useState, useEffect, Fragment } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { clientFetch } from "@/lib/client-fetch";
+import { readerDebugLog } from "@/lib/reader-debug";
 import type { TocItem } from "@/components/reader/epub-reader";
 
 const EpubReader = dynamic(
@@ -41,12 +42,18 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const controlsRef = useRef<ReaderControls | null>(null);
   const [fontSize, setFontSize] = useState(20);
   const [chapterName, setChapterName] = useState("");
-  const [percent, setPercent] = useState(0);
+  /** 仅全文进度；locations 未就绪时为 null，底栏显示占位而非章节内进度 */
+  const [percent, setPercent] = useState<number | null>(null);
   const [toc, setToc] = useState<TocItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
   // 优先使用 localStorage 中的 CFI，解决 Next.js 路由缓存导致服务端数据陈旧的问题
   const [effectiveCfi, setEffectiveCfi] = useState<string | null>(null);
   const [cfiReady, setCfiReady] = useState(false);
+
+  useEffect(() => {
+    setPercent(null);
+    setChapterName("");
+  }, [bookId]);
 
   useEffect(() => {
     const saved = localStorage.getItem(FONT_SIZE_KEY);
@@ -56,13 +63,24 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     }
     // 优先 localStorage CFI，fallback 到服务端值
     const localCfi = localStorage.getItem(`reader-cfi-${bookId}`);
-    console.log("[ReaderClient] 服务端 initialCfi:", initialCfi);
-    console.log("[ReaderClient] localStorage CFI:", localCfi);
     const resolved = localCfi || initialCfi;
-    console.log("[ReaderClient] 最终使用的 CFI:", resolved);
+    readerDebugLog("ReaderClient 解析 CFI", {
+      服务端initialCfi: initialCfi,
+      localStorageCfi: localCfi,
+      最终effectiveCfi: resolved,
+      字号localStorage: saved ?? null,
+    });
     setEffectiveCfi(resolved);
     setCfiReady(true);
   }, [bookId, initialCfi]);
+
+  useEffect(() => {
+    if (!cfiReady) return;
+    readerDebugLog("ReaderClient 已就绪，即将渲染 EpubReader", {
+      effectiveCfi,
+      fontSizeState: fontSize,
+    });
+  }, [cfiReady, effectiveCfi, fontSize]);
 
   // 阅读页前台活跃时长 → 上报累加（与仪表盘柱状图一致，按 UTC 日聚合）
   useEffect(() => {
@@ -223,8 +241,8 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             fontSize={fontSize}
             onReady={(controls) => { controlsRef.current = controls; }}
             onTocReady={(items) => setToc(items)}
-            onProgress={(_, bookPct, chapter, chapterPct) => {
-              setPercent(chapterPct != null ? chapterPct : bookPct);
+            onProgress={(_, bookPct, chapter) => {
+              if (bookPct != null) setPercent(bookPct);
               if (chapter) setChapterName(chapter);
             }}
           />
@@ -245,7 +263,9 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
           {chapterName && (
             <p className="text-xs text-muted-foreground truncate">{chapterName}</p>
           )}
-          <p className="text-xs text-muted-foreground tabular-nums">{Math.round(percent)}%</p>
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {percent == null ? "…" : `${Math.round(percent)}%`}
+          </p>
         </div>
 
         <button
