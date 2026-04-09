@@ -250,20 +250,30 @@ export function EpubReader({
         const cfi = location.start.cfi;
         relocatedCount += 1;
         const willSkipSave = relocatedSaveSkipsRemaining > 0;
-        // epubjs：locations.generate 完成前 _locations 为空，percentageFromCfi 返回 null —— 不能当成 0%，否则长期显示 0% 再在生成完后「突然」跳到真实值
-        const rawBookPct = book.locations.percentageFromCfi(cfi);
-        const bookPctUi = rawBookPct != null ? rawBookPct * 100 : null;
         const chapterPct = chapterPercentFromDisplayed(location.start?.displayed);
         const chapterName = findChapterLabel(location.start.href ?? "", navToc);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const locs = book.locations as any;
         const locationsLen = typeof locs?.length === "function" ? locs.length() : -1;
-        const locationsTotal = typeof locs?.total === "number" ? locs.total : null;
+        const locationsTotal = typeof locs?.total === "number" ? locs.total : 0;
         const locIndex =
           locationsLen > 0 && typeof locs?.locationFromCfi === "function" ? locs.locationFromCfi(cfi) : null;
 
+        /**
+         * epubjs：generate() 跑队列时会不断往 _locations 里推条目，但 total 只在 **整本书扫完后** 才设为 length-1。
+         * 此阶段 percentageFromCfi → percentageFromLocation 里 `if (!this.total) return 0`，全书进度会 **恒为 0**（与 _locations 是否已有几百条无关）。
+         * generate 完成后用 locIndex/total 手算，同时避免 percentageFromLocation(0) 把索引 0 当 falsy 的 bug。
+         */
+        let rawBookPct: number | null = null;
+        if (locationsTotal > 0 && typeof locIndex === "number" && locIndex >= 0) {
+          rawBookPct = locIndex / locationsTotal;
+        }
+
+        const bookPctUi = rawBookPct != null ? rawBookPct * 100 : null;
+
         if (isReaderDebug()) {
+          const libPct = book.locations.percentageFromCfi(cfi);
           readerDebugLog(`relocated #${relocatedCount}`, {
             cfi,
             href: location.start?.href,
@@ -275,20 +285,21 @@ export function EpubReader({
             locationsLen,
             locationsTotal,
             locIndex,
-            rawBookPct,
+            epubjsPercentageFromCfi: libPct,
+            rawBookPctComputed: rawBookPct,
             bookPctUi,
             chapterPct,
             startDisplayed: location.start?.displayed ?? null,
             startPercentage: location.start?.percentage,
             progressNote: (() => {
+              if (locationsTotal < 1) {
+                return "locationsTotal<1：generate 未完成，全书百分比不可用（原 percentageFromCfi 会假 0）；可先看 chapterPct";
+              }
               if (rawBookPct == null) {
-                return "rawBookPct=null：locations 未生成完时持久化会用 currentPctRef（常为 0）→ 服务端看到 0%";
+                return "rawBookPct=null：locIndex 异常";
               }
-              if (rawBookPct === 0 && locIndex === 0 && (locationsTotal ?? 0) > 0) {
-                return "rawBookPct=0 且 locIndex=0：若在书末段仍如此，再查 CFI 与 location 表是否对齐";
-              }
-              if (rawBookPct === 0) {
-                return "rawBookPct=0：可能在全书最前，或 epubjs 对 loc 索引的边界处理";
+              if (rawBookPct === 0 && locIndex === 0 && locationsTotal > 0) {
+                return "全书进度约 0%（locIndex=0）";
               }
               return "ok";
             })(),
@@ -303,14 +314,16 @@ export function EpubReader({
           return;
         }
 
-        const bookPctForPersist = bookPctUi ?? currentPctRef.current;
+        // 全书百分比未就绪时，用章节内进度兜底，避免服务端长期收到假的 0%（CFI 仍准确）
+        const bookPctForPersist = bookPctUi ?? chapterPct ?? currentPctRef.current;
         currentCfiRef.current = cfi;
         currentPctRef.current = bookPctForPersist;
 
         if (isReaderDebug()) {
           readerDebugLog(`relocated #${relocatedCount} → 持久化`, {
             bookPctForPersist,
-            usedFallbackRef: bookPctUi == null,
+            usedChapterFallback: bookPctUi == null && chapterPct != null,
+            usedRefFallback: bookPctUi == null && chapterPct == null,
           });
         }
 
