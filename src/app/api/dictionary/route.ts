@@ -35,6 +35,7 @@ function shouldFetchFreeDictionary(trimmed: string): boolean {
  * 查询参数：
  * - word：必填，会先 trim；可与阅读器选区一致（最长由阅读器侧限制）。
  * - full=1：仅影响英英义项条数（short / full），见 free-dictionary.ts。
+ * - youdaoOnly=1：只调有道 suggest（fetchYoudaoExplain），不查 Free Dictionary、不回落 Google；仅当无标点且 1～5 词时有效，否则 translation 为空。
  *
  * 返回 JSON：{ phonetic, definitions, translation, audioUk?, audioUs? }
  * - 长句/含标点：definitions / audio* 通常为空，仍可能带 translation（Google）。
@@ -50,6 +51,8 @@ export async function GET(req: Request) {
   const word = searchParams.get("word");
   /** 复习翻面等需要更多义项时传 full=1；默认 short 条数较少 */
   const full = searchParams.get("full") === "1";
+  /** 仅译文且要快：只走有道，与阅读器全量查词分离 */
+  const youdaoOnly = searchParams.get("youdaoOnly") === "1";
 
   if (!word || word.trim().length === 0) {
     return NextResponse.json({ error: "word parameter is required" }, { status: 400 });
@@ -65,6 +68,18 @@ export async function GET(req: Request) {
 
   const tryYoudao = shouldTryYoudaoSuggest(trimmed);
   const tryFreeDict = shouldFetchFreeDictionary(trimmed);
+
+  if (youdaoOnly) {
+    if (tryYoudao) {
+      const youdao = await fetchYoudaoExplain(trimmed);
+      if (youdao) translation = youdao;
+    }
+    return NextResponse.json({
+      phonetic: "",
+      definitions: [],
+      translation,
+    });
+  }
 
   if (tryFreeDict) {
     const [entry, youdao] = await Promise.all([

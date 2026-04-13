@@ -52,7 +52,6 @@ export function ReviewPageClient() {
   const [pool, setPool] = useState<DistractorItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiPreview, setApiPreview] = useState(false);
-
   const fetchUrl = useMemo(() => buildFetchUrl(date, preview), [date, preview]);
   const reviewScopeDay = useMemo(() => getReviewScopeDay(date), [date]);
 
@@ -136,7 +135,12 @@ export function ReviewPageClient() {
               />
               {w.nextReviewAt && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  排期：{new Date(w.nextReviewAt).toISOString().slice(0, 10)} (UTC)
+                  排期：
+                  {new Date(w.nextReviewAt).toLocaleString("zh-CN", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                  })}
                 </p>
               )}
             </Card>

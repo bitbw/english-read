@@ -119,7 +119,7 @@ export function EpubReader({
     let lastSelectedAt = 0;
     const setupWindows = new WeakSet<Window>();
 
-    /** 长按选词（静止超过阈值）不弹出释义，避免与系统选区手柄冲突 */
+    /** 长按静止超过阈值：下一次 `selected` 不弹释义，避免与系统选区手柄冲突（与滑动切章解耦） */
     const LONG_PRESS_MS = 450;
     const LONG_PRESS_SLOP = 14;
     const longPressByWin = new WeakMap<
@@ -378,11 +378,16 @@ export function EpubReader({
             clearTimeout(lp.timer);
             lp.timer = null;
           }
-          const diffX = startX - e.changedTouches[0].clientX;
-          const diffY = startY - e.changedTouches[0].clientY;
-          if (Math.abs(diffX) < 70 || Math.abs(diffX) < Math.abs(diffY) * 1.5) return;
-          if (diffX > 0) renditionRef.current?.next();
-          else renditionRef.current?.prev();
+          // 滑动切章（与长按抑制解耦；默认关闭，避免误触；需要时取消下行注释）
+          // const diffX = startX - e.changedTouches[0].clientX;
+          // const diffY = startY - e.changedTouches[0].clientY;
+          // if (Math.abs(diffX) < 70 || Math.abs(diffX) < Math.abs(diffY) * 1.5) return;
+          // if (diffX > 0) renditionRef.current?.next();
+          // else renditionRef.current?.prev();
+          // 滑动未启用时避免 no-unused-vars；恢复滑动后请删除下面三行 void
+          void startX;
+          void startY;
+          void e;
         }, { passive: true });
       });
 

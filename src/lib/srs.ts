@@ -5,6 +5,9 @@
  * 间隔天数:       1      2  4  7   15  30
  */
 
+import { addDays, startOfDay } from "date-fns";
+import { TZDate, tz } from "@date-fns/tz";
+
 const REVIEW_INTERVALS: Record<number, number> = {
   0: 1,
   1: 2,
@@ -16,16 +19,17 @@ const REVIEW_INTERVALS: Record<number, number> = {
 
 export const MASTERED_STAGE = 6;
 
-function addDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  result.setHours(0, 0, 0, 0);
-  return result;
+/** 在该 IANA 时区下：从「今天 0 点」起算，经过 `calendarDays` 个日历日后的当天 0 点（UTC 瞬时） */
+function addCalendarDaysFromTodayAtMidnight(calendarDays: number, timeZone: string): Date {
+  const todayStart = startOfDay(new TZDate(Date.now(), timeZone));
+  const target = addDays(todayStart, calendarDays, { in: tz(timeZone) });
+  return new Date(target.getTime());
 }
 
 export function calculateNextReview(
   currentStage: number,
-  result: "remembered" | "forgotten"
+  result: "remembered" | "forgotten",
+  timeZone: string
 ): {
   nextStage: number;
   nextReviewAt: Date;
@@ -34,7 +38,7 @@ export function calculateNextReview(
   if (result === "forgotten") {
     return {
       nextStage: 0,
-      nextReviewAt: addDays(new Date(), REVIEW_INTERVALS[0]),
+      nextReviewAt: addCalendarDaysFromTodayAtMidnight(REVIEW_INTERVALS[0], timeZone),
       isMastered: false,
     };
   }
@@ -44,21 +48,21 @@ export function calculateNextReview(
   if (nextStage >= MASTERED_STAGE) {
     return {
       nextStage: MASTERED_STAGE,
-      nextReviewAt: addDays(new Date(), 365),
+      nextReviewAt: addCalendarDaysFromTodayAtMidnight(365, timeZone),
       isMastered: true,
     };
   }
 
   return {
     nextStage,
-    nextReviewAt: addDays(new Date(), REVIEW_INTERVALS[nextStage]),
+    nextReviewAt: addCalendarDaysFromTodayAtMidnight(REVIEW_INTERVALS[nextStage], timeZone),
     isMastered: false,
   };
 }
 
-/** 新词默认的首次复习时间 */
-export function getInitialReviewDate(): Date {
-  return addDays(new Date(), REVIEW_INTERVALS[0]);
+/** 新词默认的首次复习时间（学习时区下「明天 0 点」起算语义，与间隔表一致） */
+export function getInitialReviewDate(timeZone: string): Date {
+  return addCalendarDaysFromTodayAtMidnight(REVIEW_INTERVALS[0], timeZone);
 }
 
 /** 获取阶段对应的标签文字 */

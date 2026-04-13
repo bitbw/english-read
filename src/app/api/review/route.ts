@@ -2,10 +2,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { vocabulary } from "@/lib/db/schema";
 import { isValidPlanDayKey } from "@/lib/review-plan";
-import { eq, and, lte, notInArray, gte } from "drizzle-orm";
+import { zonedDayRangeUtc } from "@/lib/user-calendar";
+import { resolveTimeZone } from "@/lib/user-timezone";
+import { eq, and, lte, notInArray, gte, lt } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-// GET /api/review - 待复习单词；无 date 为全部已到期；?date=YYYY-MM-DD 为指定 UTC 日的计划；preview=1 可查看未来某日（仅浏览）
+// GET /api/review - 待复习单词；无 date 为全部已到期；?date=YYYY-MM-DD 为指定「学习时区」自然日的计划；preview=1 可查看未来某日（仅浏览）
 export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -21,16 +23,16 @@ export async function GET(req: Request) {
   }
 
   const now = new Date();
+  const timeZone = await resolveTimeZone(session.user.id, req);
 
   let dueWords;
   if (dateParam) {
-    const dayStart = new Date(`${dateParam}T00:00:00.000Z`);
-    const dayEnd = new Date(`${dateParam}T23:59:59.999Z`);
+    const { dayStart, dayEndExclusive } = zonedDayRangeUtc(dateParam, timeZone);
     const base = and(
       eq(vocabulary.userId, session.user.id),
       eq(vocabulary.isMastered, false),
       gte(vocabulary.nextReviewAt, dayStart),
-      lte(vocabulary.nextReviewAt, dayEnd)
+      lt(vocabulary.nextReviewAt, dayEndExclusive)
     );
     dueWords = await db
       .select()

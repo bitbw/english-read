@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { readingDailyTime } from "@/lib/db/schema";
-import { utcDayKeys, utcDayString } from "@/lib/reading-time";
+import { calendarDayKey, calendarDayKeys } from "@/lib/user-calendar";
+import { resolveTimeZone } from "@/lib/user-timezone";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -10,7 +11,7 @@ const postSchema = z.object({
   seconds: z.number().int().min(1).max(120),
 });
 
-// POST /api/reading/time — 累加当日（UTC）阅读秒数
+// POST /api/reading/time — 累加当日（学习时区自然日）阅读秒数
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -23,7 +24,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const day = utcDayString();
+  const timeZone = await resolveTimeZone(session.user.id, req);
+  const day = calendarDayKey(timeZone);
   const add = parsed.data.seconds;
 
   await db
@@ -55,7 +57,8 @@ export async function GET(req: Request) {
   const raw = parseInt(searchParams.get("days") ?? "14", 10);
   const numDays = Number.isFinite(raw) ? Math.min(30, Math.max(7, raw)) : 14;
 
-  const keys = utcDayKeys(numDays);
+  const timeZone = await resolveTimeZone(session.user.id, req);
+  const keys = calendarDayKeys(numDays, timeZone);
   const start = keys[0]!;
   const end = keys[keys.length - 1]!;
 

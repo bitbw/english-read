@@ -1,9 +1,10 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { vocabulary } from "@/lib/db/schema";
-import { utcDayString } from "@/lib/reading-time";
 import { monthUtcDayKeys } from "@/lib/review-plan";
-import { eq, and, lte, gte, count } from "drizzle-orm";
+import { calendarDayAfter, calendarDayKey, zonedDayRangeUtc } from "@/lib/user-calendar";
+import { resolveTimeZone } from "@/lib/user-timezone";
+import { eq, and, lte, gte, lt, count } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -30,12 +31,14 @@ export async function GET(req: Request) {
   const { year, month } = parsed.data;
   const userId = session.user.id;
   const now = new Date();
-  const todayKey = utcDayString(now);
+  const timeZone = await resolveTimeZone(userId, req);
+  const todayKey = calendarDayKey(timeZone, now);
   const dayKeys = monthUtcDayKeys(year, month);
   const firstKey = dayKeys[0]!;
   const lastKey = dayKeys[dayKeys.length - 1]!;
-  const monthStart = new Date(`${firstKey}T00:00:00.000Z`);
-  const monthEnd = new Date(`${lastKey}T23:59:59.999Z`);
+  const monthStart = zonedDayRangeUtc(firstKey, timeZone).dayStart;
+  const afterLast = calendarDayAfter(lastKey, timeZone);
+  const monthEndExclusive = zonedDayRangeUtc(afterLast, timeZone).dayStart;
 
   const [dueNowRow] = await db
     .select({ count: count() })
@@ -56,7 +59,7 @@ export async function GET(req: Request) {
         eq(vocabulary.userId, userId),
         eq(vocabulary.isMastered, false),
         gte(vocabulary.nextReviewAt, monthStart),
-        lte(vocabulary.nextReviewAt, monthEnd)
+        lt(vocabulary.nextReviewAt, monthEndExclusive)
       )
     );
 
@@ -66,7 +69,7 @@ export async function GET(req: Request) {
   }
 
   for (const row of monthRows) {
-    const key = utcDayString(row.nextReviewAt);
+    const key = calendarDayKey(timeZone, row.nextReviewAt);
     const cell = days[key];
     if (!cell) continue;
     cell.scheduled += 1;

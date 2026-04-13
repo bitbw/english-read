@@ -6,8 +6,9 @@ import { getInitialReviewDate } from "@/lib/srs";
 import {
   VOCABULARY_DAILY_ADD_LIMIT,
   VOCAB_DAILY_LIMIT_CODE,
-  vocabularyUtcDayBounds,
+  vocabularyZonedDayBounds,
 } from "@/lib/vocabulary-daily-limit";
+import { resolveTimeZone } from "@/lib/user-timezone";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -98,7 +99,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ...existing, alreadyExists: true });
   }
 
-  const { dayStart, dayEndExclusive } = vocabularyUtcDayBounds();
+  const timeZone = await resolveTimeZone(session.user.id, req);
+  const { dayStart, dayEndExclusive } = vocabularyZonedDayBounds(timeZone);
   const [todayRow] = await db
     .select({ count: count() })
     .from(vocabulary)
@@ -132,7 +134,7 @@ export async function POST(req: Request) {
       definition: parsed.data.definition ?? null,
       phonetic: parsed.data.phonetic ?? null,
       reviewStage: 0,
-      nextReviewAt: getInitialReviewDate(),
+      nextReviewAt: getInitialReviewDate(timeZone),
     })
     .returning();
 
