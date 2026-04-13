@@ -358,7 +358,7 @@ function glossDedupKey(zh: string): string {
 }
 
 /**
- * 从 Datamuse 联想词 + 词库近形词中选出 3 个干扰英文词（尽量与正确项中文义不同）
+ * 从词库近形词 + Datamuse 近拼写词中选出若干干扰英文词（词形接近，避免近义中文义项撞车）
  */
 export function pickDistractorEnglishWords(
   targetWord: string,
@@ -379,14 +379,14 @@ export function pickDistractorEnglishWords(
   };
 
   const out: string[] = [];
+  for (const v of vocabSimilar) {
+    if (out.length >= need) break;
+    tryAdd(v.word, out);
+  }
   const shuffledDm = shuffle([...datamuseList]);
   for (const w of shuffledDm) {
     if (out.length >= need) break;
     tryAdd(w, out);
-  }
-  for (const v of vocabSimilar) {
-    if (out.length >= need) break;
-    tryAdd(v.word, out);
   }
   return out;
 }

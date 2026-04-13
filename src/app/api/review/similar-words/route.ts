@@ -3,9 +3,25 @@ import { NextResponse } from "next/server";
 
 /**
  * GET /api/review/similar-words?word=xxx
- * 用 Datamuse（无需 API Key）取与当前词「搭配共现 / 联想」相关的英文词作释义干扰项，
- * 不足时辅以词库内近形词 word 列表（由客户端传入或二次请求）。
+ * 用 Datamuse（无需 API Key）按拼写模式 `sp` 取与当前词「词形/拼写」相近的英文词，供释义四选一作干扰项（避免 ml/rel_trg 近义导致中文义项难辨）。
  */
+
+function lettersKey(w: string): string {
+  return w.toLowerCase().replace(/[^a-z]/g, "");
+}
+
+function buildSpPatterns(base: string): string[] {
+  const n = base.length;
+  if (n === 0) return [];
+  if (n <= 2) return [`${base}*`];
+  if (n === 3) return [`${base.slice(0, 2)}*`];
+  const patterns = [`${base.slice(0, 3)}*`, `*${base.slice(-3)}`];
+  if (n >= 6) {
+    patterns.push(`${base.slice(0, 2)}?${base.slice(-2)}`);
+  }
+  return patterns;
+}
+
 export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -18,51 +34,54 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "word parameter is required" }, { status: 400 });
   }
 
-  const q = encodeURIComponent(word.toLowerCase());
-  const seen = new Set<string>();
-  const norm = (w: string) => w.toLowerCase().replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
-  const targetNorm = norm(word);
-  if (targetNorm) seen.add(targetNorm);
+  const firstToken = word.trim().split(/\s+/)[0] ?? "";
+  const base = lettersKey(firstToken);
+  const targetFullKey = lettersKey(word);
 
-  const addWords = (items: { word?: string }[]) => {
-    const out: string[] = [];
-    for (const it of items) {
-      const w = (it.word ?? "").trim();
-      if (!w || /[^a-zA-Z\s\-']/.test(w.replace(/\s/g, ""))) continue;
-      const n = norm(w);
-      if (!n || seen.has(n)) continue;
-      seen.add(n);
-      out.push(w);
-    }
-    return out;
+  const norm = (w: string) => w.toLowerCase().replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
+
+  const maxLenDiff = base.length <= 2 ? 2 : 4;
+
+  const acceptCandidate = (raw: string): string | null => {
+    const w = raw.trim();
+    if (!w || /[^a-zA-Z\s\-']/.test(w.replace(/\s/g, ""))) return null;
+    const ck = lettersKey(w);
+    if (!ck || ck === targetFullKey) return null;
+    if (Math.abs(ck.length - base.length) > maxLenDiff) return null;
+    return w;
   };
 
+  if (!base) {
+    return NextResponse.json({ words: [] });
+  }
+
+  const patterns = buildSpPatterns(base);
   const merged: string[] = [];
 
   try {
-    const [trgRes, mlRes] = await Promise.all([
-      fetch(`https://api.datamuse.com/words?rel_trg=${q}&max=30`, { next: { revalidate: 3600 } }),
-      fetch(`https://api.datamuse.com/words?ml=${q}&max=20`, { next: { revalidate: 3600 } }),
-    ]);
-
-    if (trgRes.ok) {
-      const data = (await trgRes.json()) as { word?: string }[];
-      merged.push(...addWords(data));
-    }
-    if (mlRes.ok) {
-      const data = (await mlRes.json()) as { word?: string }[];
-      merged.push(...addWords(data));
+    const fetches = patterns.map((sp) =>
+      fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(sp)}&max=22`, {
+        next: { revalidate: 3600 },
+      })
+    );
+    const responses = await Promise.all(fetches);
+    for (const res of responses) {
+      if (!res.ok) continue;
+      const data = (await res.json()) as { word?: string }[];
+      for (const it of data) {
+        const ok = acceptCandidate(it.word ?? "");
+        if (ok) merged.push(ok);
+      }
     }
   } catch {
     /* ignore */
   }
 
-  // 优先用 rel_trg 靠前的联想词，避免全被 ml 同义词占满（中文义易撞车）
   const unique: string[] = [];
   const u = new Set<string>();
   for (const w of merged) {
     const k = norm(w);
-    if (u.has(k)) continue;
+    if (!k || u.has(k)) continue;
     u.add(k);
     unique.push(w);
   }
