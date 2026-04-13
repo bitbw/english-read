@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -166,6 +167,8 @@ export function ReviewSession({
   const [spellingShakePlay, setSpellingShakePlay] = useState(false);
   const spellingShakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [spellHintLevel, setSpellHintLevel] = useState(0);
+  /** 手动键盘输入；与点选字块二选一展示逻辑：有输入时以输入为准参与提交 */
+  const [manualSpelling, setManualSpelling] = useState("");
   const [spellGlossDisplay, setSpellGlossDisplay] = useState("");
   const [rememberedCount, setRememberedCount] = useState(0);
   const [requeuedCount, setRequeuedCount] = useState(0);
@@ -325,7 +328,10 @@ export function ReviewSession({
   }, []);
 
   useEffect(() => {
-    if (step !== "spelling") clearSpellingAssemblyError();
+    if (step !== "spelling") {
+      clearSpellingAssemblyError();
+      setManualSpelling("");
+    }
   }, [step, clearSpellingAssemblyError]);
 
   const proceedAfterMeaningReveal = () => {
@@ -339,6 +345,7 @@ export function ReviewSession({
       );
       setSpellHintLevel(0);
       setSpellGlossDisplay("");
+      setManualSpelling("");
       setStep("spelling");
     } else {
       onMeaningWrong();
@@ -363,11 +370,13 @@ export function ReviewSession({
     );
     setSpellHintLevel(0);
     setSpellGlossDisplay("");
+    setManualSpelling("");
     setStep("spelling");
   };
 
   const takeChip = (id: number) => {
     clearSpellingAssemblyError();
+    setManualSpelling("");
     setSpelling((s) => {
       if (s.usedIds.includes(id)) return s;
       return { ...s, usedIds: [...s.usedIds, id] };
@@ -384,12 +393,23 @@ export function ReviewSession({
 
   const clearSpelling = () => {
     clearSpellingAssemblyError();
+    setManualSpelling("");
     setSpelling((s) => ({ ...s, usedIds: [] }));
+  };
+
+  const onManualSpellingChange = (value: string) => {
+    clearSpellingAssemblyError();
+    setManualSpelling(value);
+    if (value.trim().length > 0) {
+      setSpelling((s) => (s.usedIds.length === 0 ? s : { ...s, usedIds: [] }));
+    }
   };
 
   const confirmSpelling = async () => {
     if (!current || !quizBase) return;
-    const built = spelling.usedIds.map((id) => spelling.labels[id] ?? "").join("");
+    const manual = manualSpelling.trim();
+    const built =
+      manual.length > 0 ? manual : spelling.usedIds.map((id) => spelling.labels[id] ?? "").join("");
     if (!assembledMatchesTarget(built, current.word)) {
       if (spellingShakeTimerRef.current) clearTimeout(spellingShakeTimerRef.current);
       setSpellingAssemblyError(true);
@@ -432,6 +452,8 @@ export function ReviewSession({
       }
       return next;
     });
+    setManualSpelling("");
+    setSpelling((s) => ({ ...s, usedIds: [] }));
     setStep("meaning");
   };
 
@@ -667,6 +689,7 @@ export function ReviewSession({
               disabled={spellHintLevel >= 2 || !spellKeyNorm}
               onClick={() => {
                 clearSpellingAssemblyError();
+                setManualSpelling("");
                 setSpellHintLevel((h) => Math.min(2, h + 1));
               }}
             >
@@ -681,14 +704,14 @@ export function ReviewSession({
 
           <p className="text-sm font-medium text-center">
             {phraseSpelling
-              ? "根据中文义点选单词块，按顺序拼出该词组"
+              ? "点选单词块组合，或在下方输入框键入完整词组（可用空格）"
               : spellingChunkCount > 0
-                ? "上方为整词字块、下方为每个字母（均含少量干扰），可任选点选，按顺序拼出该词"
-                : "根据中文义点选字母，按顺序拼出该词"}
+                ? "点选字块/字母组合，或在下方输入框键入完整单词"
+                : "点选字母组合，或在下方输入框键入完整单词"}
           </p>
           <div
             className={cn(
-              "min-h-14 rounded-lg border border-dashed px-3 py-3 flex flex-wrap gap-2 items-center justify-center bg-muted/30 transition-[border-color,box-shadow] duration-200",
+              "rounded-lg border border-dashed px-3 py-3 space-y-3 bg-muted/30 transition-[border-color,box-shadow] duration-200",
               spellingAssemblyError
                 ? "border-destructive border-solid border-2 ring-2 ring-destructive/35"
                 : "border-muted-foreground/40",
@@ -697,31 +720,53 @@ export function ReviewSession({
             aria-live="polite"
             aria-invalid={spellingAssemblyError}
           >
-            {spelling.usedIds.length === 0 ? (
-              <span className="text-sm text-muted-foreground">
-                {phraseSpelling
-                  ? "点击下方单词块按顺序组合"
-                  : spellingChunkCount > 0
-                    ? "点击下方字块或字母按顺序组合"
-                    : "点击下方字母按顺序组合"}
-              </span>
-            ) : (
-              spelling.usedIds.map((id, i) => (
-                <span
-                  key={`${id}-slot-${i}`}
-                  className={cn(
-                    "font-semibold",
-                    phraseSpelling ? "text-lg tracking-tight" : "text-xl font-mono"
-                  )}
-                >
-                  {spelling.labels[id]}
+            <div className="min-h-10 flex flex-wrap gap-2 items-center justify-center">
+              {spelling.usedIds.length > 0 ? (
+                spelling.usedIds.map((id, i) => (
+                  <span
+                    key={`${id}-slot-${i}`}
+                    className={cn(
+                      "font-semibold",
+                      phraseSpelling ? "text-lg tracking-tight" : "text-xl font-mono"
+                    )}
+                  >
+                    {spelling.labels[id]}
+                  </span>
+                ))
+              ) : manualSpelling.trim() !== "" ? (
+                <span className="text-sm text-muted-foreground">当前使用键盘输入作答</span>
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  {phraseSpelling
+                    ? "点选下方单词块，或使用输入框"
+                    : spellingChunkCount > 0
+                      ? "点选下方字块或字母，或使用输入框"
+                      : "点选下方字母，或使用输入框"}
                 </span>
-              ))
-            )}
+              )}
+            </div>
+            <Input
+              type="text"
+              value={manualSpelling}
+              onChange={(e) => onManualSpellingChange(e.target.value)}
+              placeholder={
+                phraseSpelling
+                  ? "手动输入完整词组（单词间可空格）"
+                  : "手动输入完整单词"
+              }
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              className={cn(
+                "w-full font-mono text-base bg-background/80",
+                phraseSpelling ? "tracking-tight" : ""
+              )}
+              aria-label={phraseSpelling ? "手动输入词组拼写" : "手动输入单词拼写"}
+            />
           </div>
           {spellingAssemblyError ? (
             <p className="text-sm text-destructive text-center -mt-2">
-              与目标拼写不符，请用撤销、清空或继续点选修改，拼对后才能提交进入下一词。
+              与目标拼写不符，请修改点选、输入框内容或清空后重试，拼对后才能提交进入下一词。
             </p>
           ) : null}
 
@@ -819,7 +864,10 @@ export function ReviewSession({
 
           <Button
             className="w-full bg-green-600 hover:bg-green-700 text-white"
-            disabled={submitting || spelling.usedIds.length === 0}
+            disabled={
+              submitting ||
+              (spelling.usedIds.length === 0 && manualSpelling.trim() === "")
+            }
             onClick={() => void confirmSpelling()}
           >
             <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -829,8 +877,7 @@ export function ReviewSession({
       )}
 
       <p className="text-xs text-muted-foreground text-center px-2">
-        释义干扰项优先来自与当前词相关的英文联想词（Datamuse），不足时辅以词库中近形词。拼写环节：单词同时提供整词字块与逐字母两组选项（各含
-        2 个干扰），可任选组合点选；词组按空格拆分为单词并含 2 个干扰词。
+        释义干扰项优先来自与当前词相关的英文联想词（Datamuse），不足时辅以词库中近形词。拼写环节：单词同时提供字块与字母点选（各含少量干扰），也可在输入框内手动键入；词组按单词块点选或手动输入均可。
       </p>
     </div>
   );
