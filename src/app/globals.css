@@ -91,3 +91,28 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes spelling-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  18% {
+    transform: translateX(-7px);
+  }
+  36% {
+    transform: translateX(7px);
+  }
+  54% {
+    transform: translateX(-4px);
+  }
+  72% {
+    transform: translateX(4px);
+  }
+}
+
+@layer utilities {
+  .animate-spelling-shake {
+    animation: spelling-shake 0.45s ease-in-out;
+  }
+}

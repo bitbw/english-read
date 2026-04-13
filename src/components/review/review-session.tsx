@@ -161,6 +161,10 @@ export function ReviewSession({
   const [spelling, setSpelling] = useState<SpellingTrayState>(() =>
     initSpellingTray([])
   );
+  /** 拼写与目标不一致：红框提示，修改拼写后清除 */
+  const [spellingAssemblyError, setSpellingAssemblyError] = useState(false);
+  const [spellingShakePlay, setSpellingShakePlay] = useState(false);
+  const spellingShakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [spellHintLevel, setSpellHintLevel] = useState(0);
   const [spellGlossDisplay, setSpellGlossDisplay] = useState("");
   const [rememberedCount, setRememberedCount] = useState(0);
@@ -182,6 +186,12 @@ export function ReviewSession({
     setRememberedCount(0);
     setRequeuedCount(0);
     setFailVersions({});
+    setSpellingAssemblyError(false);
+    setSpellingShakePlay(false);
+    if (spellingShakeTimerRef.current) {
+      clearTimeout(spellingShakeTimerRef.current);
+      spellingShakeTimerRef.current = null;
+    }
   }, [words]);
 
   const current = queue[0];
@@ -299,9 +309,29 @@ export function ReviewSession({
     moveHeadToEnd();
   }, [bumpFailForHead, moveHeadToEnd, queue.length]);
 
+  const clearSpellingAssemblyError = useCallback(() => {
+    setSpellingAssemblyError(false);
+    setSpellingShakePlay(false);
+    if (spellingShakeTimerRef.current) {
+      clearTimeout(spellingShakeTimerRef.current);
+      spellingShakeTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (spellingShakeTimerRef.current) clearTimeout(spellingShakeTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (step !== "spelling") clearSpellingAssemblyError();
+  }, [step, clearSpellingAssemblyError]);
+
   const proceedAfterMeaningReveal = () => {
     if (!quizBase || !meaningQuiz || !pickMeta) return;
     if (pickMeta.correct) {
+      clearSpellingAssemblyError();
       setSpelling(
         quizBase.spellingTray.chunkCount > 0
           ? initSpellingTrayWithSplit(quizBase.spellingTray.labels, quizBase.spellingTray.chunkCount)
@@ -325,6 +355,7 @@ export function ReviewSession({
 
   const onSkipMeaningToSpelling = () => {
     if (!quizBase || !meaningQuiz) return;
+    clearSpellingAssemblyError();
     setSpelling(
       quizBase.spellingTray.chunkCount > 0
         ? initSpellingTrayWithSplit(quizBase.spellingTray.labels, quizBase.spellingTray.chunkCount)
@@ -336,6 +367,7 @@ export function ReviewSession({
   };
 
   const takeChip = (id: number) => {
+    clearSpellingAssemblyError();
     setSpelling((s) => {
       if (s.usedIds.includes(id)) return s;
       return { ...s, usedIds: [...s.usedIds, id] };
@@ -343,6 +375,7 @@ export function ReviewSession({
   };
 
   const undoChip = () => {
+    clearSpellingAssemblyError();
     setSpelling((s) => {
       if (s.usedIds.length === 0) return s;
       return { ...s, usedIds: s.usedIds.slice(0, -1) };
@@ -350,25 +383,26 @@ export function ReviewSession({
   };
 
   const clearSpelling = () => {
+    clearSpellingAssemblyError();
     setSpelling((s) => ({ ...s, usedIds: [] }));
   };
-
-  const onSpellingWrong = useCallback(() => {
-    toast.error("拼写不对，本题已移到本轮最后再来一遍");
-    bumpFailForHead();
-    setStep("meaning");
-    if (queue.length <= 1) return;
-    moveHeadToEnd();
-  }, [bumpFailForHead, moveHeadToEnd, queue.length]);
 
   const confirmSpelling = async () => {
     if (!current || !quizBase) return;
     const built = spelling.usedIds.map((id) => spelling.labels[id] ?? "").join("");
     if (!assembledMatchesTarget(built, current.word)) {
-      onSpellingWrong();
+      if (spellingShakeTimerRef.current) clearTimeout(spellingShakeTimerRef.current);
+      setSpellingAssemblyError(true);
+      setSpellingShakePlay(true);
+      spellingShakeTimerRef.current = setTimeout(() => {
+        setSpellingShakePlay(false);
+        spellingShakeTimerRef.current = null;
+      }, 450);
+      toast.error("拼写不正确，请修改后再提交");
       return;
     }
 
+    clearSpellingAssemblyError();
     setSubmitting(true);
     try {
       const res = await clientFetch("/api/review/submit", {
@@ -631,7 +665,10 @@ export function ReviewSession({
               variant="outline"
               size="sm"
               disabled={spellHintLevel >= 2 || !spellKeyNorm}
-              onClick={() => setSpellHintLevel((h) => Math.min(2, h + 1))}
+              onClick={() => {
+                clearSpellingAssemblyError();
+                setSpellHintLevel((h) => Math.min(2, h + 1));
+              }}
             >
               <Lightbulb className="h-4 w-4 mr-2" />
               {spellHintLevel === 0
@@ -650,8 +687,15 @@ export function ReviewSession({
                 : "根据中文义点选字母，按顺序拼出该词"}
           </p>
           <div
-            className="min-h-14 rounded-lg border border-dashed border-muted-foreground/40 px-3 py-3 flex flex-wrap gap-2 items-center justify-center bg-muted/30"
+            className={cn(
+              "min-h-14 rounded-lg border border-dashed px-3 py-3 flex flex-wrap gap-2 items-center justify-center bg-muted/30 transition-[border-color,box-shadow] duration-200",
+              spellingAssemblyError
+                ? "border-destructive border-solid border-2 ring-2 ring-destructive/35"
+                : "border-muted-foreground/40",
+              spellingShakePlay && "animate-spelling-shake"
+            )}
             aria-live="polite"
+            aria-invalid={spellingAssemblyError}
           >
             {spelling.usedIds.length === 0 ? (
               <span className="text-sm text-muted-foreground">
@@ -675,6 +719,11 @@ export function ReviewSession({
               ))
             )}
           </div>
+          {spellingAssemblyError ? (
+            <p className="text-sm text-destructive text-center -mt-2">
+              与目标拼写不符，请用撤销、清空或继续点选修改，拼对后才能提交进入下一词。
+            </p>
+          ) : null}
 
           <div className="w-full space-y-4">
             {spellingChunkCount > 0 ? (
