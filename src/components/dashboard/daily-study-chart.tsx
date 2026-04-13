@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { clientFetch } from "@/lib/client-fetch";
+import { Skeleton } from "@/components/ui/skeleton";
 
-interface DailyStudyChartProps {
-  series: { day: string; seconds: number }[];
-}
+type SeriesPoint = { day: string; seconds: number };
 
 function formatDayLabel(isoDay: string) {
   const m = parseInt(isoDay.slice(5, 7), 10);
@@ -20,8 +20,25 @@ function formatBarMinutes(seconds: number) {
   return String(Math.round(m));
 }
 
-export function DailyStudyChart({ series }: DailyStudyChartProps) {
+export function DailyStudyChart() {
+  const [series, setSeries] = useState<SeriesPoint[] | null>(null);
   const [narrow, setNarrow] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const r = await clientFetch("/api/reading/time?days=14", { showErrorToast: false });
+      if (!r.ok) {
+        if (!cancelled) setSeries([]);
+        return;
+      }
+      const data = (await r.json()) as { series?: SeriesPoint[] };
+      if (!cancelled) setSeries(data.series ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
@@ -30,6 +47,15 @@ export function DailyStudyChart({ series }: DailyStudyChartProps) {
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
+
+  if (series === null) {
+    return (
+      <div className="space-y-3 py-2">
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-[118px] w-full" />
+      </div>
+    );
+  }
 
   const displaySeries = narrow ? series.slice(-7) : series;
   const minutes = displaySeries.map((s) => s.seconds / 60);
@@ -43,10 +69,10 @@ export function DailyStudyChart({ series }: DailyStudyChartProps) {
     <div className="space-y-4">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          近 {displaySeries.length} 天（按 UTC 日历）
+          近 {displaySeries.length} 天（按学习时区日历）
         </p>
         <p className="text-sm tabular-nums text-muted-foreground">
-          当前 UTC 日约 <span className="font-semibold text-foreground">{todayMin}</span> 分钟
+          今天约 <span className="font-semibold text-foreground">{todayMin}</span> 分钟
         </p>
       </div>
 

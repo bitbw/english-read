@@ -15,6 +15,13 @@
       "when": 1775005911307,
       "tag": "0001_sticky_shen",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776047887822,
+      "tag": "0002_user_time_zone",
+      "breakpoints": true
     }
   ]
 }

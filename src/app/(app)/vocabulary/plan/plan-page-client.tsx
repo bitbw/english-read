@@ -39,8 +39,8 @@ function formatMonthTitle(year: number, month: number) {
 export function PlanPageClient() {
   const router = useRouter();
   const now = useMemo(() => new Date(), []);
-  const [year, setYear] = useState(() => now.getUTCFullYear());
-  const [month, setMonth] = useState(() => now.getUTCMonth() + 1);
+  const [year, setYear] = useState(() => now.getFullYear());
+  const [month, setMonth] = useState(() => now.getMonth() + 1);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,10 +61,14 @@ export function PlanPageClient() {
   }, [load]);
 
   const dayKeys = useMemo(() => {
-    const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const last = new Date(year, month, 0).getDate();
     const keys: string[] = [];
     for (let d = 1; d <= last; d++) {
-      keys.push(new Date(Date.UTC(year, month - 1, d)).toISOString().slice(0, 10));
+      const dt = new Date(year, month - 1, d);
+      const y = dt.getFullYear();
+      const mo = String(dt.getMonth() + 1).padStart(2, "0");
+      const da = String(dt.getDate()).padStart(2, "0");
+      keys.push(`${y}-${mo}-${da}`);
     }
     return keys;
   }, [year, month]);
@@ -116,7 +120,7 @@ export function PlanPageClient() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold">复习计划</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            按 UTC 日历日汇总，与阅读时长统计一致；今日格子数字含所有已到期（含更早拖欠）
+            按学习时区日历日汇总（与阅读时长、生词日上限一致）；今日格子数字含所有已到期（含更早拖欠）
           </p>
         </div>
       </div>

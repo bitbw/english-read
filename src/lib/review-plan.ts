@@ -26,8 +26,8 @@ export function padMonthGrid(dayKeys: string[]): (string | null)[] {
   const first = dayKeys[0]!;
   const y = Number(first.slice(0, 4));
   const m = Number(first.slice(5, 7)) - 1;
-  const firstD = new Date(Date.UTC(y, m, 1));
-  const weekday = firstD.getUTCDay(); // 0 Sun
+  const firstD = new Date(y, m, 1);
+  const weekday = firstD.getDay(); // 0 Sun，公历月首日在本地日历下的星期
   const pad = weekday === 0 ? 6 : weekday - 1; // Mon-first grid
   const cells: (string | null)[] = [...Array(pad).fill(null), ...dayKeys];
   while (cells.length % 7 !== 0) cells.push(null);

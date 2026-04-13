@@ -44,18 +44,36 @@ export type ClientFetchInit = RequestInit & {
   showErrorToast?: boolean;
 };
 
+function browserIanaTimeZone(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const t = Intl.DateTimeFormat().resolvedOptions().timeZone?.trim();
+    if (t && t.length <= 120) return t;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 /**
  * 浏览器端统一 fetch：网络失败或非 2xx 时默认 Sonner toast（Next 无内置全局劫持）。
  * 错误文案优先使用响应 JSON 的 `message`，否则使用字符串 `error`。
+ * 自动附加 `X-User-Timezone`（IANA），供服务端按学习时区切日；调用方已设置则不覆盖。
  */
 export async function clientFetch(
   input: RequestInfo | URL,
   init?: ClientFetchInit
 ): Promise<Response> {
   const { showErrorToast = true, ...fetchInit } = init ?? {};
+  const headers = new Headers(fetchInit.headers);
+  if (!headers.has("X-User-Timezone")) {
+    const tz = browserIanaTimeZone();
+    if (tz) headers.set("X-User-Timezone", tz);
+  }
+  const nextInit: RequestInit = { ...fetchInit, headers };
 
   try {
-    const res = await fetch(input, fetchInit);
+    const res = await fetch(input, nextInit);
     if (!res.ok && showErrorToast) {
       await toastForFailedResponse(res);
     }

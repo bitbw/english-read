@@ -82,7 +82,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     });
   }, [cfiReady, effectiveCfi, fontSize]);
 
-  // 阅读页前台活跃时长 → 上报累加（与仪表盘柱状图一致，按 UTC 日聚合）
+  // 阅读页前台活跃时长 → 上报累加（与仪表盘一致，按学习时区自然日聚合）
   useEffect(() => {
     if (!cfiReady) return;
 

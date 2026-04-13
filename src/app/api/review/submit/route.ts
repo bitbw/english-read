@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { vocabulary, reviewLogs } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { calculateNextReview } from "@/lib/srs";
+import { resolveTimeZone } from "@/lib/user-timezone";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -40,9 +41,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Word not found" }, { status: 404 });
   }
 
+  const timeZone = await resolveTimeZone(session.user.id, req);
   const { nextStage, nextReviewAt, isMastered } = calculateNextReview(
     word.reviewStage,
-    result
+    result,
+    timeZone
   );
 
   // neon-http 不支持 transaction；先更新词汇，写日志失败则回滚词汇，避免重试导致阶段连加

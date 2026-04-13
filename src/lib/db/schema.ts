@@ -23,6 +23,8 @@ export const users = pgTable("users", {
   email: text("email").unique(),
   emailVerified: timestamp("email_verified", { mode: "date" }),
   image: text("image"),
+  /** IANA 时区，可空：空则使用请求头 `X-User-Timezone`，再否则 UTC */
+  timeZone: text("time_zone"),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
