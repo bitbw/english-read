@@ -28,7 +28,10 @@ import {
   Calendar,
   Settings,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
+
+const GITHUB_REPO_URL = "https://github.com/bitbw/english-read";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -111,6 +114,17 @@ export function Topbar() {
               );
             })}
           </nav>
+          <div className="shrink-0 border-t border-border p-4">
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md outline-offset-2 focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
+              <span>GitHub 开源仓库</span>
+            </a>
+          </div>
         </SheetContent>
       </Sheet>
 

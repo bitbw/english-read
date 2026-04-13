@@ -23,7 +23,7 @@ import {
   LEARNING_TIMEZONE_GROUPS,
 } from "@/lib/learning-timezones";
 import { learningTimeZoneOptionLabel } from "@/lib/timezone-display";
-import { LogOut } from "lucide-react";
+import { ExternalLink, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
@@ -240,10 +240,24 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-base">关于</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>English Read v1.0</p>
           <p>基于 Next.js 14 + Vercel 构建的英语阅读工具</p>
           <p>词汇复习采用艾宾浩斯遗忘曲线算法</p>
+          <p>
+            <a
+              href="https://github.com/bitbw/english-read"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-foreground underline-offset-4 hover:underline"
+            >
+              <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
+              GitHub 开源仓库
+            </a>
+            <span className="block text-xs mt-1 text-muted-foreground">
+              欢迎反馈问题与贡献代码
+            </span>
+          </p>
         </CardContent>
       </Card>
 

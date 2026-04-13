@@ -52,7 +52,6 @@ export function ReviewPageClient() {
   const [pool, setPool] = useState<DistractorItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiPreview, setApiPreview] = useState(false);
-
   const fetchUrl = useMemo(() => buildFetchUrl(date, preview), [date, preview]);
   const reviewScopeDay = useMemo(() => getReviewScopeDay(date), [date]);
 
