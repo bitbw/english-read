@@ -357,8 +357,17 @@ function glossDedupKey(zh: string): string {
   return zh.trim().toLowerCase().replace(/\s+/g, "");
 }
 
+/** 与 pickSimilarWords 一致：编辑距离 + 轻微长度惩罚，用于在「词库 + Datamuse」合并池里统一排序 */
+function formSimilarityScore(targetKey: string, candidateKey: string): number {
+  if (!candidateKey || candidateKey === targetKey) return Number.POSITIVE_INFINITY;
+  const dist = levenshtein(targetKey, candidateKey);
+  const bonus = Math.abs(targetKey.length - candidateKey.length) * 0.15;
+  return dist + bonus;
+}
+
 /**
- * 从词库近形词 + Datamuse 近拼写词中选出若干干扰英文词（词形接近，避免近义中文义项撞车）
+ * 从词库近形词 + Datamuse 近拼写词合并后，按拼写接近度取若干干扰英文词。
+ * 若先词库后 API，词库里「相对最近」但仍很远的词会占满名额，导致 API 近形词永远进不来。
  */
 export function pickDistractorEnglishWords(
   targetWord: string,
@@ -367,28 +376,35 @@ export function pickDistractorEnglishWords(
   need: number
 ): string[] {
   const tk = normalizeWordKey(targetWord);
-  const seen = new Set<string>();
-  if (tk) seen.add(tk);
+  if (!tk) return [];
 
-  const tryAdd = (w: string, bucket: string[]) => {
+  const seen = new Set<string>();
+  const candidates: string[] = [];
+
+  const pushUnique = (raw: string) => {
+    const w = raw.trim();
     const k = normalizeWordKey(w);
-    if (!k || seen.has(k)) return false;
+    if (!k || k === tk || seen.has(k)) return;
     seen.add(k);
-    bucket.push(w.trim());
-    return true;
+    candidates.push(w);
   };
 
-  const out: string[] = [];
   for (const v of vocabSimilar) {
-    if (out.length >= need) break;
-    tryAdd(v.word, out);
+    pushUnique(v.word);
   }
-  const shuffledDm = shuffle([...datamuseList]);
-  for (const w of shuffledDm) {
-    if (out.length >= need) break;
-    tryAdd(w, out);
+  for (const w of datamuseList) {
+    pushUnique(w);
   }
-  return out;
+
+  const scored = candidates
+    .map((w) => {
+      const ck = normalizeWordKey(w);
+      return { w, score: formSimilarityScore(tk, ck) };
+    })
+    .filter((x) => Number.isFinite(x.score))
+    .sort((a, b) => a.score - b.score || a.w.localeCompare(b.w));
+
+  return scored.slice(0, need).map((x) => x.w);
 }
 
 /**
