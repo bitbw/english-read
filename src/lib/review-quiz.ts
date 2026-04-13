@@ -66,9 +66,12 @@ export async function resolveChineseGloss(
   }
 
   try {
-    const res = await clientFetch(`/api/dictionary?word=${encodeURIComponent(word.trim())}`, {
-      showErrorToast: false,
-    });
+    const res = await clientFetch(
+      `/api/dictionary?word=${encodeURIComponent(word.trim())}&youdaoOnly=1`,
+      {
+        showErrorToast: false,
+      }
+    );
     if (!res.ok) throw new Error("dict");
     const data = (await res.json()) as { translation?: string };
     const t = (data.translation ?? "").trim();
