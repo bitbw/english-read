@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, BookmarkPlus, BookmarkCheck, BookmarkMinus, X, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
+import { toastConfirmAction } from "@/lib/toast-confirm";
 import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
 import { linkifyToReactNodes } from "@/components/linkified-text";
 
@@ -300,22 +301,31 @@ export function WordPopup({
     }
   }
 
-  async function handleRemove() {
-    if (!existingEntryId) return;
-    setRemoving(true);
-    try {
-      const res = await clientFetch(`/api/vocabulary/${existingEntryId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setExistingEntryId(null);
-        toast.success(`已从生词本移除「${word}」`);
-      }
-    } catch {
-      toast.error(CLIENT_FETCH_NETWORK_ERROR);
-    } finally {
-      setRemoving(false);
-    }
+  function handleRemoveClick() {
+    if (!existingEntryId || removing) return;
+    const entryId = existingEntryId;
+    const label = word;
+    toastConfirmAction({
+      message: `确定从生词本删除「${label}」？`,
+      description: "删除后需在阅读中重新添加才会回到生词本。",
+      confirmLabel: "确认删除",
+      onConfirm: async () => {
+        setRemoving(true);
+        try {
+          const res = await clientFetch(`/api/vocabulary/${entryId}`, {
+            method: "DELETE",
+          });
+          if (res.ok) {
+            setExistingEntryId(null);
+            toast.success(`已从生词本移除「${label}」`);
+          }
+        } catch {
+          toast.error(CLIENT_FETCH_NETWORK_ERROR);
+        } finally {
+          setRemoving(false);
+        }
+      },
+    });
   }
 
   return (
@@ -451,7 +461,7 @@ export function WordPopup({
         <Button
           size="sm"
           className="h-7 w-full shrink-0 text-xs"
-          onClick={handleRemove}
+          onClick={handleRemoveClick}
           disabled={removing}
           variant="outline"
         >

@@ -2,8 +2,6 @@
 
 import { toast } from "sonner";
 
-const fetchErrorToastOptions = { position: "top-right" as const };
-
 export const CLIENT_FETCH_NETWORK_ERROR = "网络异常，请检查连接后重试";
 
 type ApiErrorBody = {
@@ -38,7 +36,7 @@ export function errorMessageFromApiBody(body: ApiErrorBody | null, status: numbe
 
 async function toastForFailedResponse(res: Response): Promise<void> {
   const body = await parseApiErrorBody(res);
-  toast.error(errorMessageFromApiBody(body, res.status), fetchErrorToastOptions);
+  toast.error(errorMessageFromApiBody(body, res.status));
 }
 
 export type ClientFetchInit = RequestInit & {
@@ -63,7 +61,7 @@ export async function clientFetch(
     }
     return res;
   } catch {
-    if (showErrorToast) toast.error(CLIENT_FETCH_NETWORK_ERROR, fetchErrorToastOptions);
+    if (showErrorToast) toast.error(CLIENT_FETCH_NETWORK_ERROR);
     throw new Error(CLIENT_FETCH_NETWORK_ERROR);
   }
 }
