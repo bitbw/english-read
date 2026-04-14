@@ -5,12 +5,50 @@ import {
   pickDistractorEnglishWords,
 } from "@/lib/review-distractor-pick";
 import { fetchYoudaoExplain } from "@/lib/youdao-suggest";
+import { generateText, Output } from "ai";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 /**
  * GET /api/review/similar-words?word=xxx
- * Datamuse 近拼写候选 + 服务端有道释义，直接返回最多 3 个干扰项（与当前词凑成四选一）。
+ * - 单词：Datamuse 近拼写 + 有道中文释义，最多 3 个干扰项。
+ * - 短语（含空格的多词）：Vercel AI Gateway + `zai/glm-4.7-flash`，`generateText` + `Output.object` 生成 3 条。
  */
+
+const PHRASE_LLM_MODEL = "zai/glm-4.7-flash" as const;
+
+const phraseDistractorsSchema = z.object({
+  distractors: z
+    .array(
+      z.object({
+        word: z.string(),
+        explainZh: z.string(),
+      })
+    )
+    .length(3),
+});
+
+function isMultiWordPhrase(word: string): boolean {
+  return word.trim().split(/\s+/).filter(Boolean).length > 1;
+}
+
+function phraseDistractorPrompt(phrase: string): string {
+  const quoted = JSON.stringify(phrase);
+  return `You are helping build English vocabulary quiz wrong answers.
+
+Target English phrase (must NOT appear verbatim as any "word" field, case-insensitive):
+${quoted}
+
+Return exactly 3 different English phrases that could be confused with the target in a multiple-choice test:
+- similar spelling and/or similar pronunciation (including plausible mis-hearings or typos as multi-word phrases),
+- natural English (realistic collocations or common phrases when possible),
+- each phrase distinct from the others and from the target.
+
+For each item, "explainZh" must be a concise Chinese dictionary-style gloss, like:
+"n. …; …" or "adj. …" or "v. …; …" (use Chinese explanations; you may prefix part-of-speech abbreviations as in learner dictionaries).
+
+Output must strictly follow the JSON schema (3 items in "distractors").`;
+}
 
 function lettersKey(w: string): string {
   return w.toLowerCase().replace(/[^a-z]/g, "");
@@ -42,6 +80,26 @@ export async function GET(req: Request) {
   const word = searchParams.get("word")?.trim();
   if (!word) {
     return NextResponse.json({ error: "word parameter is required" }, { status: 400 });
+  }
+
+  if (isMultiWordPhrase(word)) {
+    if (!process.env.AI_GATEWAY_API_KEY?.trim()) {
+      return NextResponse.json(
+        { error: "AI_GATEWAY_API_KEY is required for phrase distractors" },
+        { status: 503 }
+      );
+    }
+    try {
+      const result = await generateText({
+        model: PHRASE_LLM_MODEL,
+        output: Output.object({ schema: phraseDistractorsSchema }),
+        prompt: phraseDistractorPrompt(word),
+      });
+      return NextResponse.json({ distractors: result.output.distractors });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "LLM generation failed";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
   }
 
   const firstToken = word.trim().split(/\s+/)[0] ?? "";

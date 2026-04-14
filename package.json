@@ -16,6 +16,7 @@
     "@neondatabase/serverless": "^1.0.2",
     "@tailwindcss/postcss": "^4.2.2",
     "@vercel/blob": "^2.3.2",
+    "ai": "^6.0.159",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
