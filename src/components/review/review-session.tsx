@@ -231,26 +231,33 @@ export function ReviewSession({
     setPickMeta(null);
 
     (async () => {
-      let datamuse: string[] = [];
+      let preload: { word: string; explainZh: string }[] = [];
       try {
         const r = await clientFetch(
           `/api/review/similar-words?word=${encodeURIComponent(current.word.trim())}`,
           { showErrorToast: false }
         );
         if (r.ok) {
-          const j = (await r.json()) as { words?: string[] };
-          datamuse = Array.isArray(j.words) ? j.words : [];
+          const j = (await r.json()) as { distractors?: { word: string; explainZh: string }[] };
+          preload = Array.isArray(j.distractors) ? j.distractors : [];
         }
       } catch {
         /* ignore */
       }
       if (cancelled) return;
 
-      const distractorEn = pickDistractorEnglishWords(current.word, datamuse, similar, 3);
+      const preloadKeys = new Set(preload.map((p) => normalizeWordKey(p.word)));
+      const distractorEn = pickDistractorEnglishWords(current.word, [], similar, 10).filter(
+        (w) => !preloadKeys.has(normalizeWordKey(w))
+      );
       const mq = await buildMeaningQuizEnriched({
         currentId: current.id,
         currentWord: current.word,
         currentDefinition: current.definition,
+        distractorPreload: preload.map((p) => ({
+          word: p.word.trim(),
+          zh: p.explainZh.trim(),
+        })),
         distractorEnglish: distractorEn,
         glossCache: glossCacheRef.current,
       });

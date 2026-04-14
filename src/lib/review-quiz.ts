@@ -1,6 +1,14 @@
 "use client";
 
 import { clientFetch } from "@/lib/client-fetch";
+import {
+  glossDedupKey,
+  levenshtein,
+  looksLikeChinese,
+  normalizeWordKey,
+} from "@/lib/review-distractor-pick";
+
+export { looksLikeChinese, normalizeWordKey, pickDistractorEnglishWords } from "@/lib/review-distractor-pick";
 
 /**
  * 复习测验：中文四选一（动态干扰项 + 多义项）+ 拼字块干扰
@@ -41,11 +49,6 @@ export function storedChineseGloss(definition: string | null): string | null {
   const yi = parseDefinitions(definition).find((d) => d.pos === "译");
   const s = yi?.zh?.trim() || yi?.def?.trim();
   return s || null;
-}
-
-/** 是否像中文（含 CJK），用于复习选项避免再出现整段英文释义 */
-export function looksLikeChinese(s: string): boolean {
-  return /[\u3000-\u303f\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/.test(s);
 }
 
 /**
@@ -95,31 +98,6 @@ export function primaryGloss(definition: string | null): string | null {
   const fromYi = yi?.zh?.trim() || yi?.def?.trim();
   if (fromYi) return fromYi;
   return defs[0].def?.trim() || null;
-}
-
-function levenshtein(a: string, b: string): number {
-  if (a === b) return 0;
-  const m = a.length;
-  const n = b.length;
-  if (m === 0) return n;
-  if (n === 0) return m;
-  const row = new Array<number>(n + 1);
-  for (let j = 0; j <= n; j++) row[j] = j;
-  for (let i = 1; i <= m; i++) {
-    let prev = row[0];
-    row[0] = i;
-    for (let j = 1; j <= n; j++) {
-      const tmp = row[j];
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + cost);
-      prev = tmp;
-    }
-  }
-  return row[n];
-}
-
-export function normalizeWordKey(w: string): string {
-  return w.toLowerCase().replace(/[^a-z]/g, "");
 }
 
 /** 从候选里选拼写最接近的若干词（用于拼字干扰） */
@@ -428,60 +406,6 @@ export type MeaningQuiz = {
   skipMeaning: boolean;
 };
 
-function glossDedupKey(zh: string): string {
-  return zh.trim().toLowerCase().replace(/\s+/g, "");
-}
-
-/** 与 pickSimilarWords 一致：编辑距离 + 轻微长度惩罚，用于在「词库 + Datamuse」合并池里统一排序 */
-function formSimilarityScore(targetKey: string, candidateKey: string): number {
-  if (!candidateKey || candidateKey === targetKey) return Number.POSITIVE_INFINITY;
-  const dist = levenshtein(targetKey, candidateKey);
-  const bonus = Math.abs(targetKey.length - candidateKey.length) * 0.15;
-  return dist + bonus;
-}
-
-/**
- * 从词库近形词 + Datamuse 近拼写词合并后，按拼写接近度取若干干扰英文词。
- * 若先词库后 API，词库里「相对最近」但仍很远的词会占满名额，导致 API 近形词永远进不来。
- */
-export function pickDistractorEnglishWords(
-  targetWord: string,
-  datamuseList: string[],
-  vocabSimilar: QuizWord[],
-  need: number
-): string[] {
-  const tk = normalizeWordKey(targetWord);
-  if (!tk) return [];
-
-  const seen = new Set<string>();
-  const candidates: string[] = [];
-
-  const pushUnique = (raw: string) => {
-    const w = raw.trim();
-    const k = normalizeWordKey(w);
-    if (!k || k === tk || seen.has(k)) return;
-    seen.add(k);
-    candidates.push(w);
-  };
-
-  for (const v of vocabSimilar) {
-    pushUnique(v.word);
-  }
-  for (const w of datamuseList) {
-    pushUnique(w);
-  }
-
-  const scored = candidates
-    .map((w) => {
-      const ck = normalizeWordKey(w);
-      return { w, score: formSimilarityScore(tk, ck) };
-    })
-    .filter((x) => Number.isFinite(x.score))
-    .sort((a, b) => a.score - b.score || a.w.localeCompare(b.w));
-
-  return scored.slice(0, need).map((x) => x.w);
-}
-
 /**
  * 组装四选一：中文选项 + 翻面仅展示对应英文词
  */
@@ -490,9 +414,12 @@ export async function buildMeaningQuizEnriched(args: {
   currentWord: string;
   currentDefinition: string | null;
   distractorEnglish: string[];
+  /** 已由服务端用有道拉好的干扰项（如 /api/review/similar-words），减少客户端多次查词 */
+  distractorPreload?: ReadonlyArray<{ word: string; zh: string }>;
   glossCache: Map<string, string>;
 }): Promise<MeaningQuiz> {
-  const { currentId, currentWord, currentDefinition, distractorEnglish, glossCache } = args;
+  const { currentId, currentWord, currentDefinition, distractorEnglish, distractorPreload, glossCache } =
+    args;
 
   const correctZh = (
     await resolveChineseGloss(currentWord, currentDefinition, glossCache)
@@ -520,23 +447,49 @@ export async function buildMeaningQuizEnriched(args: {
   const usedZh = new Set<string>([glossDedupKey(correctZh)]);
   let genericIdx = 0;
 
-  const distractorMeta = await Promise.all(
-    distractorEnglish.map(async (en) => {
-      const zh = (await resolveChineseGloss(en, null, glossCache)).trim();
-      return { en, zh };
-    })
-  );
-
-  for (const { en, zh } of distractorMeta) {
-    if (rows.length >= 4) break;
-    if (zh && looksLikeChinese(zh) && !usedZh.has(glossDedupKey(zh))) {
-      usedZh.add(glossDedupKey(zh));
+  if (distractorPreload?.length) {
+    for (const { word, zh } of distractorPreload) {
+      if (rows.length >= 4) break;
+      const en = word.trim();
+      const tzh = zh.trim();
+      if (!en || !tzh || !looksLikeChinese(tzh) || usedZh.has(glossDedupKey(tzh))) continue;
+      usedZh.add(glossDedupKey(tzh));
+      const k = en.toLowerCase();
+      if (!glossCache.has(k)) glossCache.set(k, tzh);
       rows.push({
         key: `d-${normalizeWordKey(en)}-${rows.length}`,
-        english: en.trim(),
-        primaryZh: zh,
+        english: en,
+        primaryZh: tzh,
         correct: false,
       });
+    }
+  }
+
+  /** 预载已凑满四选一时，不再为词库补位词请求 dictionary */
+  if (rows.length < 4) {
+    const usedEnKey = new Set(
+      rows.flatMap((r) => (r.english ? [normalizeWordKey(r.english)] : []))
+    );
+    const toResolve = distractorEnglish.filter((en) => !usedEnKey.has(normalizeWordKey(en)));
+
+    const distractorMeta = await Promise.all(
+      toResolve.map(async (en) => {
+        const zh = (await resolveChineseGloss(en, null, glossCache)).trim();
+        return { en, zh };
+      })
+    );
+
+    for (const { en, zh } of distractorMeta) {
+      if (rows.length >= 4) break;
+      if (zh && looksLikeChinese(zh) && !usedZh.has(glossDedupKey(zh))) {
+        usedZh.add(glossDedupKey(zh));
+        rows.push({
+          key: `d-${normalizeWordKey(en)}-${rows.length}`,
+          english: en.trim(),
+          primaryZh: zh,
+          correct: false,
+        });
+      }
     }
   }
 

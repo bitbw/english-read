@@ -20,6 +20,14 @@ export default function DevIndexPage() {
             clientFetch 调试
           </Link>
         </li>
+        <li>
+          <Link
+            href="/dev/similar-words-api"
+            className={cn(buttonVariants({ variant: "link" }), "inline h-auto p-0 align-baseline")}
+          >
+            similar-words API 调试
+          </Link>
+        </li>
       </ul>
     </div>
   );
