@@ -1,9 +1,15 @@
 import { auth } from "@/lib/auth";
+import {
+  glossDedupKey,
+  looksLikeChinese,
+  pickDistractorEnglishWords,
+} from "@/lib/review-distractor-pick";
+import { fetchYoudaoExplain } from "@/lib/youdao-suggest";
 import { NextResponse } from "next/server";
 
 /**
  * GET /api/review/similar-words?word=xxx
- * 用 Datamuse（无需 API Key）按拼写模式 `sp` 取与当前词「词形/拼写」相近的英文词，供释义四选一作干扰项（避免 ml/rel_trg 近义导致中文义项难辨）。
+ * Datamuse 近拼写候选 + 服务端有道释义，直接返回最多 3 个干扰项（与当前词凑成四选一）。
  */
 
 function lettersKey(w: string): string {
@@ -21,6 +27,10 @@ function buildSpPatterns(base: string): string[] {
   }
   return patterns;
 }
+
+const DATAMUSE_MAX = 18;
+/** 并行有道请求上限；从中筛出 3 条有效中文释义 */
+const YOUDAO_PROBE = 14;
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -52,7 +62,7 @@ export async function GET(req: Request) {
   };
 
   if (!base) {
-    return NextResponse.json({ words: [] });
+    return NextResponse.json({ distractors: [] as { word: string; explainZh: string }[] });
   }
 
   const patterns = buildSpPatterns(base);
@@ -60,7 +70,7 @@ export async function GET(req: Request) {
 
   try {
     const fetches = patterns.map((sp) =>
-      fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(sp)}&max=22`, {
+      fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(sp)}&max=${DATAMUSE_MAX}`, {
         next: { revalidate: 3600 },
       })
     );
@@ -86,5 +96,22 @@ export async function GET(req: Request) {
     unique.push(w);
   }
 
-  return NextResponse.json({ words: unique.slice(0, 40) });
+  const ranked = pickDistractorEnglishWords(word, unique, [], YOUDAO_PROBE);
+  const explains = await Promise.all(ranked.map((w) => fetchYoudaoExplain(w)));
+
+  const distractors: { word: string; explainZh: string }[] = [];
+  const seenZh = new Set<string>();
+
+  for (let i = 0; i < ranked.length && distractors.length < 3; i++) {
+    const w = ranked[i];
+    const raw = explains[i];
+    const zh = typeof raw === "string" ? raw.trim() : "";
+    if (!zh || !looksLikeChinese(zh)) continue;
+    const dk = glossDedupKey(zh);
+    if (seenZh.has(dk)) continue;
+    seenZh.add(dk);
+    distractors.push({ word: w.trim(), explainZh: zh });
+  }
+
+  return NextResponse.json({ distractors });
 }
