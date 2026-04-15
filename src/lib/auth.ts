@@ -15,6 +15,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
+  // Credentials 登录在 Auth.js 中只会写入 JWT cookie；若保留默认 `database` 策略，
+  // `auth()` 会把该 cookie 当作 DB sessionToken 查询，导致永远无会话、API 401。
+  // 统一为 JWT 后，OAuth 与邮箱密码共用同一套会话逻辑。
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60,
+  },
   providers: [
     GitHub({
       clientId: process.env.GITHUB_CLIENT_ID!,
@@ -68,8 +75,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    session({ session, user }) {
-      session.user.id = user.id;
+    async jwt({ token, user, trigger }) {
+      if (user) {
+        token.sub = user.id ?? token.sub;
+        token.email = user.email;
+        token.name = user.name;
+        token.picture = user.image;
+      }
+      if (trigger === "update" && token.sub) {
+        const [row] = await db
+          .select({
+            name: users.name,
+            email: users.email,
+            image: users.image,
+          })
+          .from(users)
+          .where(eq(users.id, token.sub as string))
+          .limit(1);
+        if (row) {
+          token.name = row.name;
+          token.email = row.email;
+          token.picture = row.image;
+        }
+      }
+      return token;
+    },
+    session({ session, token }) {
+      if (token.sub) {
+        session.user.id = token.sub;
+      }
       return session;
     },
   },
