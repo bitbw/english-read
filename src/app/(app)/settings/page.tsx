@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,11 +28,18 @@ import { ExternalLink, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
+  const router = useRouter();
+  const { data: session, update } = useSession();
   const [savedTimeZone, setSavedTimeZone] = useState<string | null | undefined>(undefined);
   const [draftTimeZone, setDraftTimeZone] = useState("");
   const [prefsLoading, setPrefsLoading] = useState(true);
   const [savingTz, setSavingTz] = useState(false);
+  const [draftDisplayName, setDraftDisplayName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+
+  useEffect(() => {
+    setDraftDisplayName(session?.user?.name ?? "");
+  }, [session?.user?.name]);
 
   const loadPrefs = useCallback(async () => {
     setPrefsLoading(true);
@@ -57,6 +65,25 @@ export default function SettingsPage() {
   );
 
   const selectControlValue = draftTimeZone.trim() === "" ? FOLLOW_BROWSER_SELECT_VALUE : draftTimeZone.trim();
+
+  async function saveDisplayName() {
+    setSavingName(true);
+    try {
+      const trimmed = draftDisplayName.trim();
+      const body = { name: trimmed === "" ? null : trimmed };
+      const r = await clientFetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) return;
+      await update();
+      router.refresh();
+      toast.success(trimmed === "" ? "已清除显示名" : "显示名已保存");
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   async function saveTimeZone() {
     setSavingTz(true);
@@ -87,16 +114,40 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-base">账户信息</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center gap-4">
-          <Avatar className="h-14 w-14">
-            <AvatarImage src={session?.user?.image ?? ""} />
-            <AvatarFallback className="text-lg">
-              {session?.user?.name?.[0]?.toUpperCase() ?? "U"}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-medium">{session?.user?.name}</p>
-            <p className="text-sm text-muted-foreground">{session?.user?.email}</p>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-14 w-14">
+              <AvatarImage src={session?.user?.image ?? ""} />
+              <AvatarFallback className="text-lg">
+                {(session?.user?.name?.[0] ?? session?.user?.email?.[0] ?? "U").toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium truncate">
+                {session?.user?.name?.trim() ? session.user.name : "未设置显示名"}
+              </p>
+              <p className="text-sm text-muted-foreground truncate">{session?.user?.email}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="settings-display-name" className="text-sm font-medium">
+              显示名
+            </label>
+            <Input
+              id="settings-display-name"
+              placeholder="可选，在应用内展示的名称"
+              value={draftDisplayName}
+              onChange={(e) => setDraftDisplayName(e.target.value)}
+              maxLength={80}
+              className="max-w-lg"
+              autoComplete="nickname"
+            />
+            <p className="text-xs text-muted-foreground">
+              邮箱注册时可以不填；OAuth 登录会预填来自提供方的名称，你可在此修改。
+            </p>
+            <Button type="button" onClick={() => void saveDisplayName()} disabled={savingName}>
+              {savingName ? "保存中…" : "保存显示名"}
+            </Button>
           </div>
         </CardContent>
       </Card>

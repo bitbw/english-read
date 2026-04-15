@@ -24,6 +24,10 @@ export default auth((req) => {
   if (pathname === "/login" && isLoggedIn) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
+
+  if (pathname === "/signup" && isLoggedIn) {
+    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
+  }
 });
 
 export const config = {

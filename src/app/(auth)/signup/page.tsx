@@ -1,10 +1,10 @@
-import { LoginForm } from "@/components/login-form";
+import { SignupForm } from "@/components/signup-form";
 import { AuthSplitShell } from "@/components/auth-split-shell";
 
-export default function LoginPage() {
+export default function SignupPage() {
   return (
     <AuthSplitShell>
-      <LoginForm />
+      <SignupForm />
     </AuthSplitShell>
   );
 }
