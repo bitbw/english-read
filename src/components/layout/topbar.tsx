@@ -38,16 +38,22 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "首页", icon: LayoutDashboard },
-  { href: "/library", label: "书架", icon: Library },
+  { href: "/library/store", label: "书库", icon: Library },
+  { href: "/library", label: "书架", icon: BookOpen },
   { href: "/vocabulary", label: "生词本", icon: BookMarked },
   { href: "/vocabulary/plan", label: "复习计划", icon: Calendar },
   { href: "/settings", label: "设置", icon: Settings },
 ];
 
 function navItemIsActive(pathname: string, href: string) {
-  return href === "/vocabulary/plan"
-    ? pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review")
-    : pathname === href;
+  if (href === "/vocabulary/plan") {
+    return pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review");
+  }
+  if (href === "/library/store") return pathname.startsWith("/library/store");
+  if (href === "/library") {
+    return pathname === "/library" || pathname.startsWith("/library/upload");
+  }
+  return pathname === href;
 }
 
 export function Topbar() {

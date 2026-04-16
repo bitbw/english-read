@@ -21,12 +21,26 @@ export default async function LibraryPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">我的书架</h1>
-        <Link href="/library/upload" className={cn(buttonVariants())}>
-          <Upload className="h-4 w-4 mr-2" />
-          上传 EPUB
-        </Link>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">我的书架</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            此处上传的书仅自己可见。浏览{" "}
+            <Link href="/library/store" className="text-primary underline-offset-4 hover:underline">
+              公共书库
+            </Link>
+            可将书籍加入此处。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <Link href="/library/store" className={cn(buttonVariants({ variant: "outline" }))}>
+            书库
+          </Link>
+          <Link href="/library/upload" className={cn(buttonVariants())}>
+            <Upload className="h-4 w-4 mr-2" />
+            上传 EPUB
+          </Link>
+        </div>
       </div>
 
       {userBooks.length > 0 ? (
