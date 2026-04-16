@@ -2,11 +2,8 @@ import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { PublicLibraryUploadClient } from "@/components/library/public-library-upload-client";
+import { EXTERNAL_EPUB_FIND_URL } from "@/lib/external-epub-find";
 import { cn } from "@/lib/utils";
-
-/** 站外电子书检索（英文 EPUB），供用户自行获取文件后再上传到书库 */
-const EXTERNAL_EPUB_FIND_URL =
-  "https://zh.dlc101.ru/s/Harry%20Potter/?languages%5B0%5D=english&extensions%5B0%5D=EPUB&selected_content_types%5B0%5D=book";
 
 export default function PublicLibraryUploadPage() {
   return (

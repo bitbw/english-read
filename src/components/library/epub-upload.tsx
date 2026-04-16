@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, X, Loader2, ImageIcon } from "lucide-react";
+import { Upload, FileText, X, Loader2, ImageIcon, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { postCoverUpload } from "@/lib/post-cover-upload";
@@ -12,6 +12,9 @@ import {
   type EpubBookForCover,
 } from "@/lib/extract-epub-cover";
 import { CLIENT_FETCH_NETWORK_ERROR, clientFetch } from "@/lib/client-fetch";
+import { EXTERNAL_EPUB_FIND_URL } from "@/lib/external-epub-find";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 
 export function EpubUpload() {
   const [dragging, setDragging] = useState(false);
@@ -240,6 +243,21 @@ export function EpubUpload() {
           "上传并开始阅读"
         )}
       </Button>
+
+      <p className="text-sm text-muted-foreground text-center max-w-xl mx-auto">
+        还没有 EPUB？可先到外部站点查找。
+      </p>
+      <div className="flex justify-center">
+        <a
+          href={EXTERNAL_EPUB_FIND_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(buttonVariants({ variant: "outline" }), "justify-center")}
+        >
+          <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
+          去下载电子书
+        </a>
+      </div>
     </div>
   );
 }

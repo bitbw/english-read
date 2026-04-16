@@ -5,8 +5,9 @@ import { eq, desc } from "drizzle-orm";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent } from "@/components/ui/card";
-import { BookOpen, Upload } from "lucide-react";
+import { BookOpen, ExternalLink, Upload } from "lucide-react";
 import { LibraryBookCard } from "./library-book-card";
+import { EXTERNAL_EPUB_FIND_URL } from "@/lib/external-epub-find";
 import { cn } from "@/lib/utils";
 
 export default async function LibraryPage() {
@@ -40,6 +41,23 @@ export default async function LibraryPage() {
             <Upload className="h-4 w-4 mr-2" />
             上传 EPUB
           </Link>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm text-muted-foreground text-center max-w-xl mx-auto">
+          还没有 EPUB？可先到外部站点查找。
+        </p>
+        <div className="flex justify-center">
+          <a
+            href={EXTERNAL_EPUB_FIND_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "outline" }), "justify-center")}
+          >
+            <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
+            去下载电子书
+          </a>
         </div>
       </div>
 
