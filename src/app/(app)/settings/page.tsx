@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -36,6 +36,9 @@ export default function SettingsPage() {
   const [savingTz, setSavingTz] = useState(false);
   const [draftDisplayName, setDraftDisplayName] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [removingAvatar, setRemovingAvatar] = useState(false);
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setDraftDisplayName(session?.user?.name ?? "");
@@ -65,6 +68,41 @@ export default function SettingsPage() {
   );
 
   const selectControlValue = draftTimeZone.trim() === "" ? FOLLOW_BROWSER_SELECT_VALUE : draftTimeZone.trim();
+
+  async function onAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    setUploadingAvatar(true);
+    try {
+      const r = await clientFetch("/api/user/avatar", { method: "POST", body: fd });
+      if (!r.ok) return;
+      await update();
+      router.refresh();
+      toast.success("头像已更新");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
+  async function removeAvatar() {
+    setRemovingAvatar(true);
+    try {
+      const r = await clientFetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: null }),
+      });
+      if (!r.ok) return;
+      await update();
+      router.refresh();
+      toast.success("已移除头像");
+    } finally {
+      setRemovingAvatar(false);
+    }
+  }
 
   async function saveDisplayName() {
     setSavingName(true);
@@ -115,18 +153,54 @@ export default function SettingsPage() {
           <CardTitle className="text-base">账户信息</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-14 w-14">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <Avatar className="h-16 w-16 shrink-0">
               <AvatarImage src={session?.user?.image ?? ""} />
               <AvatarFallback className="text-lg">
                 {(session?.user?.name?.[0] ?? session?.user?.email?.[0] ?? "U").toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium truncate">
-                {session?.user?.name?.trim() ? session.user.name : "未设置显示名"}
+            <div className="min-w-0 flex-1 space-y-3">
+              <div>
+                <p className="font-medium truncate">
+                  {session?.user?.name?.trim() ? session.user.name : "未设置显示名"}
+                </p>
+                <p className="text-sm text-muted-foreground truncate">{session?.user?.email}</p>
+              </div>
+              <input
+                ref={avatarFileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                aria-label="选择头像图片"
+                onChange={onAvatarFileChange}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingAvatar || removingAvatar}
+                  onClick={() => avatarFileInputRef.current?.click()}
+                >
+                  {uploadingAvatar ? "上传中…" : "上传头像"}
+                </Button>
+                {session?.user?.image ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground"
+                    disabled={uploadingAvatar || removingAvatar}
+                    onClick={() => void removeAvatar()}
+                  >
+                    {removingAvatar ? "处理中…" : "移除头像"}
+                  </Button>
+                ) : null}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                支持 JPG、PNG、WebP，单张最大 2MB，存储在 Vercel Blob。上传新头像时会自动替换上一张本地上传的图。
               </p>
-              <p className="text-sm text-muted-foreground truncate">{session?.user?.email}</p>
             </div>
           </div>
           <div className="space-y-2">
