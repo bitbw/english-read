@@ -28,8 +28,8 @@ const GITHUB_REPO_URL = "https://github.com/bitbw/english-read";
 
 const navItems = [
   { href: "/dashboard", label: "首页", icon: LayoutDashboard },
-  { href: "/library/store", label: "书库", icon: Library },
-  { href: "/library", label: "书架", icon: BookOpen },
+  { href: "/library/store", label: "公共书库", icon: Library },
+  { href: "/library", label: "我的书架", icon: BookOpen },
   { href: "/vocabulary", label: "生词本", icon: BookMarked },
   { href: "/vocabulary/plan", label: "复习计划", icon: Calendar },
   { href: "/settings", label: "设置", icon: Settings },

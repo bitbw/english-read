@@ -35,7 +35,7 @@ export default async function LibraryPage() {
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           <Link href="/library/store" className={cn(buttonVariants({ variant: "outline" }))}>
-            书库
+            公共书库
           </Link>
           <Link href="/library/upload" className={cn(buttonVariants())}>
             <Upload className="h-4 w-4 mr-2" />
@@ -44,11 +44,11 @@ export default async function LibraryPage() {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <p className="text-sm text-muted-foreground text-center max-w-xl mx-auto">
+      <div className="space-y-2 text-left">
+        <p className="text-sm text-muted-foreground max-w-xl">
           还没有 EPUB？可先到外部站点查找。
         </p>
-        <div className="flex justify-center">
+        <div className="flex justify-start">
           <a
             href={EXTERNAL_EPUB_FIND_URL}
             target="_blank"

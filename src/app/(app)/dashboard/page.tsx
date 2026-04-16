@@ -193,7 +193,7 @@ export default async function DashboardPage() {
                 还没有最近阅读记录。去公共书库选一本，加入「我的书架」后即可开始阅读。
               </p>
               <Link href="/library/store" className={cn(buttonVariants())}>
-                前往书库
+                前往公共书库
               </Link>
               <Link
                 href="/library/upload"

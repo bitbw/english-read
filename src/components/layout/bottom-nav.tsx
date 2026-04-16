@@ -13,7 +13,7 @@ import {
 
 const navItems = [
   { href: "/dashboard", label: "首页", icon: LayoutDashboard },
-  { href: "/library", label: "书架", icon: Library },
+  { href: "/library", label: "我的书架", icon: Library },
   { href: "/vocabulary", label: "生词本", icon: BookMarked },
   { href: "/vocabulary/plan", label: "计划", icon: Calendar },
   { href: "/settings", label: "设置", icon: Settings },

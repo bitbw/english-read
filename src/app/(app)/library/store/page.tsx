@@ -9,7 +9,7 @@ export default function PublicLibraryStorePage() {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">书库</h1>
+          <h1 className="text-2xl font-bold">公共书库</h1>
           <p className="text-sm text-muted-foreground mt-1">
             浏览公共电子书，点进书籍查看详情；在详情页「开始阅读」会自动加入书架。需要上传新书请点击「上传到书库」。
           </p>

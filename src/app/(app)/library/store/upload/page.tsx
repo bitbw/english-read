@@ -28,10 +28,10 @@ export default function PublicLibraryUploadPage() {
 
       <PublicLibraryUploadClient />
 
-      <p className="text-sm text-muted-foreground text-center max-w-xl mx-auto">
+      <p className="text-sm text-muted-foreground max-w-xl text-left">
         还没有 EPUB？可先到外部站点查找。
       </p>
-      <div className="flex justify-center">
+      <div className="flex justify-start">
         <a
           href={EXTERNAL_EPUB_FIND_URL}
           target="_blank"
