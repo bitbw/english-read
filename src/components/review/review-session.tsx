@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -198,6 +198,13 @@ export function ReviewSession({
   }, [words]);
 
   const current = queue[0];
+
+  /** 布局里滚动的是 `main` 而非 window；拼写区较高时用户会滚到下方，切题后需回到顶部才能看到新词的标题 */
+  useLayoutEffect(() => {
+    const main = document.querySelector("main");
+    if (main) main.scrollTop = 0;
+  }, [current?.id]);
+
   /** 同一词排在队首再次失败时需重新洗牌选项，与 `current` 引用是否变化无关 */
   const quizRegenKey = current ? (failVersions[current.id] ?? 0) : 0;
 
