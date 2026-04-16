@@ -11,7 +11,7 @@ export default function PublicLibraryStorePage() {
         <div>
           <h1 className="text-2xl font-bold">书库</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            浏览公共电子书，加入书架后可在「我的书架」中阅读。
+            浏览公共电子书，加入书架后可在「我的书架」中阅读。需要新书时可点击下方的「去下载电子书」到外部站点查找。
           </p>
         </div>
         <Link href="/library" className={cn(buttonVariants({ variant: "outline" }))}>

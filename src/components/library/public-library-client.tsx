@@ -5,11 +5,17 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BookOpen, Loader2, Plus, Search, Upload } from "lucide-react";
+import { BookOpen, ExternalLink, Loader2, Plus, Search, Upload } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { toast } from "sonner";
 import { upload } from "@vercel/blob/client";
 import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
 import { READING_TIERS, getTierLabel, type ReadingTierId } from "@/lib/reading-tiers";
+import { cn } from "@/lib/utils";
+
+/** 站外电子书检索（英文 EPUB），供用户自行获取文件后再上传到书库 */
+const EXTERNAL_EPUB_FIND_URL =
+  "https://zh.dlc101.ru/s/Harry%20Potter/?languages%5B0%5D=english&extensions%5B0%5D=EPUB&selected_content_types%5B0%5D=book";
 
 const MAX_EPUB_BYTES = 50 * 1024 * 1024;
 const MULTIPART_THRESHOLD = 5 * 1024 * 1024;
@@ -214,35 +220,51 @@ export function PublicLibraryClient() {
       </div>
 
       <Card className="border-dashed">
-        <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 py-4">
-          <p className="text-sm text-muted-foreground flex-1">
-            上传到公共书库后，所有用户可见。系统将自动识别书名并分级。
+        <CardContent className="flex flex-col gap-3 py-4">
+          <p className="text-sm text-muted-foreground">
+            还没有 EPUB？可先到外部站点搜索英文电子书，下载后再上传到书库。上传到公共书库后所有用户可见，系统将自动识别书名并分级。
           </p>
-          <div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".epub"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.target.value = "";
-                if (f) void handlePublicUpload(f);
-              }}
-            />
-            <Button type="button" disabled={uploading} onClick={() => fileRef.current?.click()}>
-              {uploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  上传中…
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  上传到书库
-                </>
-              )}
-            </Button>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-end">
+            <a
+              href={EXTERNAL_EPUB_FIND_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto justify-center")}
+            >
+              <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
+              去下载电子书
+            </a>
+            <div className="w-full sm:w-auto">
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".epub"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void handlePublicUpload(f);
+                }}
+              />
+              <Button
+                type="button"
+                disabled={uploading}
+                className="w-full sm:w-auto"
+                onClick={() => fileRef.current?.click()}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    上传中…
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    上传到书库
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
