@@ -3,9 +3,22 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BookOpen, Loader2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Calendar,
+  HardDrive,
+  Layers,
+  Library,
+  Loader2,
+  User,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
 import { getTierLabel, type ReadingTierId } from "@/lib/reading-tiers";
@@ -29,6 +42,30 @@ function formatFileSize(bytes: number | null) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function MetaRow({
+  icon: Icon,
+  label,
+  children,
+  className,
+}: {
+  icon: LucideIcon;
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex gap-3 min-w-0", className)}>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/80 text-muted-foreground">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1 py-0.5">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-sm text-foreground mt-0.5 break-words">{children}</p>
+      </div>
+    </div>
+  );
 }
 
 export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload }) {
@@ -72,56 +109,83 @@ export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload
         href="/library/store"
         className={cn(
           buttonVariants({ variant: "ghost", size: "sm" }),
-          "-ml-2 text-muted-foreground hover:text-foreground"
+          "-ml-2 w-fit text-muted-foreground hover:text-foreground"
         )}
       >
         <ArrowLeft className="h-4 w-4 mr-1" />
         返回书库
       </Link>
 
-      <div className="flex flex-col sm:flex-row gap-6 sm:gap-8">
-        <div className="mx-auto sm:mx-0 w-full max-w-[200px] sm:max-w-[220px] shrink-0 aspect-[2/3] rounded-lg overflow-hidden bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
-          {book.coverUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={book.coverUrl} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <BookOpen className="h-16 w-16 text-primary/35" />
-          )}
-        </div>
+      <Card className="overflow-hidden py-0 gap-0 shadow-sm ring-1 ring-foreground/10">
+        <CardContent className="p-0">
+          <div className="grid md:grid-cols-[240px_1fr] lg:grid-cols-[260px_1fr] gap-0">
+            {/* 封面：与书架卡片同系渐变 + 书脊阴影 */}
+            <div className="relative bg-gradient-to-br from-muted/60 via-muted/30 to-primary/5 p-6 sm:p-8 md:p-10 flex justify-center md:justify-start border-b md:border-b-0 md:border-r border-border/60">
+              <div className="relative w-full max-w-[200px] md:max-w-none md:w-full aspect-[2/3] rounded-lg overflow-hidden shadow-lg ring-1 ring-foreground/10 bg-gradient-to-br from-primary/10 to-primary/20">
+                {book.coverUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={book.coverUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <BookOpen className="h-16 w-16 text-primary/35" strokeWidth={1.25} />
+                  </div>
+                )}
+              </div>
+            </div>
 
-        <div className="flex-1 min-w-0 space-y-4">
-          <div>
-            <h1 className="text-2xl font-bold leading-tight">{book.title}</h1>
-            {book.author && (
-              <p className="text-muted-foreground mt-2">{book.author}</p>
-            )}
+            <div className="flex flex-col p-6 sm:p-8 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <Badge variant="secondary" className="font-normal gap-1">
+                  <Layers className="h-3 w-3 opacity-80" />
+                  {getTierLabel(book.tier)}
+                </Badge>
+                {book.shelfBookId && (
+                  <Badge variant="outline" className="font-normal text-muted-foreground border-border">
+                    已在书架
+                  </Badge>
+                )}
+              </div>
+
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-balance leading-tight">
+                {book.title}
+              </h1>
+              {book.author && (
+                <p className="text-muted-foreground mt-2 text-base">{book.author}</p>
+              )}
+
+              <Separator className="my-6" />
+
+              <div className="rounded-xl border border-border/80 bg-muted/25 p-4 space-y-4">
+                <MetaRow icon={Calendar} label="入库时间">
+                  {book.createdAtLabel}
+                </MetaRow>
+                {sizeLabel && (
+                  <MetaRow icon={HardDrive} label="文件大小">
+                    {sizeLabel}
+                  </MetaRow>
+                )}
+                {book.uploaderName && (
+                  <MetaRow icon={User} label="上传者">
+                    {book.uploaderName}
+                  </MetaRow>
+                )}
+              </div>
+            </div>
           </div>
+        </CardContent>
 
-          <dl className="grid gap-2 text-sm">
-            <div className="flex flex-wrap gap-x-2">
-              <dt className="text-muted-foreground shrink-0">难度</dt>
-              <dd className="font-medium text-primary">{getTierLabel(book.tier)}</dd>
-            </div>
-            {sizeLabel && (
-              <div className="flex flex-wrap gap-x-2">
-                <dt className="text-muted-foreground shrink-0">文件大小</dt>
-                <dd>{sizeLabel}</dd>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-x-2">
-              <dt className="text-muted-foreground shrink-0">入库时间</dt>
-              <dd>{book.createdAtLabel}</dd>
-            </div>
-            {book.uploaderName && (
-              <div className="flex flex-wrap gap-x-2">
-                <dt className="text-muted-foreground shrink-0">上传者</dt>
-                <dd className="truncate">{book.uploaderName}</dd>
-              </div>
-            )}
-          </dl>
-
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Button type="button" size="lg" disabled={starting} onClick={() => void startReading()}>
+        <CardFooter className="flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between border-t bg-muted/40 px-6 py-5 sm:px-8">
+          <p className="text-xs text-muted-foreground text-center sm:text-left order-2 sm:order-1 sm:max-w-md">
+            开始阅读时会自动将本书加入你的书架，之后在「我的书架」中可随时打开。
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto order-1 sm:order-2 shrink-0">
+            <Button
+              type="button"
+              size="default"
+              className="w-full sm:w-auto min-w-[8rem]"
+              disabled={starting}
+              onClick={() => void startReading()}
+            >
               {starting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : book.shelfBookId ? (
@@ -130,16 +194,19 @@ export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload
                 "开始阅读"
               )}
             </Button>
-            <Link href="/library" className={buttonVariants({ variant: "outline", size: "lg" })}>
+            <Link
+              href="/library"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "default" }),
+                "w-full sm:w-auto justify-center min-w-[8rem]"
+              )}
+            >
+              <Library className="h-4 w-4 mr-2 opacity-80" />
               我的书架
             </Link>
           </div>
-
-          <p className="text-xs text-muted-foreground">
-            开始阅读时会自动将本书加入你的书架，之后在「我的书架」中可随时打开。
-          </p>
-        </div>
-      </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
