@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { books } from "@/lib/db/schema";
+import { books, publicLibraryBooks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { deleteBlob } from "@/lib/blob";
 import { NextResponse } from "next/server";
@@ -58,6 +58,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Book not found" }, { status: 404 });
   }
 
+  if (existing.publicBookId) {
+    return NextResponse.json(
+      { error: "来自公共书库的书籍不支持更换封面" },
+      { status: 400 }
+    );
+  }
+
   const { coverUrl } = parsed.data;
   const prevCover = existing.coverUrl;
 
@@ -75,7 +82,19 @@ export async function PATCH(
     .returning();
 
   if (prevCover && prevCover !== coverUrl) {
-    void deleteBlob(prevCover);
+    let prevIsSharedPublicCover = false;
+    if (existing.publicBookId) {
+      const [pub] = await db
+        .select({ coverUrl: publicLibraryBooks.coverUrl })
+        .from(publicLibraryBooks)
+        .where(eq(publicLibraryBooks.id, existing.publicBookId));
+      if (pub?.coverUrl && pub.coverUrl === prevCover) {
+        prevIsSharedPublicCover = true;
+      }
+    }
+    if (!prevIsSharedPublicCover) {
+      void deleteBlob(prevCover);
+    }
   }
 
   return NextResponse.json(updated);
@@ -100,9 +119,15 @@ export async function DELETE(
     return NextResponse.json({ error: "Book not found" }, { status: 404 });
   }
 
-  // 先删除 Blob 文件，再删除数据库记录
-  await deleteBlob(book.blobUrl);
-  if (book.coverUrl) await deleteBlob(book.coverUrl);
+  /**
+   * 仅从书架移除个人记录。若该书来自公共书库（publicBookId），EPUB/封面 Blob 与公共条目共用同一 URL，
+   * 不得 deleteBlob，否则会把公共书库的文件一并删掉。
+   * 私有上传无 publicBookId，删除书架条目时同时删除个人 Blob。
+   */
+  if (!book.publicBookId) {
+    await deleteBlob(book.blobUrl);
+    if (book.coverUrl) await deleteBlob(book.coverUrl);
+  }
 
   await db
     .delete(books)

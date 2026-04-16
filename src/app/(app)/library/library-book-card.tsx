@@ -16,6 +16,8 @@ export type LibraryBookCardBook = {
   coverUrl: string | null;
   readingProgress: number | null;
   lastReadAt: Date | string | null;
+  /** 来自公共书库时仅可阅读，不提供删除/换封面（与私有上传区分） */
+  publicBookId?: string | null;
 };
 
 export function LibraryBookCard(book: LibraryBookCardBook) {
@@ -29,6 +31,8 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
     book.lastReadAt != null
       ? formatDistanceToNow(new Date(book.lastReadAt), { addSuffix: true, locale: zhCN })
       : "未开始";
+
+  const fromPublicLibrary = Boolean(book.publicBookId);
 
   return (
     <Card
@@ -76,12 +80,20 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
           </p>
           <div
             data-library-book-actions
-            className="flex shrink-0"
+            className="flex shrink-0 items-center gap-1"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            <ChangeCoverButton bookId={book.id} hasCover={!!book.coverUrl} />
-            <DeleteBookButton bookId={book.id} bookTitle={book.title} />
+            {fromPublicLibrary ? (
+              <span className="text-[10px] sm:text-[11px] text-muted-foreground whitespace-nowrap" title="来自公共书库，封面与文件由书库统一管理">
+                书库
+              </span>
+            ) : (
+              <>
+                <ChangeCoverButton bookId={book.id} hasCover={!!book.coverUrl} />
+                <DeleteBookButton bookId={book.id} bookTitle={book.title} />
+              </>
+            )}
           </div>
         </div>
       </CardContent>
