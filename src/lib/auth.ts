@@ -8,6 +8,33 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users, accounts, sessions, verificationTokens } from "@/lib/db/schema";
 
+/**
+ * `useSession().update(payload)` 会通过 POST /session 传入 `session`；JWT 里头像字段为 `picture`。
+ * 需在 DB 刷新之后合并，以便与接口返回一致并覆盖可能的读延迟。
+ */
+function mergeClientSessionIntoJwt(
+  token: { name?: unknown; email?: unknown; picture?: unknown },
+  raw: unknown,
+) {
+  if (raw === null || raw === undefined || typeof raw !== "object") return;
+  const o = raw as Record<string, unknown>;
+  const inner =
+    "user" in o && o.user !== null && typeof o.user === "object"
+      ? (o.user as Record<string, unknown>)
+      : null;
+  const pick = (key: "name" | "email" | "image") =>
+    key in o ? o[key] : inner && key in inner ? inner[key] : undefined;
+  if ("name" in o || (inner && "name" in inner)) {
+    token.name = pick("name") as string | null | undefined;
+  }
+  if ("email" in o || (inner && "email" in inner)) {
+    token.email = pick("email") as string | null | undefined;
+  }
+  if ("image" in o || (inner && "image" in inner)) {
+    token.picture = pick("image") as string | null | undefined;
+  }
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
     usersTable: users,
@@ -75,7 +102,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, trigger, session: clientSession }) {
       if (user) {
         token.sub = user.id ?? token.sub;
         token.email = user.email;
@@ -97,6 +124,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.email = row.email;
           token.picture = row.image;
         }
+        mergeClientSessionIntoJwt(token, clientSession);
       }
       return token;
     },

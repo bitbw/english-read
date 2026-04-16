@@ -79,7 +79,8 @@ export default function SettingsPage() {
     try {
       const r = await clientFetch("/api/user/avatar", { method: "POST", body: fd });
       if (!r.ok) return;
-      await update();
+      const data = (await r.json()) as { image?: string };
+      await update({ image: data.image });
       router.refresh();
       toast.success("头像已更新");
     } finally {
@@ -96,7 +97,8 @@ export default function SettingsPage() {
         body: JSON.stringify({ image: null }),
       });
       if (!r.ok) return;
-      await update();
+      const cleared = (await r.json()) as { image?: string | null };
+      await update({ image: cleared.image ?? null });
       router.refresh();
       toast.success("已移除头像");
     } finally {
@@ -115,7 +117,8 @@ export default function SettingsPage() {
         body: JSON.stringify(body),
       });
       if (!r.ok) return;
-      await update();
+      const saved = (await r.json()) as { name?: string | null; image?: string | null };
+      await update({ name: saved.name, image: saved.image });
       router.refresh();
       toast.success(trimmed === "" ? "已清除显示名" : "显示名已保存");
     } finally {
