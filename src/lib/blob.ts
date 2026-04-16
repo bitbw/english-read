@@ -16,19 +16,6 @@ export async function uploadEpub(
   return { url: blob.url, pathname: blob.pathname };
 }
 
-/**
- * 公共书库 EPUB（全员可读链接，路径前缀 epubs/public/）
- */
-export async function uploadPublicEpub(file: File): Promise<{ url: string; pathname: string }> {
-  const safeName = file.name.replace(/\s+/g, "-").replace(/[^\w\-_.]/g, "") || "book.epub";
-  const pathname = `epubs/public/${Date.now()}-${safeName}`;
-  const blob = await put(pathname, file, {
-    access: "public",
-    contentType: "application/epub+zip",
-  });
-  return { url: blob.url, pathname: blob.pathname };
-}
-
 const COVER_MAX_BYTES = 5 * 1024 * 1024;
 const COVER_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 

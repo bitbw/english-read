@@ -7,8 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookOpen, Loader2, Plus, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { upload } from "@vercel/blob/client";
 import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
 import { READING_TIERS, getTierLabel, type ReadingTierId } from "@/lib/reading-tiers";
+
+const MAX_EPUB_BYTES = 50 * 1024 * 1024;
+const MULTIPART_THRESHOLD = 5 * 1024 * 1024;
 
 type PublicItem = {
   id: string;
@@ -104,32 +108,60 @@ export function PublicLibraryClient() {
       toast.error("请上传 .epub 文件");
       return;
     }
+    if (file.size > MAX_EPUB_BYTES) {
+      toast.error("文件不能超过 50MB");
+      return;
+    }
     setUploading(true);
+    let title = file.name.replace(/\.epub$/i, "").replace(/[-_]/g, " ").trim();
+    let author = "";
+    let objectUrl: string | null = null;
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/library/public/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { error?: unknown };
-        const msg =
-          typeof err.error === "string"
-            ? err.error
-            : typeof err.error === "object" && err.error !== null && "formErrors" in err.error
-              ? "上传失败"
-              : "上传失败";
-        toast.error(msg);
-        return;
+      try {
+        objectUrl = URL.createObjectURL(file);
+        const ePub = (await import("epubjs")).default;
+        const book = ePub(objectUrl);
+        await book.ready;
+        const meta = await book.loaded.metadata;
+        title = (meta as { title?: string }).title || title;
+        author = (meta as { creator?: string }).creator || "";
+        book.destroy();
+      } catch {
+        /* 使用文件名作标题 */
+      } finally {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
       }
-      const data = (await res.json()) as { tier: ReadingTierId; id: string };
+
+      const safeName = file.name.replace(/\s+/g, "-").replace(/[^\w\-_.]/g, "") || "book.epub";
+      const pathname = `epubs/public/${Date.now()}-${safeName}`;
+
+      const blobResult = await upload(pathname, file, {
+        access: "public",
+        handleUploadUrl: "/api/library/public/blob",
+        contentType: "application/epub+zip",
+        multipart: file.size >= MULTIPART_THRESHOLD,
+      });
+
+      const fin = await clientFetch("/api/library/public/finalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blobUrl: blobResult.url,
+          blobKey: blobResult.pathname,
+          fileSize: file.size,
+          title,
+          ...(author.trim() ? { author: author.trim() } : {}),
+        }),
+      });
+      if (!fin.ok) return;
+      const data = (await fin.json()) as { tier: ReadingTierId };
       toast.success(`上传成功，已归入「${getTierLabel(data.tier)}」`);
       setPage(1);
       await loadShelfMap();
       await loadList();
-    } catch {
-      toast.error("上传出错");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "上传出错";
+      toast.error(msg);
     } finally {
       setUploading(false);
     }
