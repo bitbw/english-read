@@ -37,7 +37,7 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
 
   return (
     <Card
-      className="group relative cursor-pointer hover:shadow-md transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background py-0"
+      className="group relative min-w-0 cursor-pointer hover:shadow-md transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background py-0"
       role="link"
       tabIndex={0}
       onClick={goRead}
@@ -60,8 +60,13 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
           )}
         </div>
 
-        <div className="space-y-0.5 sm:space-y-1">
-          <p className="font-medium text-xs sm:text-sm line-clamp-2 leading-tight">{book.title}</p>
+        <div className="space-y-0.5 sm:space-y-1 min-w-0">
+          <p
+            className="font-medium text-xs sm:text-sm line-clamp-1 leading-tight min-h-[1.25em]"
+            title={book.title}
+          >
+            {book.title}
+          </p>
           {book.author && (
             <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1">{book.author}</p>
           )}

@@ -111,7 +111,7 @@ export function PublicLibraryClient() {
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
           {items.map((item) => (
-            <Link key={item.id} href={`/library/store/${item.id}`} className="block group">
+            <Link key={item.id} href={`/library/store/${item.id}`} className="block group min-w-0">
               <Card className="overflow-hidden py-0 h-full transition-colors hover:border-primary/40 hover:bg-muted/30">
                 <CardContent className="p-2.5 sm:p-4">
                   <div className="w-full aspect-[2/3] rounded-md overflow-hidden mb-2 sm:mb-3 bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
@@ -122,7 +122,10 @@ export function PublicLibraryClient() {
                       <BookOpen className="h-8 w-8 sm:h-12 sm:w-12 text-primary/40" />
                     )}
                   </div>
-                  <p className="font-medium text-xs sm:text-sm line-clamp-2 leading-tight group-hover:text-primary">
+                  <p
+                    className="font-medium text-xs sm:text-sm line-clamp-1 leading-tight min-h-[1.25em] min-w-0 group-hover:text-primary"
+                    title={item.title}
+                  >
                     {item.title}
                   </p>
                   {item.author && (
