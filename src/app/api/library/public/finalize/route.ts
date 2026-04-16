@@ -12,6 +12,7 @@ const finalizeSchema = z.object({
   fileSize: z.number().int().positive().max(50 * 1024 * 1024),
   title: z.string().min(1).max(2000),
   author: z.string().max(2000).optional(),
+  coverUrl: z.string().url().optional(),
 });
 
 /**
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { blobUrl, blobKey, fileSize, title, author } = parsed.data;
+  const { blobUrl, blobKey, fileSize, title, author, coverUrl } = parsed.data;
 
   if (!blobKey.startsWith("epubs/public/")) {
     return NextResponse.json({ error: "Invalid blob key" }, { status: 400 });
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
     .values({
       title,
       author: author?.trim() ? author.trim() : null,
+      coverUrl: coverUrl ?? null,
       blobUrl,
       blobKey,
       fileSize,

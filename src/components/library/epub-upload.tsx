@@ -47,38 +47,34 @@ export function EpubUpload() {
     setUploading(true);
 
     try {
-      // Step 1: 上传文件到 Vercel Blob
-      const formData = new FormData();
-      formData.append("file", file);
-      const uploadRes = await clientFetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (!uploadRes.ok) return;
-      const { url, pathname, size } = await uploadRes.json();
-
-      let coverUrl: string | undefined;
-      if (coverFile) {
-        try {
-          const cover = await postCoverUpload(coverFile);
-          coverUrl = cover.url;
-        } catch (coverErr) {
-          throw coverErr instanceof Error ? coverErr : new Error("封面上传失败");
-        }
-      }
-
-      // Step 2: 从 EPUB 读元数据；未选手动封面时尝试解析内置封面
+      /**
+       * 私有上传流程（避免「先上传再用 Blob URL 打开 epubjs」多一次整书 HTTP 下载）：
+       * 1) 本地 file → ArrayBuffer，ePub(buf) 解析元数据；在 book.destroy 前处理封面。
+       * 2) 选手动封面则只上传用户图；否则从 EPUB 内嵌提取再上传。
+       * 3) 再 POST /api/upload 把 EPUB 传到 Blob。
+       * 4) POST /api/books 写入个人书架。
+       */
       let title = file.name.replace(/\.epub$/i, "");
       let author = "";
+      let coverUrl: string | undefined;
+
       try {
+        const buf = await file.arrayBuffer();
         const ePub = (await import("epubjs")).default;
-        const book = ePub(url);
+        const book = ePub(buf);
         await book.ready;
         const meta = await book.loaded.metadata;
         title = (meta as { title?: string }).title || title;
         author = (meta as { creator?: string }).creator || "";
 
-        if (!coverUrl) {
+        if (coverFile) {
+          try {
+            const cover = await postCoverUpload(coverFile);
+            coverUrl = cover.url;
+          } catch (coverErr) {
+            throw coverErr instanceof Error ? coverErr : new Error("封面上传失败");
+          }
+        } else {
           try {
             const extracted = await extractCoverFileFromEpubBook(book as EpubBookForCover);
             if (extracted) {
@@ -92,10 +88,26 @@ export function EpubUpload() {
 
         book.destroy();
       } catch {
-        // 元数据读取失败时使用文件名
+        if (coverFile) {
+          try {
+            const cover = await postCoverUpload(coverFile);
+            coverUrl = cover.url;
+          } catch (coverErr) {
+            throw coverErr instanceof Error ? coverErr : new Error("封面上传失败");
+          }
+        }
+        /* 否则仅保留默认 title（文件名），author 为空 */
       }
 
-      // Step 3: 创建书籍数据库记录
+      const formData = new FormData();
+      formData.append("file", file);
+      const uploadRes = await clientFetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!uploadRes.ok) return;
+      const { url, pathname, size } = await uploadRes.json();
+
       const bookRes = await clientFetch("/api/books", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

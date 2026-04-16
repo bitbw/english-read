@@ -189,8 +189,18 @@ export default async function DashboardPage() {
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
               <Library className="h-10 w-10 text-muted-foreground" />
-              <p className="text-muted-foreground">还没有书，快去上传一本吧</p>
-              <Link href="/library/upload" className={cn(buttonVariants())}>上传 EPUB</Link>
+              <p className="text-muted-foreground max-w-sm">
+                还没有最近阅读记录。去公共书库选一本，加入「我的书架」后即可开始阅读。
+              </p>
+              <Link href="/library/store" className={cn(buttonVariants())}>
+                前往书库
+              </Link>
+              <Link
+                href="/library/upload"
+                className={cn(buttonVariants({ variant: "link" }), "text-sm text-muted-foreground")}
+              >
+                或上传自己的 EPUB
+              </Link>
             </CardContent>
           </Card>
         )}

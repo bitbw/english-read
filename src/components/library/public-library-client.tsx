@@ -1,16 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BookOpen, ExternalLink, Loader2, Plus, Search, Upload } from "lucide-react";
+import {
+  BookOpen,
+  ExternalLink,
+  FileText,
+  ImageIcon,
+  Loader2,
+  Search,
+  Upload,
+  X,
+} from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { toast } from "sonner";
 import { upload } from "@vercel/blob/client";
-import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
+import { clientFetch } from "@/lib/client-fetch";
 import { READING_TIERS, getTierLabel, type ReadingTierId } from "@/lib/reading-tiers";
+import {
+  extractCoverFileFromEpubBook,
+  type EpubBookForCover,
+} from "@/lib/extract-epub-cover";
+import { postCoverUpload } from "@/lib/post-cover-upload";
 import { cn } from "@/lib/utils";
 
 /** 站外电子书检索（英文 EPUB），供用户自行获取文件后再上传到书库 */
@@ -33,29 +47,18 @@ type PublicItem = {
 };
 
 export function PublicLibraryClient() {
-  const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const epubInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [epubFile, setEpubFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [tier, setTier] = useState<ReadingTierId | "all">("all");
   const [q, setQ] = useState("");
   const [items, setItems] = useState<PublicItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  /** publicBookId -> 个人 books.id */
-  const [shelfByPublic, setShelfByPublic] = useState<Map<string, string>>(new Map());
-  const [addingId, setAddingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-
-  const loadShelfMap = useCallback(async () => {
-    const res = await clientFetch("/api/books");
-    if (!res.ok) return;
-    const books = (await res.json()) as { id: string; publicBookId?: string | null }[];
-    const map = new Map<string, string>();
-    for (const b of books) {
-      if (b.publicBookId) map.set(b.publicBookId, b.id);
-    }
-    setShelfByPublic(map);
-  }, []);
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -75,41 +78,35 @@ export function PublicLibraryClient() {
   }, [tier, q, page]);
 
   useEffect(() => {
-    void loadShelfMap();
-  }, [loadShelfMap]);
-
-  useEffect(() => {
     void loadList();
   }, [loadList]);
 
-  async function handleAdd(publicBookId: string) {
-    setAddingId(publicBookId);
-    try {
-      const res = await clientFetch("/api/books/from-public", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ publicBookId }),
-      });
-      if (!res.ok) return;
-      const data = (await res.json()) as { bookId: string; alreadyAdded?: boolean };
-      setShelfByPublic((prev) => new Map(prev).set(publicBookId, data.bookId));
-      if (data.alreadyAdded) {
-        toast.info("本书已在你的书架中");
-        router.push(`/read/${data.bookId}`);
-      } else {
-        toast.success("已加入书架");
-        router.push(`/read/${data.bookId}`);
-      }
-    } catch (e) {
-      if (e instanceof Error && e.message !== CLIENT_FETCH_NETWORK_ERROR) {
-        toast.error(e.message);
-      }
-    } finally {
-      setAddingId(null);
+  function handleEpubDrop(e: DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped?.name.toLowerCase().endsWith(".epub")) {
+      setEpubFile(dropped);
+    } else {
+      toast.error("请上传 .epub 格式的文件");
     }
   }
 
-  async function handlePublicUpload(file: File) {
+  function handleEpubFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files?.[0];
+    if (selected?.name.toLowerCase().endsWith(".epub")) {
+      setEpubFile(selected);
+    } else if (selected) {
+      toast.error("请上传 .epub 格式的文件");
+    }
+  }
+
+  async function handlePublicUpload() {
+    const file = epubFile;
+    if (!file) {
+      toast.error("请先选择 EPUB 文件");
+      return;
+    }
     if (!file.name.toLowerCase().endsWith(".epub")) {
       toast.error("请上传 .epub 文件");
       return;
@@ -121,7 +118,14 @@ export function PublicLibraryClient() {
     setUploading(true);
     let title = file.name.replace(/\.epub$/i, "").replace(/[-_]/g, " ").trim();
     let author = "";
+    let coverUrl: string | undefined;
     try {
+      /**
+       * 公共书库上传流程（大文件不经由 Next body，避免 413）：
+       * 1) 本地 ArrayBuffer + ePub(buf) 读书名/作者；destroy 前处理封面（手动优先，否则内嵌提取）。
+       * 2) @vercel/blob/client 直传 EPUB 到存储（multipart 阈值以上走分片）。
+       * 3) POST /api/library/public/finalize 提交 blobUrl、blobKey、元数据、封面 URL，服务端 LLM 分级并写入 public_library_books。
+       */
       try {
         const buf = await file.arrayBuffer();
         const ePub = (await import("epubjs")).default;
@@ -130,9 +134,36 @@ export function PublicLibraryClient() {
         const meta = await book.loaded.metadata;
         title = (meta as { title?: string }).title || title;
         author = (meta as { creator?: string }).creator || "";
+
+        if (coverFile) {
+          try {
+            const cover = await postCoverUpload(coverFile);
+            coverUrl = cover.url;
+          } catch (coverErr) {
+            throw coverErr instanceof Error ? coverErr : new Error("封面上传失败");
+          }
+        } else {
+          try {
+            const extracted = await extractCoverFileFromEpubBook(book as EpubBookForCover);
+            if (extracted) {
+              const cover = await postCoverUpload(extracted);
+              coverUrl = cover.url;
+            }
+          } catch {
+            /* 无可用封面或上传失败则略过 */
+          }
+        }
+
         book.destroy();
       } catch {
-        /* 元数据读取失败时使用文件名 */
+        if (coverFile) {
+          try {
+            const cover = await postCoverUpload(coverFile);
+            coverUrl = cover.url;
+          } catch (coverErr) {
+            throw coverErr instanceof Error ? coverErr : new Error("封面上传失败");
+          }
+        }
       }
 
       const safeName = file.name.replace(/\s+/g, "-").replace(/[^\w\-_.]/g, "") || "book.epub";
@@ -154,13 +185,15 @@ export function PublicLibraryClient() {
           fileSize: file.size,
           title,
           ...(author.trim() ? { author: author.trim() } : {}),
+          ...(coverUrl ? { coverUrl } : {}),
         }),
       });
       if (!fin.ok) return;
       const data = (await fin.json()) as { tier: ReadingTierId };
       toast.success(`上传成功，已归入「${getTierLabel(data.tier)}」`);
+      setEpubFile(null);
+      setCoverFile(null);
       setPage(1);
-      await loadShelfMap();
       await loadList();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "上传出错";
@@ -216,55 +249,141 @@ export function PublicLibraryClient() {
         </div>
       </div>
 
-      <Card className="border-dashed">
-        <CardContent className="flex flex-col gap-3 py-4">
-          <p className="text-sm text-muted-foreground">
-            还没有 EPUB？可先到外部站点搜索英文电子书，下载后再上传到书库。上传到公共书库后所有用户可见，系统将自动识别书名并分级。
-          </p>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-end">
-            <a
-              href={EXTERNAL_EPUB_FIND_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto justify-center")}
-            >
-              <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
-              去下载电子书
-            </a>
-            <div className="w-full sm:w-auto">
+      <div className="max-w-xl mx-auto w-full space-y-4">
+        <p className="text-sm text-muted-foreground text-center sm:text-left">
+          还没有 EPUB？可先到外部站点查找。上传到公共书库后所有用户可见，系统将自动识别书名并分级。
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2 sm:justify-center">
+          <a
+            href={EXTERNAL_EPUB_FIND_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto justify-center")}
+          >
+            <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
+            去下载电子书
+          </a>
+        </div>
+
+        <Card
+          className={`border-2 border-dashed p-12 text-center cursor-pointer transition-colors ${
+            dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+          }`}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleEpubDrop}
+          onClick={() => !epubFile && !uploading && epubInputRef.current?.click()}
+        >
+          <input
+            ref={epubInputRef}
+            type="file"
+            accept=".epub"
+            className="hidden"
+            onChange={handleEpubFileChange}
+          />
+          {epubFile ? (
+            <div className="flex flex-col items-center gap-3">
+              <FileText className="h-12 w-12 text-primary" />
+              <div>
+                <p className="font-medium">{epubFile.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {(epubFile.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={uploading}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEpubFile(null);
+                }}
+              >
+                <X className="h-4 w-4 mr-1" />
+                重新选择
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3">
+              <Upload className="h-12 w-12 text-muted-foreground" />
+              <div>
+                <p className="font-medium">拖拽 EPUB 到此处</p>
+                <p className="text-sm text-muted-foreground mt-1">或点击选择 · 最大 50MB</p>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm">
+              <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div>
+                <p className="font-medium">封面（可选）</p>
+                <p className="text-xs text-muted-foreground">
+                  JPG / PNG / WebP，最大 5MB；不选时将尝试从 EPUB 内嵌封面提取
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
               <input
-                ref={fileRef}
+                ref={coverInputRef}
                 type="file"
-                accept=".epub"
+                accept="image/jpeg,image/png,image/webp"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  e.target.value = "";
-                  if (f) void handlePublicUpload(f);
+                  if (f) setCoverFile(f);
                 }}
               />
-              <Button
-                type="button"
-                disabled={uploading}
-                className="w-full sm:w-auto"
-                onClick={() => fileRef.current?.click()}
-              >
-                {uploading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    上传中…
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    上传到书库
-                  </>
-                )}
-              </Button>
+              {coverFile ? (
+                <>
+                  <span className="text-xs text-muted-foreground truncate max-w-[140px]">{coverFile.name}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={uploading}
+                    onClick={() => setCoverFile(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploading}
+                  onClick={() => coverInputRef.current?.click()}
+                >
+                  选择图片
+                </Button>
+              )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </Card>
+
+        <Button
+          type="button"
+          className="w-full"
+          disabled={!epubFile || uploading}
+          onClick={() => void handlePublicUpload()}
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              上传中…
+            </>
+          ) : (
+            <>
+              <Upload className="h-4 w-4 mr-2" />
+              上传到书库
+            </>
+          )}
+        </Button>
+      </div>
 
       {loading ? (
         <div className="flex justify-center py-16 text-muted-foreground">
@@ -280,11 +399,9 @@ export function PublicLibraryClient() {
         </Card>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
-          {items.map((item) => {
-            const shelfId = shelfByPublic.get(item.id);
-            const added = Boolean(shelfId);
-            return (
-              <Card key={item.id} className="overflow-hidden py-0">
+          {items.map((item) => (
+            <Link key={item.id} href={`/library/store/${item.id}`} className="block group">
+              <Card className="overflow-hidden py-0 h-full transition-colors hover:border-primary/40 hover:bg-muted/30">
                 <CardContent className="p-2.5 sm:p-4">
                   <div className="w-full aspect-[2/3] rounded-md overflow-hidden mb-2 sm:mb-3 bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
                     {item.coverUrl ? (
@@ -294,7 +411,9 @@ export function PublicLibraryClient() {
                       <BookOpen className="h-8 w-8 sm:h-12 sm:w-12 text-primary/40" />
                     )}
                   </div>
-                  <p className="font-medium text-xs sm:text-sm line-clamp-2 leading-tight">{item.title}</p>
+                  <p className="font-medium text-xs sm:text-sm line-clamp-2 leading-tight group-hover:text-primary">
+                    {item.title}
+                  </p>
                   {item.author && (
                     <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1 mt-0.5">{item.author}</p>
                   )}
@@ -302,34 +421,11 @@ export function PublicLibraryClient() {
                   {item.uploaderName && (
                     <p className="text-[10px] text-muted-foreground mt-1 truncate">上传：{item.uploaderName}</p>
                   )}
-                  <div className="mt-3">
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="w-full"
-                      variant={added ? "secondary" : "default"}
-                      disabled={addingId === item.id}
-                      onClick={() => {
-                        if (added && shelfId) router.push(`/read/${shelfId}`);
-                        else void handleAdd(item.id);
-                      }}
-                    >
-                      {addingId === item.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : added ? (
-                        "打开阅读"
-                      ) : (
-                        <>
-                          <Plus className="h-4 w-4 mr-1" />
-                          加入书架
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-2">点击查看详情</p>
                 </CardContent>
               </Card>
-            );
-          })}
+            </Link>
+          ))}
         </div>
       )}
 
