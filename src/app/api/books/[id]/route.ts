@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { books, publicLibraryBooks } from "@/lib/db/schema";
+import { books } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { deleteBlob } from "@/lib/blob";
 import { NextResponse } from "next/server";
@@ -82,19 +82,7 @@ export async function PATCH(
     .returning();
 
   if (prevCover && prevCover !== coverUrl) {
-    let prevIsSharedPublicCover = false;
-    if (existing.publicBookId) {
-      const [pub] = await db
-        .select({ coverUrl: publicLibraryBooks.coverUrl })
-        .from(publicLibraryBooks)
-        .where(eq(publicLibraryBooks.id, existing.publicBookId));
-      if (pub?.coverUrl && pub.coverUrl === prevCover) {
-        prevIsSharedPublicCover = true;
-      }
-    }
-    if (!prevIsSharedPublicCover) {
-      void deleteBlob(prevCover);
-    }
+    void deleteBlob(prevCover);
   }
 
   return NextResponse.json(updated);
