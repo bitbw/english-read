@@ -8,6 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { DeleteBookButton } from "./delete-book-button";
 import { ChangeCoverButton } from "./change-cover-button";
+import { RemoveFromShelfButton } from "./remove-from-shelf-button";
 
 export type LibraryBookCardBook = {
   id: string;
@@ -16,7 +17,7 @@ export type LibraryBookCardBook = {
   coverUrl: string | null;
   readingProgress: number | null;
   lastReadAt: Date | string | null;
-  /** 来自公共书库时仅可阅读，不提供删除/换封面（与私有上传区分） */
+  /** 来自公共书库：可阅读、可从书架移除，不可换封面（与私有上传区分） */
   publicBookId?: string | null;
 };
 
@@ -85,9 +86,12 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
             onKeyDown={(e) => e.stopPropagation()}
           >
             {fromPublicLibrary ? (
-              <span className="text-[10px] sm:text-[11px] text-muted-foreground whitespace-nowrap" title="来自公共书库，封面与文件由书库统一管理">
-                书库
-              </span>
+              <>
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground whitespace-nowrap shrink-0" title="来自公共书库，封面与文件由书库统一管理">
+                  书库
+                </span>
+                <RemoveFromShelfButton bookId={book.id} bookTitle={book.title} />
+              </>
             ) : (
               <>
                 <ChangeCoverButton bookId={book.id} hasCover={!!book.coverUrl} />
