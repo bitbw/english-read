@@ -19,27 +19,34 @@ export default async function PublicBookDetailPage({ params }: PageProps) {
   const session = await auth();
   if (!session?.user?.id) return null;
 
-  const [row] = await db
-    .select({
-      id: publicLibraryBooks.id,
-      title: publicLibraryBooks.title,
-      author: publicLibraryBooks.author,
-      coverUrl: publicLibraryBooks.coverUrl,
-      tier: publicLibraryBooks.tier,
-      fileSize: publicLibraryBooks.fileSize,
-      createdAt: publicLibraryBooks.createdAt,
-      uploaderName: users.name,
-    })
-    .from(publicLibraryBooks)
-    .leftJoin(users, eq(publicLibraryBooks.uploadedBy, users.id))
-    .where(eq(publicLibraryBooks.id, params.publicBookId));
+  const userId = session.user.id;
+  const publicBookId = params.publicBookId;
 
+  const [publicRows, shelfRows] = await Promise.all([
+    db
+      .select({
+        id: publicLibraryBooks.id,
+        title: publicLibraryBooks.title,
+        author: publicLibraryBooks.author,
+        coverUrl: publicLibraryBooks.coverUrl,
+        tier: publicLibraryBooks.tier,
+        fileSize: publicLibraryBooks.fileSize,
+        createdAt: publicLibraryBooks.createdAt,
+        uploaderName: users.name,
+      })
+      .from(publicLibraryBooks)
+      .leftJoin(users, eq(publicLibraryBooks.uploadedBy, users.id))
+      .where(eq(publicLibraryBooks.id, publicBookId)),
+    db
+      .select({ id: books.id })
+      .from(books)
+      .where(and(eq(books.userId, userId), eq(books.publicBookId, publicBookId))),
+  ]);
+
+  const row = publicRows[0];
   if (!row) notFound();
 
-  const [shelf] = await db
-    .select({ id: books.id })
-    .from(books)
-    .where(and(eq(books.userId, session.user.id), eq(books.publicBookId, params.publicBookId)));
+  const shelf = shelfRows[0];
 
   const payload: PublicBookDetailPayload = {
     id: row.id,
