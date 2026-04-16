@@ -121,21 +121,18 @@ export function PublicLibraryClient() {
     setUploading(true);
     let title = file.name.replace(/\.epub$/i, "").replace(/[-_]/g, " ").trim();
     let author = "";
-    let objectUrl: string | null = null;
     try {
       try {
-        objectUrl = URL.createObjectURL(file);
+        const buf = await file.arrayBuffer();
         const ePub = (await import("epubjs")).default;
-        const book = ePub(objectUrl);
+        const book = ePub(buf);
         await book.ready;
         const meta = await book.loaded.metadata;
         title = (meta as { title?: string }).title || title;
         author = (meta as { creator?: string }).creator || "";
         book.destroy();
       } catch {
-        /* 使用文件名作标题 */
-      } finally {
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        /* 元数据读取失败时使用文件名 */
       }
 
       const safeName = file.name.replace(/\s+/g, "-").replace(/[^\w\-_.]/g, "") || "book.epub";
