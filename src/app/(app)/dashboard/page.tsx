@@ -24,31 +24,27 @@ export default async function DashboardPage() {
   const userId = session.user.id;
   const now = new Date();
 
-  const [dueResult] = await db
-    .select({ count: count() })
-    .from(vocabulary)
-    .where(and(eq(vocabulary.userId, userId), eq(vocabulary.isMastered, false), lte(vocabulary.nextReviewAt, now)));
+  const [dueRows, totalVocabRows, masteredRows, recentBooks] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(vocabulary)
+      .where(and(eq(vocabulary.userId, userId), eq(vocabulary.isMastered, false), lte(vocabulary.nextReviewAt, now))),
+    db.select({ count: count() }).from(vocabulary).where(eq(vocabulary.userId, userId)),
+    db
+      .select({ count: count() })
+      .from(vocabulary)
+      .where(and(eq(vocabulary.userId, userId), eq(vocabulary.isMastered, true))),
+    db
+      .select()
+      .from(books)
+      .where(eq(books.userId, userId))
+      .orderBy(desc(books.lastReadAt), desc(books.createdAt))
+      .limit(3),
+  ]);
 
-  const [totalVocabResult] = await db
-    .select({ count: count() })
-    .from(vocabulary)
-    .where(eq(vocabulary.userId, userId));
-
-  const [masteredResult] = await db
-    .select({ count: count() })
-    .from(vocabulary)
-    .where(and(eq(vocabulary.userId, userId), eq(vocabulary.isMastered, true)));
-
-  const recentBooks = await db
-    .select()
-    .from(books)
-    .where(eq(books.userId, userId))
-    .orderBy(desc(books.lastReadAt), desc(books.createdAt))
-    .limit(3);
-
-  const dueCount = dueResult?.count ?? 0;
-  const totalVocab = totalVocabResult?.count ?? 0;
-  const masteredCount = masteredResult?.count ?? 0;
+  const dueCount = dueRows[0]?.count ?? 0;
+  const totalVocab = totalVocabRows[0]?.count ?? 0;
+  const masteredCount = masteredRows[0]?.count ?? 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
