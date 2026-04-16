@@ -43,6 +43,9 @@ function cfiKey(bookId: string) {
 
 const CONTEXT_SENTENCE_MAX = 320;
 
+/** `relocated` 在滚动模式下触发很密，服务端进度 PUT 防抖，避免每挪一下一条请求 */
+const PROGRESS_SAVE_DEBOUNCE_MS = 600;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mgrScrollSnapshot(rendition: any) {
   const c = rendition?.manager?.container as HTMLElement | undefined;
@@ -145,6 +148,43 @@ export function EpubReader({
         showErrorToast: false,
       }).catch(() => {});
     }
+
+    let progressSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function persistProgressToServer() {
+      if (!currentCfiRef.current) return;
+      console.log(
+        "[Reader] 记录位置 → 服务端 PUT:",
+        currentCfiRef.current,
+        `${Math.round(currentPctRef.current)}%`
+      );
+      saveToServer(currentCfiRef.current, currentPctRef.current);
+    }
+
+    function flushServerProgressSave() {
+      if (progressSaveTimer) {
+        clearTimeout(progressSaveTimer);
+        progressSaveTimer = null;
+      }
+      persistProgressToServer();
+    }
+
+    function scheduleServerProgressSave() {
+      if (progressSaveTimer) clearTimeout(progressSaveTimer);
+      progressSaveTimer = setTimeout(() => {
+        progressSaveTimer = null;
+        if (!mounted || !currentCfiRef.current) return;
+        persistProgressToServer();
+      }, PROGRESS_SAVE_DEBOUNCE_MS);
+    }
+
+    function onVisibilityForProgress() {
+      if (document.visibilityState === "hidden") {
+        flushServerProgressSave();
+      }
+    }
+
+    document.addEventListener("visibilitychange", onVisibilityForProgress);
 
     async function initReader() {
       if (!viewerRef.current) return;
@@ -336,8 +376,7 @@ export function EpubReader({
           console.log("[Reader] 记录位置 → localStorage:", cfi);
         } catch { /* silent */ }
 
-        console.log("[Reader] 记录位置 → 服务端 PUT:", cfi, `${Math.round(bookPctForPersist)}%`);
-        saveToServer(cfi, bookPctForPersist);
+        scheduleServerProgressSave();
       });
 
       rendition.on("rendered", (_section: unknown, view: { window: Window }) => {
@@ -545,13 +584,14 @@ export function EpubReader({
 
     return () => {
       mounted = false;
+      document.removeEventListener("visibilitychange", onVisibilityForProgress);
       if (postOpenLayoutRedisplayTimer) clearTimeout(postOpenLayoutRedisplayTimer);
       resizeObserver?.disconnect();
-      // 组件卸载（Next.js 客户端跳转）时再保存一次，keepalive 确保请求完成
+      // 取消防抖定时器并立刻落库（含离开阅读页 / 切 tab 未走完防抖的情况）
       if (currentCfiRef.current) {
         console.log("[Reader] 组件卸载，记录位置 → 服务端 PUT (keepalive):", currentCfiRef.current);
-        saveToServer(currentCfiRef.current, currentPctRef.current);
       }
+      flushServerProgressSave();
       renditionRef.current?.destroy();
       bookRef.current?.destroy();
     };
