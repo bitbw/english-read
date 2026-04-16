@@ -84,22 +84,23 @@ export async function POST(req: Request) {
 
   const normalizedWord = parsed.data.word.toLowerCase().trim();
 
-  // 检查是否已存在
-  const [existing] = await db
-    .select()
-    .from(vocabulary)
-    .where(
-      and(
-        eq(vocabulary.userId, session.user.id),
-        eq(vocabulary.normalizedWord, normalizedWord)
-      )
-    );
+  const [existingRows, timeZone] = await Promise.all([
+    db
+      .select()
+      .from(vocabulary)
+      .where(
+        and(
+          eq(vocabulary.userId, session.user.id),
+          eq(vocabulary.normalizedWord, normalizedWord)
+        )
+      ),
+    resolveTimeZone(session.user.id, req),
+  ]);
 
+  const existing = existingRows[0];
   if (existing) {
     return NextResponse.json({ ...existing, alreadyExists: true });
   }
-
-  const timeZone = await resolveTimeZone(session.user.id, req);
   const { dayStart, dayEndExclusive } = vocabularyZonedDayBounds(timeZone);
   const [todayRow] = await db
     .select({ count: count() })

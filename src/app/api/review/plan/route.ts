@@ -40,28 +40,29 @@ export async function GET(req: Request) {
   const afterLast = calendarDayAfter(lastKey, timeZone);
   const monthEndExclusive = zonedDayRangeUtc(afterLast, timeZone).dayStart;
 
-  const [dueNowRow] = await db
-    .select({ count: count() })
-    .from(vocabulary)
-    .where(
-      and(
-        eq(vocabulary.userId, userId),
-        eq(vocabulary.isMastered, false),
-        lte(vocabulary.nextReviewAt, now)
-      )
-    );
-
-  const monthRows = await db
-    .select({ nextReviewAt: vocabulary.nextReviewAt })
-    .from(vocabulary)
-    .where(
-      and(
-        eq(vocabulary.userId, userId),
-        eq(vocabulary.isMastered, false),
-        gte(vocabulary.nextReviewAt, monthStart),
-        lt(vocabulary.nextReviewAt, monthEndExclusive)
-      )
-    );
+  const [[dueNowRow], monthRows] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(vocabulary)
+      .where(
+        and(
+          eq(vocabulary.userId, userId),
+          eq(vocabulary.isMastered, false),
+          lte(vocabulary.nextReviewAt, now)
+        )
+      ),
+    db
+      .select({ nextReviewAt: vocabulary.nextReviewAt })
+      .from(vocabulary)
+      .where(
+        and(
+          eq(vocabulary.userId, userId),
+          eq(vocabulary.isMastered, false),
+          gte(vocabulary.nextReviewAt, monthStart),
+          lt(vocabulary.nextReviewAt, monthEndExclusive)
+        )
+      ),
+  ]);
 
   const days: Record<string, { scheduled: number; dueNow: number }> = {};
   for (const k of dayKeys) {

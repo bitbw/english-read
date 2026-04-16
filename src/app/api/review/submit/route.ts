@@ -27,21 +27,23 @@ export async function POST(req: Request) {
 
   const { vocabularyId, result } = parsed.data;
 
-  const [word] = await db
-    .select()
-    .from(vocabulary)
-    .where(
-      and(
-        eq(vocabulary.id, vocabularyId),
-        eq(vocabulary.userId, session.user.id)
-      )
-    );
+  const [wordRows, timeZone] = await Promise.all([
+    db
+      .select()
+      .from(vocabulary)
+      .where(
+        and(
+          eq(vocabulary.id, vocabularyId),
+          eq(vocabulary.userId, session.user.id)
+        )
+      ),
+    resolveTimeZone(session.user.id, req),
+  ]);
 
+  const word = wordRows[0];
   if (!word) {
     return NextResponse.json({ error: "Word not found" }, { status: 404 });
   }
-
-  const timeZone = await resolveTimeZone(session.user.id, req);
   const { nextStage, nextReviewAt, isMastered } = calculateNextReview(
     word.reviewStage,
     result,

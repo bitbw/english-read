@@ -24,20 +24,20 @@ export async function POST(req: Request) {
   const { publicBookId } = parsed.data;
   const userId = session.user.id;
 
-  const [pub] = await db
-    .select()
-    .from(publicLibraryBooks)
-    .where(eq(publicLibraryBooks.id, publicBookId));
+  const [pubRows, existingRows] = await Promise.all([
+    db.select().from(publicLibraryBooks).where(eq(publicLibraryBooks.id, publicBookId)),
+    db
+      .select({ id: books.id })
+      .from(books)
+      .where(and(eq(books.userId, userId), eq(books.publicBookId, publicBookId))),
+  ]);
 
+  const pub = pubRows[0];
   if (!pub) {
     return NextResponse.json({ error: "Public book not found" }, { status: 404 });
   }
 
-  const [existing] = await db
-    .select({ id: books.id })
-    .from(books)
-    .where(and(eq(books.userId, userId), eq(books.publicBookId, publicBookId)));
-
+  const existing = existingRows[0];
   if (existing) {
     return NextResponse.json({ bookId: existing.id, alreadyAdded: true });
   }
