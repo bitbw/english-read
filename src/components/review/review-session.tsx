@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -160,6 +167,84 @@ function ReviewContextQuote({
         )}
       </p>
     </div>
+  );
+}
+
+/** 与「手动添加生词」弹层一致：双 mp3 为「美」「英」；仅一条 mp3 为扬声器图标；无 mp3 时 TTS；词组不展示 */
+function ReviewPronunciationControls({
+  word,
+  audioUsTrim,
+  audioUkTrim,
+  phrase,
+}: {
+  word: string;
+  audioUsTrim: string;
+  audioUkTrim: string;
+  phrase: boolean;
+}) {
+  const w = word.trim();
+  const speakTts = useCallback(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(w);
+    utterance.lang = "en-US";
+    window.speechSynthesis.speak(utterance);
+  }, [w]);
+
+  const playMp3 = useCallback(
+    (url: string) => {
+      playPronunciationMp3(url, speakTts);
+    },
+    [speakTts]
+  );
+
+  if (phrase || !w) return null;
+
+  if (audioUsTrim && audioUkTrim) {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => playMp3(audioUsTrim)}
+          className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium"
+          title="美音"
+        >
+          美
+        </button>
+        <button
+          type="button"
+          onClick={() => playMp3(audioUkTrim)}
+          className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium"
+          title="英音"
+        >
+          英
+        </button>
+      </span>
+    );
+  }
+  if (audioUsTrim || audioUkTrim) {
+    const url = audioUsTrim || audioUkTrim;
+    const title = audioUsTrim ? "美音" : "英音";
+    return (
+      <button
+        type="button"
+        onClick={() => playMp3(url)}
+        className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+        title={title}
+      >
+        <Volume2 className="h-3.5 w-3.5" />
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={speakTts}
+      className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+      title="发音（语音合成）"
+    >
+      <Volume2 className="h-3.5 w-3.5" />
+    </button>
   );
 }
 
@@ -585,30 +670,12 @@ export function ReviewSession({
               {current.phonetic ? (
                 <p className="text-muted-foreground text-sm">{current.phonetic}</p>
               ) : null}
-              {(audioUsTrim || audioUkTrim) && (
-                <span className="inline-flex items-center gap-0.5">
-                  {audioUsTrim ? (
-                    <button
-                      type="button"
-                      onClick={() => playPronunciationMp3(audioUsTrim)}
-                      className="text-muted-foreground hover:text-foreground rounded px-1 py-0.5 text-xs font-medium"
-                      title="美音"
-                    >
-                      美
-                    </button>
-                  ) : null}
-                  {audioUkTrim ? (
-                    <button
-                      type="button"
-                      onClick={() => playPronunciationMp3(audioUkTrim)}
-                      className="text-muted-foreground hover:text-foreground rounded px-1 py-0.5 text-xs font-medium"
-                      title="英音"
-                    >
-                      英
-                    </button>
-                  ) : null}
-                </span>
-              )}
+              <ReviewPronunciationControls
+                word={current.word}
+                audioUsTrim={audioUsTrim}
+                audioUkTrim={audioUkTrim}
+                phrase={phraseSpelling}
+              />
             </div>
           </div>
 
@@ -734,29 +801,14 @@ export function ReviewSession({
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
               </div>
             )}
-            {(audioUsTrim || audioUkTrim) && (
+            {!phraseSpelling && (
               <div className="flex justify-center items-center gap-1 pt-1 border-t border-border/60 mt-2">
-                <Volume2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden />
-                {audioUsTrim ? (
-                  <button
-                    type="button"
-                    onClick={() => playPronunciationMp3(audioUsTrim)}
-                    className="text-muted-foreground hover:text-foreground rounded px-1.5 py-0.5 text-xs font-medium"
-                    title="美音"
-                  >
-                    美
-                  </button>
-                ) : null}
-                {audioUkTrim ? (
-                  <button
-                    type="button"
-                    onClick={() => playPronunciationMp3(audioUkTrim)}
-                    className="text-muted-foreground hover:text-foreground rounded px-1.5 py-0.5 text-xs font-medium"
-                    title="英音"
-                  >
-                    英
-                  </button>
-                ) : null}
+                <ReviewPronunciationControls
+                  word={current.word}
+                  audioUsTrim={audioUsTrim}
+                  audioUkTrim={audioUkTrim}
+                  phrase={phraseSpelling}
+                />
               </div>
             )}
           </div>
