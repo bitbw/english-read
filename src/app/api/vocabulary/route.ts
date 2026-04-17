@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { vocabulary } from "@/lib/db/schema";
-import { eq, and, desc, gte, lt, count } from "drizzle-orm";
+import { eq, and, desc, gte, lt, count, ilike, sql } from "drizzle-orm";
 import { getInitialReviewDate } from "@/lib/srs";
 import {
   VOCABULARY_DAILY_ADD_LIMIT,
@@ -12,6 +12,13 @@ import { resolveTimeZone } from "@/lib/user-timezone";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 100;
+
+function escapeIlikePattern(raw: string) {
+  return raw.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
 const addWordSchema = z.object({
   word: z.string().min(1).max(500),
   bookId: z.string().optional(),
@@ -19,9 +26,11 @@ const addWordSchema = z.object({
   contextCfi: z.string().optional(),
   definition: z.string().optional(),
   phonetic: z.string().optional(),
+  audioUk: z.string().max(2048).optional(),
+  audioUs: z.string().max(2048).optional(),
 });
 
-// GET /api/vocabulary?filter=all|pending|mastered&search=xxx
+// GET /api/vocabulary?filter=all|pending|mastered&search=xxx&page=1&pageSize=50
 export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -43,7 +52,20 @@ export async function GET(req: Request) {
   }
 
   const filter = searchParams.get("filter") ?? "all";
-  const search = searchParams.get("search") ?? "";
+  const searchRaw = searchParams.get("search") ?? "";
+  const search = searchRaw.trim();
+
+  const parsedPage = parseInt(searchParams.get("page") ?? "1", 10);
+  const page = Math.max(1, Number.isFinite(parsedPage) ? parsedPage : 1);
+  const parsedSize = parseInt(
+    searchParams.get("pageSize") ?? String(DEFAULT_PAGE_SIZE),
+    10
+  );
+  const pageSize = Math.min(
+    MAX_PAGE_SIZE,
+    Math.max(1, Number.isFinite(parsedSize) ? parsedSize : DEFAULT_PAGE_SIZE)
+  );
+  const offset = (page - 1) * pageSize;
 
   const conditions = [eq(vocabulary.userId, session.user.id)];
 
@@ -53,20 +75,37 @@ export async function GET(req: Request) {
     conditions.push(eq(vocabulary.isMastered, true));
   }
 
-  const query = db
-    .select()
-    .from(vocabulary)
-    .where(and(...conditions))
-    .orderBy(desc(vocabulary.createdAt));
+  if (search) {
+    const pattern = `%${escapeIlikePattern(search)}%`;
+    conditions.push(ilike(vocabulary.word, pattern));
+  }
 
-  const words = await query;
+  const whereClause = and(...conditions);
 
-  // 搜索过滤（在内存中做，因为 ilike 兼容性更好）
-  const filtered = search
-    ? words.filter((w) => w.word.toLowerCase().includes(search.toLowerCase()))
-    : words;
+  const [rows, countResult] = await Promise.all([
+    db
+      .select()
+      .from(vocabulary)
+      .where(whereClause)
+      .orderBy(desc(vocabulary.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(vocabulary)
+      .where(whereClause),
+  ]);
 
-  return NextResponse.json(filtered);
+  const total = countResult[0]?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  return NextResponse.json({
+    items: rows,
+    page,
+    pageSize,
+    total,
+    totalPages,
+  });
 }
 
 // POST /api/vocabulary
@@ -134,6 +173,8 @@ export async function POST(req: Request) {
       contextCfi: parsed.data.contextCfi ?? null,
       definition: parsed.data.definition ?? null,
       phonetic: parsed.data.phonetic ?? null,
+      audioUk: parsed.data.audioUk?.trim() || null,
+      audioUs: parsed.data.audioUs?.trim() || null,
       reviewStage: 0,
       nextReviewAt: getInitialReviewDate(timeZone),
     })

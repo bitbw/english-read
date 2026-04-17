@@ -9,6 +9,10 @@ import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
 import { toastConfirmAction } from "@/lib/toast-confirm";
 import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
 import { linkifyToReactNodes } from "@/components/linkified-text";
+import {
+  playPronunciationMp3 as playPronunciationMp3Url,
+  stopPronunciationAudio,
+} from "@/lib/pronunciation-audio";
 
 interface Definition {
   partOfSpeech: string;
@@ -126,15 +130,14 @@ export function WordPopup({
   const [existingEntryId, setExistingEntryId] = useState<string | null>(null);
   const [lookupLoading, setLookupLoading] = useState(true);
   const [removing, setRemoving] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   /** 与 /api/dictionary 一致：多词/整句不展示发音（无词典音频，也不 TTS 念整段） */
   const isPhrase = word.trim().split(/\s+/).length > 1;
 
   useEffect(() => {
-    audioRef.current?.pause();
+    stopPronunciationAudio();
     return () => {
-      audioRef.current?.pause();
+      stopPronunciationAudio();
     };
   }, [word]);
 
@@ -241,17 +244,7 @@ export function WordPopup({
 
   /** 优先用词典 CDN 的 mp3（可直连播放）；失败时退回 TTS（仅单词） */
   function playPronunciationMp3(url: string) {
-    if (typeof window === "undefined") return;
-    try {
-      audioRef.current?.pause();
-      const a = new Audio(url);
-      audioRef.current = a;
-      void a.play().catch(() => {
-        speakTts();
-      });
-    } catch {
-      speakTts();
-    }
+    playPronunciationMp3Url(url, speakTts);
   }
 
   const hasSavableDefinition =
@@ -273,6 +266,8 @@ export function WordPopup({
           contextCfi,
           definition: definitionStr,
           phonetic,
+          ...(audioUs.trim() ? { audioUs: audioUs.trim() } : {}),
+          ...(audioUk.trim() ? { audioUk: audioUk.trim() } : {}),
         }),
       });
 

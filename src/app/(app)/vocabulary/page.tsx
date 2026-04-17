@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { WordCard } from "@/components/vocabulary/word-card";
 import { VocabularyWordTable } from "@/components/vocabulary/vocabulary-word-table";
 import { Button } from "@/components/ui/button";
@@ -31,16 +31,21 @@ interface VocabWord {
 }
 
 const VOCAB_VIEW_STORAGE_KEY = "english-read-vocabulary-view";
+const PAGE_SIZE = 50;
 
 type VocabViewMode = "card" | "table";
 
 export default function VocabularyPage() {
   const [words, setWords] = useState<VocabWord[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
   const [dueCount, setDueCount] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
+  const [listTick, setListTick] = useState(0);
   const [viewMode, setViewMode] = useState<VocabViewMode>("card");
 
   useEffect(() => {
@@ -60,22 +65,44 @@ export default function VocabularyPage() {
     }
   }, [viewMode]);
 
-  async function fetchWords() {
+  const fetchWords = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await clientFetch(
-        `/api/vocabulary?filter=${filter}&search=${encodeURIComponent(search)}`
-      );
+      const params = new URLSearchParams();
+      params.set("filter", filter);
+      if (search.trim()) params.set("search", search.trim());
+      params.set("page", String(page));
+      params.set("pageSize", String(PAGE_SIZE));
+      const res = await clientFetch(`/api/vocabulary?${params.toString()}`);
       if (!res.ok) {
         setWords([]);
+        setTotal(0);
+        setTotalPages(1);
         return;
       }
-      const data = await res.json();
-      setWords(data);
+      const data = (await res.json()) as {
+        items: VocabWord[];
+        total: number;
+        page: number;
+        pageSize: number;
+        totalPages: number;
+      };
+      const tp = Math.max(1, data.totalPages);
+      if (page > tp) {
+        setPage(tp);
+        return;
+      }
+      if (data.items.length === 0 && data.total > 0 && page > 1) {
+        setPage((p) => Math.max(1, p - 1));
+        return;
+      }
+      setWords(data.items);
+      setTotal(data.total);
+      setTotalPages(tp);
     } finally {
       setLoading(false);
     }
-  }
+  }, [filter, search, page]);
 
   async function fetchDueCount() {
     const res = await clientFetch("/api/review", { showErrorToast: false });
@@ -85,12 +112,17 @@ export default function VocabularyPage() {
     setDueCount(n);
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchWords(); }, [filter, search]);
-  useEffect(() => { fetchDueCount(); }, []);
+  useEffect(() => {
+    void fetchWords();
+  }, [fetchWords, listTick]);
+
+  useEffect(() => {
+    void fetchDueCount();
+  }, []);
 
   async function handleManualAdded() {
-    await fetchWords();
+    setPage(1);
+    setListTick((t) => t + 1);
     await fetchDueCount();
   }
 
@@ -104,7 +136,7 @@ export default function VocabularyPage() {
       onConfirm: async () => {
         const res = await clientFetch(`/api/vocabulary/${id}`, { method: "DELETE" });
         if (res.ok) {
-          setWords((prev) => prev.filter((w) => w.id !== id));
+          setListTick((t) => t + 1);
           toast.success("已从生词本删除");
         }
       },
@@ -128,7 +160,7 @@ export default function VocabularyPage() {
         <div className="min-w-0 shrink-0">
           <h1 className="text-2xl font-bold">生词本</h1>
           <p className="text-sm text-muted-foreground mt-0.5 whitespace-nowrap sm:whitespace-normal">
-            共 {words.length} 条
+            共 {total} 条
           </p>
         </div>
         <div className="flex w-full flex-row flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
@@ -182,7 +214,10 @@ export default function VocabularyPage() {
                 key={f.value}
                 variant={filter === f.value ? "default" : "outline"}
                 size="sm"
-                onClick={() => setFilter(f.value)}
+                onClick={() => {
+                  setFilter(f.value);
+                  setPage(1);
+                }}
               >
                 {f.label}
               </Button>
@@ -222,7 +257,10 @@ export default function VocabularyPage() {
           <Input
             placeholder="搜索单词..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="pl-9"
           />
         </div>
@@ -263,6 +301,32 @@ export default function VocabularyPage() {
               点击「手动添加」或阅读时选中单词即可加入生词本
             </p>
           )}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={page <= 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            上一页
+          </Button>
+          <span className="text-sm text-muted-foreground self-center tabular-nums">
+            {page} / {totalPages}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            下一页
+          </Button>
         </div>
       )}
     </div>

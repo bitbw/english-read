@@ -195,6 +195,9 @@ export const vocabulary = pgTable(
     contextCfi: text("context_cfi"),
     definition: text("definition"),
     phonetic: text("phonetic"),
+    /** Free Dictionary CDN mp3，可能为空 */
+    audioUk: text("audio_uk"),
+    audioUs: text("audio_us"),
     note: text("note"),
     // 0=新词, 1-5=复习中, 6=已掌握
     reviewStage: integer("review_stage").default(0).notNull(),

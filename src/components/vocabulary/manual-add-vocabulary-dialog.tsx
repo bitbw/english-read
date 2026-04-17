@@ -17,6 +17,10 @@ import { Loader2, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
 import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
+import {
+  playPronunciationMp3 as playPronunciationMp3Url,
+  stopPronunciationAudio,
+} from "@/lib/pronunciation-audio";
 
 interface Definition {
   partOfSpeech: string;
@@ -50,16 +54,15 @@ export function ManualAddVocabularyDialog({
   const [translation, setTranslation] = useState("");
   const [audioUk, setAudioUk] = useState("");
   const [audioUs, setAudioUs] = useState("");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const trimmedWord = word.trim();
   const isPhrase = trimmedWord.split(/\s+/).length > 1;
 
   useEffect(() => {
-    audioRef.current?.pause();
+    stopPronunciationAudio();
     return () => {
-      audioRef.current?.pause();
+      stopPronunciationAudio();
     };
   }, [trimmedWord]);
 
@@ -152,17 +155,7 @@ export function ManualAddVocabularyDialog({
   }
 
   function playPronunciationMp3(url: string) {
-    if (typeof window === "undefined") return;
-    try {
-      audioRef.current?.pause();
-      const a = new Audio(url);
-      audioRef.current = a;
-      void a.play().catch(() => {
-        speakTts();
-      });
-    } catch {
-      speakTts();
-    }
+    playPronunciationMp3Url(url, speakTts);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -183,6 +176,8 @@ export function ManualAddVocabularyDialog({
           context: reference.trim() || undefined,
           ...(definitionStr ? { definition: definitionStr } : {}),
           ...(phonetic.trim() ? { phonetic: phonetic.trim() } : {}),
+          ...(audioUs.trim() ? { audioUs: audioUs.trim() } : {}),
+          ...(audioUk.trim() ? { audioUk: audioUk.trim() } : {}),
         }),
       });
       const data = (await res.json().catch(() => ({}))) as VocabWord & {

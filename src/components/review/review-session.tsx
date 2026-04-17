@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Delete, Lightbulb, Loader2, Undo2 } from "lucide-react";
+import { CheckCircle2, Delete, Lightbulb, Loader2, Undo2, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -27,6 +27,10 @@ import {
 import { markReviewClearedForScope } from "@/lib/review-session-cache";
 import { clientFetch } from "@/lib/client-fetch";
 import { linkifyToReactNodes } from "@/components/linkified-text";
+import {
+  playPronunciationMp3,
+  stopPronunciationAudio,
+} from "@/lib/pronunciation-audio";
 
 export interface ReviewWord {
   id: string;
@@ -35,6 +39,9 @@ export interface ReviewWord {
   definition: string | null;
   context: string | null;
   reviewStage: number;
+  /** 词典 CDN mp3，可能为空 */
+  audioUk?: string | null;
+  audioUs?: string | null;
 }
 
 interface ReviewSessionProps {
@@ -91,6 +98,12 @@ function initSpellingTrayWithSplit(labels: string[], chunkCount: number): Spelli
     rankById[id] = idx;
   });
   return { labels, rankById, usedIds: [] };
+}
+
+function preferredPronunciationUrl(w: ReviewWord): string {
+  const us = w.audioUs?.trim();
+  const uk = w.audioUk?.trim();
+  return us || uk || "";
 }
 
 function splitContextWithHighlight(
@@ -204,6 +217,20 @@ export function ReviewSession({
     const main = document.querySelector("main");
     if (main) main.scrollTop = 0;
   }, [current?.id]);
+
+  /** 释义题展示单词时自动播放（优先美音）；切题或离开本步时停止 */
+  useEffect(() => {
+    if (step !== "meaning" || !current) return;
+    const url = preferredPronunciationUrl(current);
+    if (!url) return;
+    const t = window.setTimeout(() => {
+      playPronunciationMp3(url);
+    }, 120);
+    return () => {
+      clearTimeout(t);
+      stopPronunciationAudio();
+    };
+  }, [current, step]);
 
   /** 同一词排在队首再次失败时需重新洗牌选项，与 `current` 引用是否变化无关 */
   const quizRegenKey = current ? (failVersions[current.id] ?? 0) : 0;
@@ -531,6 +558,8 @@ export function ReviewSession({
           (a, b) => (spelling.rankById[a] ?? 0) - (spelling.rankById[b] ?? 0)
         );
   const spellingUsedSet = new Set(spelling.usedIds);
+  const audioUsTrim = current.audioUs?.trim() ?? "";
+  const audioUkTrim = current.audioUk?.trim() ?? "";
 
   return (
     <div className="flex flex-col items-center gap-6 max-w-lg mx-auto w-full py-6">
@@ -552,9 +581,35 @@ export function ReviewSession({
         <Card className="w-full p-6 space-y-5">
           <div className="text-center space-y-2">
             <h2 className="text-4xl font-bold tracking-tight">{current.word}</h2>
-            {current.phonetic && (
-              <p className="text-muted-foreground text-sm">{current.phonetic}</p>
-            )}
+            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+              {current.phonetic ? (
+                <p className="text-muted-foreground text-sm">{current.phonetic}</p>
+              ) : null}
+              {(audioUsTrim || audioUkTrim) && (
+                <span className="inline-flex items-center gap-0.5">
+                  {audioUsTrim ? (
+                    <button
+                      type="button"
+                      onClick={() => playPronunciationMp3(audioUsTrim)}
+                      className="text-muted-foreground hover:text-foreground rounded px-1 py-0.5 text-xs font-medium"
+                      title="美音"
+                    >
+                      美
+                    </button>
+                  ) : null}
+                  {audioUkTrim ? (
+                    <button
+                      type="button"
+                      onClick={() => playPronunciationMp3(audioUkTrim)}
+                      className="text-muted-foreground hover:text-foreground rounded px-1 py-0.5 text-xs font-medium"
+                      title="英音"
+                    >
+                      英
+                    </button>
+                  ) : null}
+                </span>
+              )}
+            </div>
           </div>
 
           {current.context ? (
@@ -677,6 +732,31 @@ export function ReviewSession({
             ) : (
               <div className="flex justify-center py-1">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
+              </div>
+            )}
+            {(audioUsTrim || audioUkTrim) && (
+              <div className="flex justify-center items-center gap-1 pt-1 border-t border-border/60 mt-2">
+                <Volume2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden />
+                {audioUsTrim ? (
+                  <button
+                    type="button"
+                    onClick={() => playPronunciationMp3(audioUsTrim)}
+                    className="text-muted-foreground hover:text-foreground rounded px-1.5 py-0.5 text-xs font-medium"
+                    title="美音"
+                  >
+                    美
+                  </button>
+                ) : null}
+                {audioUkTrim ? (
+                  <button
+                    type="button"
+                    onClick={() => playPronunciationMp3(audioUkTrim)}
+                    className="text-muted-foreground hover:text-foreground rounded px-1.5 py-0.5 text-xs font-medium"
+                    title="英音"
+                  >
+                    英
+                  </button>
+                ) : null}
               </div>
             )}
           </div>
