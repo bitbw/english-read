@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, X, Loader2, ImageIcon, ExternalLink } from "lucide-react";
@@ -15,15 +15,36 @@ import { CLIENT_FETCH_NETWORK_ERROR, clientFetch } from "@/lib/client-fetch";
 import { EXTERNAL_EPUB_FIND_URL } from "@/lib/external-epub-find";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
+import { useEpubCoverPreview } from "@/hooks/use-epub-cover-preview";
 
 export function EpubUpload() {
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverManualPreviewSrc, setCoverManualPreviewSrc] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const { previewUrl: epubEmbeddedPreviewUrl, loading: epubCoverLoading } =
+    useEpubCoverPreview(file);
+
+  useEffect(() => {
+    if (!coverFile) {
+      setCoverManualPreviewSrc(null);
+      return;
+    }
+    const url = URL.createObjectURL(coverFile);
+    setCoverManualPreviewSrc(url);
+    return () => URL.revokeObjectURL(url);
+  }, [coverFile]);
+
+  const coverDisplaySrc = coverFile ? coverManualPreviewSrc : epubEmbeddedPreviewUrl;
+
+  function clearCoverSelection() {
+    setCoverFile(null);
+    if (coverInputRef.current) coverInputRef.current.value = "";
+  }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -192,17 +213,17 @@ export function EpubUpload() {
       </Card>
 
       <Card className="p-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-sm">
-            <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+          <div className="flex items-start gap-2 text-sm min-w-0">
+            <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <div>
               <p className="font-medium">封面（可选）</p>
               <p className="text-xs text-muted-foreground">
-                JPG / PNG / WebP，最大 5MB；不选时将尝试从 EPUB 内嵌封面提取
+                选书后会自动显示内嵌封面；也可手动替换为 JPG / PNG / WebP（最大 5MB）
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-center gap-2 shrink-0 sm:items-end mx-auto sm:mx-0">
             <input
               ref={coverInputRef}
               type="file"
@@ -213,18 +234,42 @@ export function EpubUpload() {
                 if (f) setCoverFile(f);
               }}
             />
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => coverInputRef.current?.click()}
+              className="relative w-28 aspect-2/3 rounded-md border border-dashed border-border bg-muted/30 overflow-hidden flex items-center justify-center text-center transition-colors hover:bg-muted/50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {coverDisplaySrc ? (
+                // eslint-disable-next-line @next/next/no-img-element -- 本地 blob 预览
+                <img src={coverDisplaySrc} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              ) : epubCoverLoading ? (
+                <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" aria-hidden />
+              ) : (
+                <span className="text-xs text-muted-foreground px-2">点击选择封面</span>
+              )}
+            </button>
             {coverFile ? (
-              <>
-                <span className="text-xs text-muted-foreground truncate max-w-[140px]">{coverFile.name}</span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setCoverFile(null)}>
+              <div className="flex items-center gap-1 max-w-44">
+                <span className="text-xs text-muted-foreground truncate" title={coverFile.name}>
+                  {coverFile.name}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 shrink-0"
+                  disabled={uploading}
+                  onClick={clearCoverSelection}
+                >
                   <X className="h-4 w-4" />
                 </Button>
-              </>
-            ) : (
-              <Button type="button" variant="outline" size="sm" onClick={() => coverInputRef.current?.click()}>
-                选择图片
-              </Button>
-            )}
+              </div>
+            ) : epubEmbeddedPreviewUrl ? (
+              <span className="text-xs text-muted-foreground">内嵌封面</span>
+            ) : epubCoverLoading ? (
+              <span className="text-xs text-muted-foreground">正在读取封面…</span>
+            ) : null}
           </div>
         </div>
       </Card>
