@@ -1,7 +1,8 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -27,11 +28,21 @@ import { ExternalLink, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
+  const router = useRouter();
+  const { data: session, update } = useSession();
   const [savedTimeZone, setSavedTimeZone] = useState<string | null | undefined>(undefined);
   const [draftTimeZone, setDraftTimeZone] = useState("");
   const [prefsLoading, setPrefsLoading] = useState(true);
   const [savingTz, setSavingTz] = useState(false);
+  const [draftDisplayName, setDraftDisplayName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [removingAvatar, setRemovingAvatar] = useState(false);
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setDraftDisplayName(session?.user?.name ?? "");
+  }, [session?.user?.name]);
 
   const loadPrefs = useCallback(async () => {
     setPrefsLoading(true);
@@ -57,6 +68,63 @@ export default function SettingsPage() {
   );
 
   const selectControlValue = draftTimeZone.trim() === "" ? FOLLOW_BROWSER_SELECT_VALUE : draftTimeZone.trim();
+
+  async function onAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    setUploadingAvatar(true);
+    try {
+      const r = await clientFetch("/api/user/avatar", { method: "POST", body: fd });
+      if (!r.ok) return;
+      const data = (await r.json()) as { image?: string };
+      await update({ image: data.image });
+      router.refresh();
+      toast.success("头像已更新");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
+  async function removeAvatar() {
+    setRemovingAvatar(true);
+    try {
+      const r = await clientFetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: null }),
+      });
+      if (!r.ok) return;
+      const cleared = (await r.json()) as { image?: string | null };
+      await update({ image: cleared.image ?? null });
+      router.refresh();
+      toast.success("已移除头像");
+    } finally {
+      setRemovingAvatar(false);
+    }
+  }
+
+  async function saveDisplayName() {
+    setSavingName(true);
+    try {
+      const trimmed = draftDisplayName.trim();
+      const body = { name: trimmed === "" ? null : trimmed };
+      const r = await clientFetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) return;
+      const saved = (await r.json()) as { name?: string | null; image?: string | null };
+      await update({ name: saved.name, image: saved.image });
+      router.refresh();
+      toast.success(trimmed === "" ? "已清除显示名" : "显示名已保存");
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   async function saveTimeZone() {
     setSavingTz(true);
@@ -87,16 +155,76 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-base">账户信息</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center gap-4">
-          <Avatar className="h-14 w-14">
-            <AvatarImage src={session?.user?.image ?? ""} />
-            <AvatarFallback className="text-lg">
-              {session?.user?.name?.[0]?.toUpperCase() ?? "U"}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-medium">{session?.user?.name}</p>
-            <p className="text-sm text-muted-foreground">{session?.user?.email}</p>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <Avatar className="h-16 w-16 shrink-0">
+              <AvatarImage src={session?.user?.image ?? ""} />
+              <AvatarFallback className="text-lg">
+                {(session?.user?.name?.[0] ?? session?.user?.email?.[0] ?? "U").toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div>
+                <p className="font-medium truncate">
+                  {session?.user?.name?.trim() ? session.user.name : "未设置显示名"}
+                </p>
+                <p className="text-sm text-muted-foreground truncate">{session?.user?.email}</p>
+              </div>
+              <input
+                ref={avatarFileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                aria-label="选择头像图片"
+                onChange={onAvatarFileChange}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingAvatar || removingAvatar}
+                  onClick={() => avatarFileInputRef.current?.click()}
+                >
+                  {uploadingAvatar ? "上传中…" : "上传头像"}
+                </Button>
+                {session?.user?.image ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground"
+                    disabled={uploadingAvatar || removingAvatar}
+                    onClick={() => void removeAvatar()}
+                  >
+                    {removingAvatar ? "处理中…" : "移除头像"}
+                  </Button>
+                ) : null}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                支持 JPG、PNG、WebP，单张最大 2MB，存储在 Vercel Blob。上传新头像时会自动替换上一张本地上传的图。
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="settings-display-name" className="text-sm font-medium">
+              显示名
+            </label>
+            <Input
+              id="settings-display-name"
+              placeholder="可选，在应用内展示的名称"
+              value={draftDisplayName}
+              onChange={(e) => setDraftDisplayName(e.target.value)}
+              maxLength={80}
+              className="max-w-lg"
+              autoComplete="nickname"
+            />
+            <p className="text-xs text-muted-foreground">
+              邮箱注册时可以不填；OAuth 登录会预填来自提供方的名称，你可在此修改。
+            </p>
+            <Button type="button" onClick={() => void saveDisplayName()} disabled={savingName}>
+              {savingName ? "保存中…" : "保存显示名"}
+            </Button>
           </div>
         </CardContent>
       </Card>

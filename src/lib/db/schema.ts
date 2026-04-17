@@ -23,6 +23,8 @@ export const users = pgTable("users", {
   email: text("email").unique(),
   emailVerified: timestamp("email_verified", { mode: "date" }),
   image: text("image"),
+  /** 邮箱密码注册用户；OAuth 用户为 null */
+  passwordHash: text("password_hash"),
   /** IANA 时区，可空：空则使用请求头 `X-User-Timezone`，再否则 UTC */
   timeZone: text("time_zone"),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
@@ -81,7 +83,39 @@ export const verificationTokens = pgTable(
 );
 
 // ─────────────────────────────────────────────
-// Books（书库）
+// Public library（公共书库，全员可见）
+// ─────────────────────────────────────────────
+
+export const publicLibraryBooks = pgTable(
+  "public_library_books",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    title: text("title").notNull(),
+    author: text("author"),
+    coverUrl: text("cover_url"),
+    blobUrl: text("blob_url").notNull(),
+    blobKey: text("blob_key").notNull(),
+    fileSize: integer("file_size"),
+    /** 1k | 2k | 3k | 4k | 5k — 与 reading-tiers 一致 */
+    tier: text("tier").notNull(),
+    tierSource: text("tier_source", { enum: ["llm", "fallback"] }).notNull(),
+    uploadedBy: text("uploaded_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => ({
+    tierIdx: index("public_library_books_tier_idx").on(t.tier),
+    uploadedByIdx: index("public_library_books_uploaded_by_idx").on(t.uploadedBy),
+    createdIdx: index("public_library_books_created_idx").on(t.createdAt),
+  })
+);
+
+// ─────────────────────────────────────────────
+// Books（个人书架）
 // ─────────────────────────────────────────────
 
 export const books = pgTable(
@@ -103,12 +137,21 @@ export const books = pgTable(
     currentCfi: text("current_cfi"),
     readingProgress: integer("reading_progress").default(0),
     lastReadAt: timestamp("last_read_at", { mode: "date" }),
+    /** 从公共书库加入时指向公共条目，用于去重 */
+    publicBookId: text("public_book_id").references(() => publicLibraryBooks.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
   },
   (book) => ({
     userIdIdx: index("books_user_id_idx").on(book.userId),
     userCreatedIdx: index("books_user_created_idx").on(book.userId, book.createdAt),
+    publicBookIdIdx: index("books_public_book_id_idx").on(book.publicBookId),
+    userPublicBookUnique: uniqueIndex("books_user_public_book_unique").on(
+      book.userId,
+      book.publicBookId
+    ),
   })
 );
 
@@ -152,6 +195,9 @@ export const vocabulary = pgTable(
     contextCfi: text("context_cfi"),
     definition: text("definition"),
     phonetic: text("phonetic"),
+    /** Free Dictionary CDN mp3，可能为空 */
+    audioUk: text("audio_uk"),
+    audioUs: text("audio_us"),
     note: text("note"),
     // 0=新词, 1-5=复习中, 6=已掌握
     reviewStage: integer("review_stage").default(0).notNull(),
@@ -213,6 +259,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
   sessions: many(sessions),
   books: many(books),
+  publicLibraryBooks: many(publicLibraryBooks),
   vocabulary: many(vocabulary),
   reviewLogs: many(reviewLogs),
   readingDailyTime: many(readingDailyTime),
@@ -226,8 +273,17 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, { fields: [sessions.userId], references: [users.id] }),
 }));
 
+export const publicLibraryBooksRelations = relations(publicLibraryBooks, ({ one, many }) => ({
+  uploader: one(users, { fields: [publicLibraryBooks.uploadedBy], references: [users.id] }),
+  shelfCopies: many(books),
+}));
+
 export const booksRelations = relations(books, ({ one, many }) => ({
   user: one(users, { fields: [books.userId], references: [users.id] }),
+  publicBook: one(publicLibraryBooks, {
+    fields: [books.publicBookId],
+    references: [publicLibraryBooks.id],
+  }),
   vocabulary: many(vocabulary),
 }));
 

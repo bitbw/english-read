@@ -1,12 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Delete, Lightbulb, Loader2, Undo2 } from "lucide-react";
+import { CheckCircle2, Delete, Lightbulb, Loader2, Undo2, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -27,6 +34,10 @@ import {
 import { markReviewClearedForScope } from "@/lib/review-session-cache";
 import { clientFetch } from "@/lib/client-fetch";
 import { linkifyToReactNodes } from "@/components/linkified-text";
+import {
+  playPronunciationMp3,
+  stopPronunciationAudio,
+} from "@/lib/pronunciation-audio";
 
 export interface ReviewWord {
   id: string;
@@ -35,6 +46,9 @@ export interface ReviewWord {
   definition: string | null;
   context: string | null;
   reviewStage: number;
+  /** 词典 CDN mp3，可能为空 */
+  audioUk?: string | null;
+  audioUs?: string | null;
 }
 
 interface ReviewSessionProps {
@@ -91,6 +105,12 @@ function initSpellingTrayWithSplit(labels: string[], chunkCount: number): Spelli
     rankById[id] = idx;
   });
   return { labels, rankById, usedIds: [] };
+}
+
+function preferredPronunciationUrl(w: ReviewWord): string {
+  const us = w.audioUs?.trim();
+  const uk = w.audioUk?.trim();
+  return us || uk || "";
 }
 
 function splitContextWithHighlight(
@@ -150,6 +170,84 @@ function ReviewContextQuote({
   );
 }
 
+/** 与「手动添加生词」弹层一致：双 mp3 为「美」「英」；仅一条 mp3 为扬声器图标；无 mp3 时 TTS；词组不展示 */
+function ReviewPronunciationControls({
+  word,
+  audioUsTrim,
+  audioUkTrim,
+  phrase,
+}: {
+  word: string;
+  audioUsTrim: string;
+  audioUkTrim: string;
+  phrase: boolean;
+}) {
+  const w = word.trim();
+  const speakTts = useCallback(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(w);
+    utterance.lang = "en-US";
+    window.speechSynthesis.speak(utterance);
+  }, [w]);
+
+  const playMp3 = useCallback(
+    (url: string) => {
+      playPronunciationMp3(url, speakTts);
+    },
+    [speakTts]
+  );
+
+  if (phrase || !w) return null;
+
+  if (audioUsTrim && audioUkTrim) {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => playMp3(audioUsTrim)}
+          className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium"
+          title="美音"
+        >
+          美
+        </button>
+        <button
+          type="button"
+          onClick={() => playMp3(audioUkTrim)}
+          className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium"
+          title="英音"
+        >
+          英
+        </button>
+      </span>
+    );
+  }
+  if (audioUsTrim || audioUkTrim) {
+    const url = audioUsTrim || audioUkTrim;
+    const title = audioUsTrim ? "美音" : "英音";
+    return (
+      <button
+        type="button"
+        onClick={() => playMp3(url)}
+        className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+        title={title}
+      >
+        <Volume2 className="h-3.5 w-3.5" />
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={speakTts}
+      className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+      title="发音（语音合成）"
+    >
+      <Volume2 className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
 export function ReviewSession({
   words,
   distractorPool = [],
@@ -198,6 +296,27 @@ export function ReviewSession({
   }, [words]);
 
   const current = queue[0];
+
+  /** 布局里滚动的是 `main` 而非 window；拼写区较高时用户会滚到下方，切题后需回到顶部才能看到新词的标题 */
+  useLayoutEffect(() => {
+    const main = document.querySelector("main");
+    if (main) main.scrollTop = 0;
+  }, [current?.id]);
+
+  /** 释义题展示单词时自动播放（优先美音）；切题或离开本步时停止 */
+  useEffect(() => {
+    if (step !== "meaning" || !current) return;
+    const url = preferredPronunciationUrl(current);
+    if (!url) return;
+    const t = window.setTimeout(() => {
+      playPronunciationMp3(url);
+    }, 120);
+    return () => {
+      clearTimeout(t);
+      stopPronunciationAudio();
+    };
+  }, [current, step]);
+
   /** 同一词排在队首再次失败时需重新洗牌选项，与 `current` 引用是否变化无关 */
   const quizRegenKey = current ? (failVersions[current.id] ?? 0) : 0;
 
@@ -524,6 +643,8 @@ export function ReviewSession({
           (a, b) => (spelling.rankById[a] ?? 0) - (spelling.rankById[b] ?? 0)
         );
   const spellingUsedSet = new Set(spelling.usedIds);
+  const audioUsTrim = current.audioUs?.trim() ?? "";
+  const audioUkTrim = current.audioUk?.trim() ?? "";
 
   return (
     <div className="flex flex-col items-center gap-6 max-w-lg mx-auto w-full py-6">
@@ -545,9 +666,17 @@ export function ReviewSession({
         <Card className="w-full p-6 space-y-5">
           <div className="text-center space-y-2">
             <h2 className="text-4xl font-bold tracking-tight">{current.word}</h2>
-            {current.phonetic && (
-              <p className="text-muted-foreground text-sm">{current.phonetic}</p>
-            )}
+            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+              {current.phonetic ? (
+                <p className="text-muted-foreground text-sm">{current.phonetic}</p>
+              ) : null}
+              <ReviewPronunciationControls
+                word={current.word}
+                audioUsTrim={audioUsTrim}
+                audioUkTrim={audioUkTrim}
+                phrase={phraseSpelling}
+              />
+            </div>
           </div>
 
           {current.context ? (
@@ -670,6 +799,16 @@ export function ReviewSession({
             ) : (
               <div className="flex justify-center py-1">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
+              </div>
+            )}
+            {!phraseSpelling && (
+              <div className="flex justify-center items-center gap-1 pt-1 border-t border-border/60 mt-2">
+                <ReviewPronunciationControls
+                  word={current.word}
+                  audioUsTrim={audioUsTrim}
+                  audioUkTrim={audioUkTrim}
+                  phrase={phraseSpelling}
+                />
               </div>
             )}
           </div>

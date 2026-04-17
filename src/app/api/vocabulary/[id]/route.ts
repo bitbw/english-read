@@ -9,6 +9,8 @@ const updateWordSchema = z.object({
   note: z.string().optional(),
   definition: z.string().optional(),
   phonetic: z.string().optional(),
+  audioUk: z.string().max(2048).optional().nullable(),
+  audioUs: z.string().max(2048).optional().nullable(),
 });
 
 // GET /api/vocabulary/[id]

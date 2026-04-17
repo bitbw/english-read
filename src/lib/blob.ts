@@ -42,6 +42,32 @@ export async function uploadCover(
   return { url: blob.url, pathname: blob.pathname };
 }
 
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+/**
+ * 上传用户头像到 Vercel Blob（JPEG / PNG / WebP，最大 2MB）
+ */
+export async function uploadAvatar(
+  userId: string,
+  file: File
+): Promise<{ url: string; pathname: string }> {
+  if (!AVATAR_TYPES.has(file.type)) {
+    throw new Error("头像仅支持 JPG、PNG、WebP");
+  }
+  if (file.size > AVATAR_MAX_BYTES) {
+    throw new Error("头像文件不能超过 2MB");
+  }
+  const ext =
+    file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  const pathname = `avatars/${userId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+  const blob = await put(pathname, file, {
+    access: "public",
+    contentType: file.type,
+  });
+  return { url: blob.url, pathname: blob.pathname };
+}
+
 /**
  * 删除 Vercel Blob 文件（静默失败，不阻塞业务）
  */

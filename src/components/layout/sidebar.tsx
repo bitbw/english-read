@@ -13,11 +13,23 @@ import {
   ExternalLink,
 } from "lucide-react";
 
+function navItemIsActive(pathname: string, href: string) {
+  if (href === "/vocabulary/plan") {
+    return pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review");
+  }
+  if (href === "/library/store") return pathname.startsWith("/library/store");
+  if (href === "/library") {
+    return pathname === "/library" || pathname.startsWith("/library/upload");
+  }
+  return pathname === href;
+}
+
 const GITHUB_REPO_URL = "https://github.com/bitbw/english-read";
 
 const navItems = [
   { href: "/dashboard", label: "首页", icon: LayoutDashboard },
-  { href: "/library", label: "书架", icon: Library },
+  { href: "/library/store", label: "公共书库", icon: Library },
+  { href: "/library", label: "我的书架", icon: BookOpen },
   { href: "/vocabulary", label: "生词本", icon: BookMarked },
   { href: "/vocabulary/plan", label: "复习计划", icon: Calendar },
   { href: "/settings", label: "设置", icon: Settings },
@@ -37,10 +49,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive =
-            href === "/vocabulary/plan"
-              ? pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review")
-              : pathname === href;
+          const isActive = navItemIsActive(pathname, href);
           return (
             <Link
               key={href}

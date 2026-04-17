@@ -8,6 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { DeleteBookButton } from "./delete-book-button";
 import { ChangeCoverButton } from "./change-cover-button";
+import { RemoveFromShelfButton } from "./remove-from-shelf-button";
 
 export type LibraryBookCardBook = {
   id: string;
@@ -16,6 +17,8 @@ export type LibraryBookCardBook = {
   coverUrl: string | null;
   readingProgress: number | null;
   lastReadAt: Date | string | null;
+  /** 来自公共书库：可阅读、可从书架移除，不可换封面（与私有上传区分） */
+  publicBookId?: string | null;
 };
 
 export function LibraryBookCard(book: LibraryBookCardBook) {
@@ -30,9 +33,11 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
       ? formatDistanceToNow(new Date(book.lastReadAt), { addSuffix: true, locale: zhCN })
       : "未开始";
 
+  const fromPublicLibrary = Boolean(book.publicBookId);
+
   return (
     <Card
-      className="group relative cursor-pointer hover:shadow-md transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background py-0"
+      className="group relative min-w-0 cursor-pointer hover:shadow-md transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background py-0"
       role="link"
       tabIndex={0}
       onClick={goRead}
@@ -55,8 +60,13 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
           )}
         </div>
 
-        <div className="space-y-0.5 sm:space-y-1">
-          <p className="font-medium text-xs sm:text-sm line-clamp-2 leading-tight">{book.title}</p>
+        <div className="space-y-0.5 sm:space-y-1 min-w-0">
+          <p
+            className="font-medium text-xs sm:text-sm line-clamp-1 leading-tight min-h-[1.25em]"
+            title={book.title}
+          >
+            {book.title}
+          </p>
           {book.author && (
             <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1">{book.author}</p>
           )}
@@ -76,12 +86,23 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
           </p>
           <div
             data-library-book-actions
-            className="flex shrink-0"
+            className="flex shrink-0 items-center gap-1"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            <ChangeCoverButton bookId={book.id} hasCover={!!book.coverUrl} />
-            <DeleteBookButton bookId={book.id} bookTitle={book.title} />
+            {fromPublicLibrary ? (
+              <>
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground whitespace-nowrap shrink-0" title="来自公共书库，封面与文件由书库统一管理">
+                  书库
+                </span>
+                <RemoveFromShelfButton bookId={book.id} bookTitle={book.title} />
+              </>
+            ) : (
+              <>
+                <ChangeCoverButton bookId={book.id} hasCover={!!book.coverUrl} />
+                <DeleteBookButton bookId={book.id} bookTitle={book.title} />
+              </>
+            )}
           </div>
         </div>
       </CardContent>

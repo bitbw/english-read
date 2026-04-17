@@ -24,31 +24,27 @@ export default async function DashboardPage() {
   const userId = session.user.id;
   const now = new Date();
 
-  const [dueResult] = await db
-    .select({ count: count() })
-    .from(vocabulary)
-    .where(and(eq(vocabulary.userId, userId), eq(vocabulary.isMastered, false), lte(vocabulary.nextReviewAt, now)));
+  const [dueRows, totalVocabRows, masteredRows, recentBooks] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(vocabulary)
+      .where(and(eq(vocabulary.userId, userId), eq(vocabulary.isMastered, false), lte(vocabulary.nextReviewAt, now))),
+    db.select({ count: count() }).from(vocabulary).where(eq(vocabulary.userId, userId)),
+    db
+      .select({ count: count() })
+      .from(vocabulary)
+      .where(and(eq(vocabulary.userId, userId), eq(vocabulary.isMastered, true))),
+    db
+      .select()
+      .from(books)
+      .where(eq(books.userId, userId))
+      .orderBy(desc(books.lastReadAt), desc(books.createdAt))
+      .limit(3),
+  ]);
 
-  const [totalVocabResult] = await db
-    .select({ count: count() })
-    .from(vocabulary)
-    .where(eq(vocabulary.userId, userId));
-
-  const [masteredResult] = await db
-    .select({ count: count() })
-    .from(vocabulary)
-    .where(and(eq(vocabulary.userId, userId), eq(vocabulary.isMastered, true)));
-
-  const recentBooks = await db
-    .select()
-    .from(books)
-    .where(eq(books.userId, userId))
-    .orderBy(desc(books.lastReadAt), desc(books.createdAt))
-    .limit(3);
-
-  const dueCount = dueResult?.count ?? 0;
-  const totalVocab = totalVocabResult?.count ?? 0;
-  const masteredCount = masteredResult?.count ?? 0;
+  const dueCount = dueRows[0]?.count ?? 0;
+  const totalVocab = totalVocabRows[0]?.count ?? 0;
+  const masteredCount = masteredRows[0]?.count ?? 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -189,8 +185,18 @@ export default async function DashboardPage() {
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
               <Library className="h-10 w-10 text-muted-foreground" />
-              <p className="text-muted-foreground">还没有书，快去上传一本吧</p>
-              <Link href="/library/upload" className={cn(buttonVariants())}>上传 EPUB</Link>
+              <p className="text-muted-foreground max-w-sm">
+                还没有最近阅读记录。去公共书库选一本，加入「我的书架」后即可开始阅读。
+              </p>
+              <Link href="/library/store" className={cn(buttonVariants())}>
+                前往公共书库
+              </Link>
+              <Link
+                href="/library/upload"
+                className={cn(buttonVariants({ variant: "link" }), "text-sm text-muted-foreground")}
+              >
+                或上传自己的 EPUB
+              </Link>
             </CardContent>
           </Card>
         )}
