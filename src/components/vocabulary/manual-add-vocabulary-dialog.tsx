@@ -247,9 +247,18 @@ export function ManualAddVocabularyDialog({
                     <span className="text-xs text-muted-foreground">输入单词或短语后将显示音标与释义</span>
                   )}
                 </div>
-                {trimmedWord && !isPhrase && !dictLoading ? (
+                {trimmedWord && !dictLoading ? (
                   <div className="flex shrink-0 items-center gap-0.5">
-                    {audioUs && audioUk ? (
+                    {isPhrase ? (
+                      <button
+                        type="button"
+                        onClick={speakTts}
+                        className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+                        title="发音（语音合成）"
+                      >
+                        <Volume2 className="h-3.5 w-3.5" />
+                      </button>
+                    ) : audioUs && audioUk ? (
                       <>
                         <button
                           type="button"

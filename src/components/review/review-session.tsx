@@ -170,7 +170,7 @@ function ReviewContextQuote({
   );
 }
 
-/** 与「手动添加生词」弹层一致：双 mp3 为「美」「英」；仅一条 mp3 为扬声器图标；无 mp3 时 TTS；词组不展示 */
+/** 与「手动添加生词」弹层一致：单词为 mp3（美/英/单条）或 TTS；词组仅系统 TTS */
 function ReviewPronunciationControls({
   word,
   audioUsTrim,
@@ -198,7 +198,20 @@ function ReviewPronunciationControls({
     [speakTts]
   );
 
-  if (phrase || !w) return null;
+  if (!w) return null;
+
+  if (phrase) {
+    return (
+      <button
+        type="button"
+        onClick={speakTts}
+        className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+        title="发音（语音合成）"
+      >
+        <Volume2 className="h-3.5 w-3.5" />
+      </button>
+    );
+  }
 
   if (audioUsTrim && audioUkTrim) {
     return (
@@ -801,16 +814,14 @@ export function ReviewSession({
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
               </div>
             )}
-            {!phraseSpelling && (
-              <div className="flex justify-center items-center gap-1 pt-1 border-t border-border/60 mt-2">
-                <ReviewPronunciationControls
-                  word={current.word}
-                  audioUsTrim={audioUsTrim}
-                  audioUkTrim={audioUkTrim}
-                  phrase={phraseSpelling}
-                />
-              </div>
-            )}
+            <div className="flex justify-center items-center gap-1 pt-1 border-t border-border/60 mt-2">
+              <ReviewPronunciationControls
+                word={current.word}
+                audioUsTrim={audioUsTrim}
+                audioUkTrim={audioUkTrim}
+                phrase={phraseSpelling}
+              />
+            </div>
           </div>
 
           {spellHintShown ? (
