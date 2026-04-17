@@ -21,6 +21,8 @@ export function ClientFetchTestClient() {
         <p className="text-sm text-muted-foreground">
           路由 <code className="rounded bg-muted px-1 py-0.5 text-xs">/dev/client-fetch-test</code>
           ，仅本地 development；应出现 Sonner toast。HTTP 错误不抛异常，网络错误会 throw。
+          生产环境默认 401 会跳转登录；此处用 <code className="text-xs">redirectOn401: false</code>{" "}
+          仅测 toast。
         </p>
       </div>
 
@@ -40,12 +42,14 @@ export function ClientFetchTestClient() {
           type="button"
           variant="outline"
           onClick={async () => {
-            append("→ GET ?kind=401");
-            const r = await clientFetch("/api/dev/client-fetch-test?kind=401");
+            append("→ GET ?kind=401（redirectOn401: false）");
+            const r = await clientFetch("/api/dev/client-fetch-test?kind=401", {
+              redirectOn401: false,
+            });
             append(`← status=${r.status} ok=${r.ok}`);
           }}
         >
-          HTTP 401 + toast
+          HTTP 401 + toast（不调转登录）
         </Button>
         <Button
           type="button"

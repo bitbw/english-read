@@ -42,6 +42,11 @@ async function toastForFailedResponse(res: Response): Promise<void> {
 export type ClientFetchInit = RequestInit & {
   /** 为 false 时不自动 toast（默认 true） */
   showErrorToast?: boolean;
+  /**
+   * 为 false 时收到 401 不跳转登录页（默认 true：401 时 `window.location.assign("/login")`）。
+   * 调试或特殊请求可关闭。
+   */
+  redirectOn401?: boolean;
 };
 
 function browserIanaTimeZone(): string | null {
@@ -58,13 +63,14 @@ function browserIanaTimeZone(): string | null {
 /**
  * 浏览器端统一 fetch：网络失败或非 2xx 时默认 Sonner toast（Next 无内置全局劫持）。
  * 错误文案优先使用响应 JSON 的 `message`，否则使用字符串 `error`。
+ * HTTP 401 时默认跳转 `/login`（会话过期、清 cookie 等），且不弹错误 toast。
  * 自动附加 `X-User-Timezone`（IANA），供服务端按学习时区切日；调用方已设置则不覆盖。
  */
 export async function clientFetch(
   input: RequestInfo | URL,
   init?: ClientFetchInit
 ): Promise<Response> {
-  const { showErrorToast = true, ...fetchInit } = init ?? {};
+  const { showErrorToast = true, redirectOn401 = true, ...fetchInit } = init ?? {};
   const headers = new Headers(fetchInit.headers);
   if (!headers.has("X-User-Timezone")) {
     const tz = browserIanaTimeZone();
@@ -74,6 +80,10 @@ export async function clientFetch(
 
   try {
     const res = await fetch(input, nextInit);
+    if (res.status === 401 && redirectOn401 && typeof window !== "undefined") {
+      window.location.assign("/login");
+      return res;
+    }
     if (!res.ok && showErrorToast) {
       await toastForFailedResponse(res);
     }
