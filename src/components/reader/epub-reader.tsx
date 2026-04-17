@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import ePub, {
   type Book,
   type Contents,
@@ -46,6 +46,13 @@ const CONTEXT_SENTENCE_MAX = 320;
 
 const RELOCATED_DEBOUNCE_MS = 300;
 const SELECTED_DEBOUNCE_MS = 200;
+
+/** 宿主容器样式：减轻 WebKit 长按菜单/拖拽与分页 iframe 的冲突（试用于移动端选词后版面错乱）。 */
+const VIEWER_HOST_STYLE: CSSProperties & { WebkitUserDrag?: "none" } = {
+  WebkitTouchCallout: "none",
+  WebkitUserDrag: "none",
+  userSelect: "text",
+};
 
 /** 从所在段落中截取一句（或整段截断）作为划词收藏时的「上下文」展示文案。 */
 function excerptSentenceForVocabulary(
@@ -405,6 +412,7 @@ export function EpubReader({
       <div
         ref={viewerRef}
         className="h-full w-full min-h-0 overflow-hidden [overflow-anchor:none]"
+        style={VIEWER_HOST_STYLE}
       />
       {bookLoading ? (
         <div
