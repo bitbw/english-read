@@ -11,6 +11,7 @@ import ePub, {
 import { WordPopup, type WordPopupAnchorRect } from "./word-popup";
 import { clientFetch } from "@/lib/client-fetch";
 import { debounce } from "@/lib/debounce";
+import { readerDebugLog } from "@/lib/reader-debug";
 
 interface SelectionInfo {
   word: string;
@@ -31,13 +32,14 @@ interface EpubReaderProps {
   initialCfi?: string | null;
   fontSize: number;
   /** bookPct：0–100，`(spineIndex + page/total) / spine.length`；chapterPct：当前章内分页进度。 */
-  onProgress?: (cfi: string, bookPct: number, chapterName: string, chapterPct: number) => void;
+  onProgress?: (
+    cfi: string,
+    bookPct: number,
+    chapterName: string,
+    chapterPct: number
+  ) => void;
   onReady?: (controls: ReaderControls) => void;
   onTocReady?: (toc: NavItem[]) => void;
-}
-
-function cfiKey(bookId: string) {
-  return `reader-cfi-${bookId}`;
 }
 
 const CONTEXT_SENTENCE_MAX = 320;
@@ -45,7 +47,11 @@ const CONTEXT_SENTENCE_MAX = 320;
 const RELOCATED_DEBOUNCE_MS = 300;
 const SELECTED_DEBOUNCE_MS = 200;
 
-function excerptSentenceForVocabulary(paragraph: string, selected: string): string {
+/** 从所在段落中截取一句（或整段截断）作为划词收藏时的「上下文」展示文案。 */
+function excerptSentenceForVocabulary(
+  paragraph: string,
+  selected: string
+): string {
   const flat = paragraph.replace(/\s+/g, " ").trim();
   const sel = selected.trim();
   if (!flat) return sel;
@@ -96,7 +102,10 @@ function chapterPctFromDisplayed(d: Location["start"]["displayed"]): number {
 }
 
 /** 在嵌套 `navToc` 中按当前节 `href`（去 #）后缀匹配目录项 */
-function chapterLabelFromNavToc(items: NavItem[], href: string): string | undefined {
+function chapterLabelFromNavToc(
+  items: NavItem[],
+  href: string
+): string | undefined {
   const path = href.split("#")[0] ?? "";
   if (!path) return undefined;
   for (const item of items) {
@@ -112,11 +121,13 @@ function chapterLabelFromNavToc(items: NavItem[], href: string): string | undefi
   return undefined;
 }
 
+/** 当前位置的目录标题；目录无匹配时用「第 N 章」（N 为 spine 索引 + 1）。 */
 function chapterDisplayName(location: Location, navToc: NavItem[]): string {
   const label = chapterLabelFromNavToc(navToc, location.start.href);
-  return (label?.trim() || `第 ${location.start.index + 1} 章`);
+  return label?.trim() || `第 ${location.start.index + 1} 章`;
 }
 
+/** 将选区内多个 Range 的包围矩形合并为一个，用于弹层锚定。 */
 function unionSelectionRects(sel: Selection): DOMRect | null {
   if (sel.rangeCount === 0) return null;
   let u: DOMRect | null = null;
@@ -136,6 +147,35 @@ function unionSelectionRects(sel: Selection): DOMRect | null {
   return u;
 }
 
+/**
+ * 回显上次阅读位置：先立即 `display` 一次，再在双 `requestAnimationFrame` 后 `display` 一次，
+ * 等布局与 iframe 稳定后再对齐，避免仅单次 display 时的分页错位。
+ */
+async function displayInitialReadingPosition(
+  rendition: Rendition,
+  initialCfi: string | null | undefined,
+  isMounted: () => boolean
+): Promise<void> {
+  const startCfi = initialCfi?.trim();
+  if (startCfi) {
+    await rendition.display(startCfi);
+  } else {
+    await rendition.display();
+  }
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(async () => {
+      if (!isMounted()) return;
+      if (startCfi) {
+        await rendition.display(startCfi);
+      } else {
+        await rendition.display();
+      }
+    });
+  });
+}
+
+/** EPUB 阅读器：分页渲染、进度与划词；epubjs 仅在客户端加载。 */
 export function EpubReader({
   bookId,
   blobUrl,
@@ -155,16 +195,18 @@ export function EpubReader({
   /** 拉取 blobUrl、解析 EPUB、首屏 display 完成前 */
   const [bookLoading, setBookLoading] = useState(true);
 
+  /** 创建/销毁 epubjs 实例：换书、换 blob、或父组件传入新的 initialCfi 起点时整段重跑。 */
   useEffect(() => {
     currentCfiRef.current = initialCfi?.trim() ? initialCfi : "";
     currentPctRef.current = 0;
     setBookLoading(true);
 
     let mounted = true;
+    /** 最近一次划词完成时间，用于区分「点击关闭弹层」与「划词后误触 click」。 */
     let lastSelectedAt = 0;
 
+    /** 锚点变化：进度 UI、服务端 PUT（整段防抖，见 RELOCATED_DEBOUNCE_MS）。 */
     const debouncedRelocated = debounce((location: Location) => {
-      console.log("[BOWEN_LOG] 🚀 ~~ debouncedRelocated ~~ location:", location);
       if (!mounted) return;
       const book = bookRef.current;
       if (!book) return;
@@ -178,60 +220,74 @@ export function EpubReader({
       currentPctRef.current = bookPct;
 
       onProgress?.(cfi, bookPct, chapterName, chapterPct);
-
-      try {
-        localStorage.setItem(cfiKey(bookId), cfi);
-      } catch {
-        /* silent */
-      }
+      readerDebugLog("relocated", {
+        cfi,
+        bookPct,
+        chapterName,
+        chapterPct,
+      });
 
       persistProgressToServer();
     }, RELOCATED_DEBOUNCE_MS);
 
-    const debouncedSelected = debounce((cfiRange: string, contents: Contents) => {
-      console.log("[BOWEN_LOG] 🚀 ~~ debouncedSelected ~~ cfiRange:", cfiRange);
-      if (!mounted) return;
-      lastSelectedAt = Date.now();
-      const win = contents.window as Window;
-      const sel = win.getSelection();
-      if (!sel) return;
-      const text = sel.toString().trim();
-      if (!text || text.length > 200) return;
-      const local = unionSelectionRects(sel);
-      const iframe = win.frameElement as HTMLIFrameElement | null;
-      if (!local || !iframe) return;
-      const ir = iframe.getBoundingClientRect();
-      const anchorRect: WordPopupAnchorRect = {
-        top: local.top + ir.top,
-        left: local.left + ir.left,
-        right: local.right + ir.left,
-        bottom: local.bottom + ir.top,
-        width: local.width,
-        height: local.height,
-      };
-      const raw =
-        sel.anchorNode?.parentElement?.closest("p")?.textContent?.trim() ??
-        sel.anchorNode?.parentElement?.textContent?.trim() ??
-        "";
-      const context = excerptSentenceForVocabulary(raw, text);
-      setSelection({ word: text, context, cfi: cfiRange, anchorRect });
-    }, SELECTED_DEBOUNCE_MS);
+    /** 划词结束：计算锚点矩形与摘录上下文，打开查词弹层（防抖见 SELECTED_DEBOUNCE_MS）。 */
+    const debouncedSelected = debounce(
+      (cfiRange: string, contents: Contents) => {
+        if (!mounted) return;
+        lastSelectedAt = Date.now();
+        const win = contents.window as Window;
+        const sel = win.getSelection();
+        if (!sel) return;
+        const text = sel.toString().trim();
+        if (!text || text.length > 200) return;
+        const local = unionSelectionRects(sel);
+        const iframe = win.frameElement as HTMLIFrameElement | null;
+        if (!local || !iframe) return;
+        const ir = iframe.getBoundingClientRect();
+        const anchorRect: WordPopupAnchorRect = {
+          top: local.top + ir.top,
+          left: local.left + ir.left,
+          right: local.right + ir.left,
+          bottom: local.bottom + ir.top,
+          width: local.width,
+          height: local.height,
+        };
+        const raw =
+          sel.anchorNode?.parentElement?.closest("p")?.textContent?.trim() ??
+          sel.anchorNode?.parentElement?.textContent?.trim() ??
+          "";
+        const context = excerptSentenceForVocabulary(raw, text);
+        readerDebugLog("selected", {
+          cfiRange,
+          wordLen: text.length,
+          word: text.length > 64 ? `${text.slice(0, 64)}…` : text,
+        });
+        setSelection({ word: text, context, cfi: cfiRange, anchorRect });
+      },
+      SELECTED_DEBOUNCE_MS
+    );
 
+    /** 将指定 CFI 与全书进度百分比写入服务端。 */
     function saveToServer(cfi: string, pct: number) {
       void clientFetch(`/api/books/${bookId}/progress`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         keepalive: true,
-        body: JSON.stringify({ currentCfi: cfi, readingProgress: Math.round(pct) }),
+        body: JSON.stringify({
+          currentCfi: cfi,
+          readingProgress: Math.round(pct),
+        }),
         showErrorToast: false,
       }).catch(() => {});
     }
 
+    /** 使用 ref 中当前锚点与进度上报（供 relocated 与卸载清理调用）。 */
     function persistProgressToServer() {
       if (!currentCfiRef.current) return;
       saveToServer(currentCfiRef.current, currentPctRef.current);
     }
 
+    /** 窗口尺寸变化时同步 rendition 视口，避免分页错位。 */
     function onWindowResize() {
       if (!viewerRef.current || !renditionRef.current) return;
       const vr = viewerRef.current.getBoundingClientRect();
@@ -240,16 +296,20 @@ export function EpubReader({
       renditionRef.current.resize(rw, rh);
     }
 
+    /** 创建 Book / Rendition，绑定事件后首屏 display，并结束 loading。 */
     async function initReader() {
+      // 无挂载容器则无法渲染，直接结束 loading
       if (!viewerRef.current) {
         setBookLoading(false);
         return;
       }
 
+      // 分页模式依赖具体像素宽高，不用百分比
       const vr = viewerRef.current.getBoundingClientRect();
       const w = Math.floor(vr.width) || 600;
       const h = Math.floor(vr.height) || 800;
 
+      // 从 Blob URL 解析 EPUB 包
       const book = ePub(blobUrl);
       bookRef.current = book;
 
@@ -261,10 +321,12 @@ export function EpubReader({
       }
       if (!mounted) return;
 
+      // 目录供章名展示与 navTocRef（debounced relocated 使用）
       const navToc: NavItem[] = book.navigation?.toc ?? [];
       navTocRef.current = navToc;
       onTocReady?.(navToc);
 
+      // 在容器内建立分页版面
       const rendition = book.renderTo(viewerRef.current, {
         width: w,
         height: h,
@@ -273,17 +335,19 @@ export function EpubReader({
       });
       renditionRef.current = rendition;
 
+      // 供顶栏/父组件：上一页、下一页、按 href 跳转
       onReady?.({
         prev: () => renditionRef.current?.prev(),
         next: () => renditionRef.current?.next(),
         displayChapter: (href: string) => renditionRef.current?.display(href),
       });
 
-      // 视口锚点变化：更新 CFI、全书/本章进度、本地与服务端持久化
+      // 必须在 display 之前注册，否则会漏首次 relocated
       rendition.on("relocated", debouncedRelocated);
 
       rendition.on("selected", debouncedSelected);
 
+      // 点击空白关闭弹层；划词后短时间内忽略 click，避免立刻关掉弹层
       rendition.on("click", () => {
         if (!mounted) return;
         if (Date.now() - lastSelectedAt < 300) return;
@@ -292,16 +356,15 @@ export function EpubReader({
 
       rendition.themes.fontSize(`${fontSize}px`);
 
-      const startCfi = initialCfi?.trim();
-      if (startCfi) {
-        await rendition.display(startCfi);
-      } else {
-        await rendition.display();
-      }
-      if (!mounted) return;
+      await displayInitialReadingPosition(rendition, initialCfi, () => mounted);
 
+      if (!mounted) return;
       setBookLoading(false);
       window.addEventListener("resize", onWindowResize);
+
+     
+
+     
     }
 
     initReader().catch((err) => {
@@ -309,6 +372,7 @@ export function EpubReader({
       setBookLoading(false);
     });
 
+    // 取消待执行的防抖、最后一次上报进度、销毁 rendition 与 book
     return () => {
       mounted = false;
       debouncedRelocated.cancel();
@@ -321,10 +385,12 @@ export function EpubReader({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blobUrl, initialCfi, bookId]);
 
+  /** 字号仅变时改主题，不重跑整段 initReader。 */
   useEffect(() => {
     renditionRef.current?.themes.fontSize(`${fontSize}px`);
   }, [fontSize]);
 
+  /** 左右方向键翻页（与 iframe 内滚动不冲突时由窗口捕获）。 */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") renditionRef.current?.next();
@@ -336,7 +402,10 @@ export function EpubReader({
 
   return (
     <div className="relative h-full w-full min-h-0">
-      <div ref={viewerRef} className="h-full w-full min-h-0 overflow-hidden [overflow-anchor:none]" />
+      <div
+        ref={viewerRef}
+        className="h-full w-full min-h-0 overflow-hidden [overflow-anchor:none]"
+      />
       {bookLoading ? (
         <div
           className="absolute inset-0 z-10 flex items-center justify-center bg-background/80"

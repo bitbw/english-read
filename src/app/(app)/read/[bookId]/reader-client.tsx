@@ -49,7 +49,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const [chapterPercent, setChapterPercent] = useState<number | null>(null);
   const [toc, setToc] = useState<NavItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
-  // 优先使用 localStorage 中的 CFI，解决 Next.js 路由缓存导致服务端数据陈旧的问题
+  /** 与服务端 `initialCfi` 对齐；阅读位置仅通过服务端 PUT 持久化。 */
   const [effectiveCfi, setEffectiveCfi] = useState<string | null>(null);
   const [cfiReady, setCfiReady] = useState(false);
 
@@ -65,12 +65,9 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
       const n = parseInt(saved, 10);
       if (n >= 12 && n <= 28) setFontSize(n);
     }
-    // 优先 localStorage CFI，fallback 到服务端值
-    const localCfi = localStorage.getItem(`reader-cfi-${bookId}`);
-    const resolved = localCfi || initialCfi;
+    const resolved = initialCfi;
     readerDebugLog("ReaderClient 解析 CFI", {
       服务端initialCfi: initialCfi,
-      localStorageCfi: localCfi,
       最终effectiveCfi: resolved,
       字号localStorage: saved ?? null,
     });
@@ -235,7 +232,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
         </Sheet>
       </div>
 
-      {/* 阅读区域：等 localStorage 读取完毕再渲染，避免用错误的 initialCfi 初始化 */}
+      {/* 阅读区域：等客户端 effect 跑完（字号等）再挂 EpubReader，避免水合与首帧不一致 */}
       <div className="flex-1 min-h-0 overflow-hidden">
         {cfiReady && (
           <EpubReader
