@@ -9,15 +9,16 @@ import { useRef, useState, useEffect, Fragment } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { clientFetch } from "@/lib/client-fetch";
 import { readerDebugLog } from "@/lib/reader-debug";
-import type { TocItem } from "@/components/reader/epub-reader";
+import type { NavItem } from "epubjs";
 
+/** 仅在下发并执行 EpubReader 的 JS 分包时展示；拉取 EPUB（blobUrl）时的 loading 在 EpubReader 内部 */
 const EpubReader = dynamic(
   () => import("@/components/reader/epub-reader").then((m) => m.EpubReader),
   {
     ssr: false,
     loading: () => (
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-muted-foreground">加载中...</div>
+        <div className="text-muted-foreground">加载阅读器…</div>
       </div>
     ),
   }
@@ -42,16 +43,19 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const controlsRef = useRef<ReaderControls | null>(null);
   const [fontSize, setFontSize] = useState(20);
   const [chapterName, setChapterName] = useState("");
-  /** 仅全文进度；locations 未就绪时为 null，底栏显示占位而非章节内进度 */
-  const [percent, setPercent] = useState<number | null>(null);
-  const [toc, setToc] = useState<TocItem[]>([]);
+  /** 全书进度 0–100（spine 索引 + 章内 page/total） */
+  const [bookPercent, setBookPercent] = useState<number | null>(null);
+  /** 当前章内分页进度 0–100（`displayed.page/total`）；无分页信息时为 null */
+  const [chapterPercent, setChapterPercent] = useState<number | null>(null);
+  const [toc, setToc] = useState<NavItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
   // 优先使用 localStorage 中的 CFI，解决 Next.js 路由缓存导致服务端数据陈旧的问题
   const [effectiveCfi, setEffectiveCfi] = useState<string | null>(null);
   const [cfiReady, setCfiReady] = useState(false);
 
   useEffect(() => {
-    setPercent(null);
+    setBookPercent(null);
+    setChapterPercent(null);
     setChapterName("");
   }, [bookId]);
 
@@ -153,7 +157,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     });
   }
 
-  function renderTocItems(items: TocItem[], depth = 0) {
+  function renderTocItems(items: NavItem[], depth = 0) {
     return items.map((item) => (
       <Fragment key={item.href + depth}>
         <button
@@ -241,9 +245,10 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             fontSize={fontSize}
             onReady={(controls) => { controlsRef.current = controls; }}
             onTocReady={(items) => setToc(items)}
-            onProgress={(_, bookPct, chapter) => {
-              if (bookPct != null) setPercent(bookPct);
-              if (chapter) setChapterName(chapter);
+            onProgress={(_, bookPct, name, chapPct) => {
+              setBookPercent(bookPct);
+              setChapterName(name ?? "");
+              setChapterPercent(chapPct);
             }}
           />
         )}
@@ -264,7 +269,11 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             <p className="text-xs text-muted-foreground truncate">{chapterName}</p>
           )}
           <p className="text-xs text-muted-foreground tabular-nums">
-            {percent == null ? "…" : `${Math.round(percent)}%`}
+            全书{" "}
+            {bookPercent == null ? "…" : `${Math.round(bookPercent)}%`}
+            <span className="text-muted-foreground/70"> · </span>
+            本章{" "}
+            {chapterPercent == null ? "…" : `${Math.round(chapterPercent)}%`}
           </p>
         </div>
 

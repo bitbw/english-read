@@ -1,22 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import ePub, {
+  type Book,
+  type Contents,
+  type Location,
+  type NavItem,
+  type Rendition,
+} from "epubjs";
 import { WordPopup, type WordPopupAnchorRect } from "./word-popup";
 import { clientFetch } from "@/lib/client-fetch";
-import { isReaderDebug, readerDebugLog } from "@/lib/reader-debug";
+import { debounce } from "@/lib/debounce";
 
 interface SelectionInfo {
   word: string;
   context: string;
   cfi: string;
   anchorRect: WordPopupAnchorRect;
-}
-
-export interface TocItem {
-  id?: string;
-  href: string;
-  label: string;
-  subitems?: TocItem[];
 }
 
 interface ReaderControls {
@@ -30,38 +30,21 @@ interface EpubReaderProps {
   blobUrl: string;
   initialCfi?: string | null;
   fontSize: number;
-  /** bookPct：全文进度 0–100（仅 locations.generate 完成后有值，否则为 null）。chapterPct：章节内分页进度，勿当作全文进度展示。 */
-  onProgress?: (cfi: string, bookPct: number | null, chapterName: string, chapterPct: number | null) => void;
+  /** bookPct：0–100，`(spineIndex + page/total) / spine.length`；chapterPct：当前章内分页进度。 */
+  onProgress?: (cfi: string, bookPct: number, chapterName: string, chapterPct: number) => void;
   onReady?: (controls: ReaderControls) => void;
-  onTocReady?: (toc: TocItem[]) => void;
+  onTocReady?: (toc: NavItem[]) => void;
 }
 
-// localStorage key for storing the last-read CFI per book
 function cfiKey(bookId: string) {
   return `reader-cfi-${bookId}`;
 }
 
 const CONTEXT_SENTENCE_MAX = 320;
 
-/** `relocated` 在滚动模式下触发很密，服务端进度 PUT 防抖，避免每挪一下一条请求 */
-const PROGRESS_SAVE_DEBOUNCE_MS = 600;
+const RELOCATED_DEBOUNCE_MS = 300;
+const SELECTED_DEBOUNCE_MS = 200;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mgrScrollSnapshot(rendition: any) {
-  const c = rendition?.manager?.container as HTMLElement | undefined;
-  if (!c) return { container: false };
-  return {
-    scrollTop: Math.round(c.scrollTop),
-    scrollHeight: Math.round(c.scrollHeight),
-    clientHeight: Math.round(c.clientHeight),
-    scrollWidth: Math.round(c.scrollWidth),
-    clientWidth: Math.round(c.clientWidth),
-  };
-}
-
-/**
- * 生词「原文引用」：取包含选中词的一句（按 .!? 切分），压缩空白；避免整段过长。
- */
 function excerptSentenceForVocabulary(paragraph: string, selected: string): string {
   const flat = paragraph.replace(/\s+/g, " ").trim();
   const sel = selected.trim();
@@ -92,6 +75,67 @@ function excerptSentenceForVocabulary(paragraph: string, selected: string): stri
   return out;
 }
 
+/** epub 运行时 `spine.length` 有值，类型定义未写出 */
+function spineLength(book: Book): number {
+  return (book.spine as Book["spine"] & { length: number }).length;
+}
+
+/** 全书进度 0–100：`(index + page/total) / spine.length` */
+function wholeBookPctFromSpine(book: Book, location: Location): number {
+  const n = spineLength(book);
+  const { index } = location.start;
+  const { page, total } = location.start.displayed;
+  const p = (index + page / total) / n;
+  return Math.min(100, Math.max(0, p * 100));
+}
+
+/** 当前 spine 片段内分页进度 0–100（见 `DisplayedLocation.displayed`） */
+function chapterPctFromDisplayed(d: Location["start"]["displayed"]): number {
+  if (d.total === 1) return 100;
+  return ((d.page - 1) / (d.total - 1)) * 100;
+}
+
+/** 在嵌套 `navToc` 中按当前节 `href`（去 #）后缀匹配目录项 */
+function chapterLabelFromNavToc(items: NavItem[], href: string): string | undefined {
+  const path = href.split("#")[0] ?? "";
+  if (!path) return undefined;
+  for (const item of items) {
+    const itemPath = (item.href ?? "").split("#")[0];
+    if (itemPath && path.endsWith(itemPath)) {
+      return item.label;
+    }
+    if (item.subitems?.length) {
+      const nested = chapterLabelFromNavToc(item.subitems, href);
+      if (nested) return nested;
+    }
+  }
+  return undefined;
+}
+
+function chapterDisplayName(location: Location, navToc: NavItem[]): string {
+  const label = chapterLabelFromNavToc(navToc, location.start.href);
+  return (label?.trim() || `第 ${location.start.index + 1} 章`);
+}
+
+function unionSelectionRects(sel: Selection): DOMRect | null {
+  if (sel.rangeCount === 0) return null;
+  let u: DOMRect | null = null;
+  for (let i = 0; i < sel.rangeCount; i++) {
+    const r = sel.getRangeAt(i).getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) continue;
+    if (!u) {
+      u = new DOMRect(r.left, r.top, r.width, r.height);
+    } else {
+      const left = Math.min(u.left, r.left);
+      const top = Math.min(u.top, r.top);
+      const right = Math.max(u.right, r.right);
+      const bottom = Math.max(u.bottom, r.bottom);
+      u = new DOMRect(left, top, right - left, bottom - top);
+    }
+  }
+  return u;
+}
+
 export function EpubReader({
   bookId,
   blobUrl,
@@ -102,43 +146,77 @@ export function EpubReader({
   onTocReady,
 }: EpubReaderProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bookRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const renditionRef = useRef<any>(null);
+  const bookRef = useRef<Book | null>(null);
+  const renditionRef = useRef<Rendition | null>(null);
   const currentCfiRef = useRef<string>("");
   const currentPctRef = useRef<number>(0);
+  const navTocRef = useRef<NavItem[]>([]);
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
+  /** 拉取 blobUrl、解析 EPUB、首屏 display 完成前 */
+  const [bookLoading, setBookLoading] = useState(true);
 
   useEffect(() => {
     currentCfiRef.current = initialCfi?.trim() ? initialCfi : "";
     currentPctRef.current = 0;
+    setBookLoading(true);
 
     let mounted = true;
-    let resizeObserver: ResizeObserver | null = null;
-    /** 首次进入阅读页：容器尺寸稳定后二次 display，纠正 fill()/resize 造成的滚动错位（scrolled-doc） */
-    let postOpenLayoutRedisplayTimer: ReturnType<typeof setTimeout> | null = null;
-    let didPostOpenLayoutRedisplay = false;
     let lastSelectedAt = 0;
-    const setupWindows = new WeakSet<Window>();
 
-    /** 长按静止超过阈值：下一次 `selected` 不弹释义，避免与系统选区手柄冲突（与滑动切章解耦） */
-    const LONG_PRESS_MS = 450;
-    const LONG_PRESS_SLOP = 14;
-    const longPressByWin = new WeakMap<
-      Window,
-      { timer: ReturnType<typeof setTimeout> | null; skipNextPopup: boolean; lpStartX: number; lpStartY: number }
-    >();
-    function longPressState(win: Window) {
-      let s = longPressByWin.get(win);
-      if (!s) {
-        s = { timer: null, skipNextPopup: false, lpStartX: 0, lpStartY: 0 };
-        longPressByWin.set(win, s);
+    const debouncedRelocated = debounce((location: Location) => {
+      console.log("[BOWEN_LOG] 🚀 ~~ debouncedRelocated ~~ location:", location);
+      if (!mounted) return;
+      const book = bookRef.current;
+      if (!book) return;
+
+      const cfi = location.start.cfi;
+      const bookPct = wholeBookPctFromSpine(book, location);
+      const chapterName = chapterDisplayName(location, navTocRef.current);
+      const chapterPct = chapterPctFromDisplayed(location.start.displayed);
+
+      currentCfiRef.current = cfi;
+      currentPctRef.current = bookPct;
+
+      onProgress?.(cfi, bookPct, chapterName, chapterPct);
+
+      try {
+        localStorage.setItem(cfiKey(bookId), cfi);
+      } catch {
+        /* silent */
       }
-      return s;
-    }
 
-    // 保存进度到服务端（支持页面卸载场景用 keepalive）
+      persistProgressToServer();
+    }, RELOCATED_DEBOUNCE_MS);
+
+    const debouncedSelected = debounce((cfiRange: string, contents: Contents) => {
+      console.log("[BOWEN_LOG] 🚀 ~~ debouncedSelected ~~ cfiRange:", cfiRange);
+      if (!mounted) return;
+      lastSelectedAt = Date.now();
+      const win = contents.window as Window;
+      const sel = win.getSelection();
+      if (!sel) return;
+      const text = sel.toString().trim();
+      if (!text || text.length > 200) return;
+      const local = unionSelectionRects(sel);
+      const iframe = win.frameElement as HTMLIFrameElement | null;
+      if (!local || !iframe) return;
+      const ir = iframe.getBoundingClientRect();
+      const anchorRect: WordPopupAnchorRect = {
+        top: local.top + ir.top,
+        left: local.left + ir.left,
+        right: local.right + ir.left,
+        bottom: local.bottom + ir.top,
+        width: local.width,
+        height: local.height,
+      };
+      const raw =
+        sel.anchorNode?.parentElement?.closest("p")?.textContent?.trim() ??
+        sel.anchorNode?.parentElement?.textContent?.trim() ??
+        "";
+      const context = excerptSentenceForVocabulary(raw, text);
+      setSelection({ word: text, context, cfi: cfiRange, anchorRect });
+    }, SELECTED_DEBOUNCE_MS);
+
     function saveToServer(cfi: string, pct: number) {
       void clientFetch(`/api/books/${bookId}/progress`, {
         method: "PUT",
@@ -149,96 +227,51 @@ export function EpubReader({
       }).catch(() => {});
     }
 
-    let progressSaveTimer: ReturnType<typeof setTimeout> | null = null;
-
     function persistProgressToServer() {
       if (!currentCfiRef.current) return;
-      console.log(
-        "[Reader] 记录位置 → 服务端 PUT:",
-        currentCfiRef.current,
-        `${Math.round(currentPctRef.current)}%`
-      );
       saveToServer(currentCfiRef.current, currentPctRef.current);
     }
 
-    function flushServerProgressSave() {
-      if (progressSaveTimer) {
-        clearTimeout(progressSaveTimer);
-        progressSaveTimer = null;
-      }
-      persistProgressToServer();
+    function onWindowResize() {
+      if (!viewerRef.current || !renditionRef.current) return;
+      const vr = viewerRef.current.getBoundingClientRect();
+      const rw = Math.floor(vr.width) || 600;
+      const rh = Math.floor(vr.height) || 800;
+      renditionRef.current.resize(rw, rh);
     }
-
-    function scheduleServerProgressSave() {
-      if (progressSaveTimer) clearTimeout(progressSaveTimer);
-      progressSaveTimer = setTimeout(() => {
-        progressSaveTimer = null;
-        if (!mounted || !currentCfiRef.current) return;
-        persistProgressToServer();
-      }, PROGRESS_SAVE_DEBOUNCE_MS);
-    }
-
-    function onVisibilityForProgress() {
-      if (document.visibilityState === "hidden") {
-        flushServerProgressSave();
-      }
-    }
-
-    document.addEventListener("visibilitychange", onVisibilityForProgress);
 
     async function initReader() {
-      if (!viewerRef.current) return;
+      if (!viewerRef.current) {
+        setBookLoading(false);
+        return;
+      }
 
       const vr = viewerRef.current.getBoundingClientRect();
-      const { width, height } = vr;
-      const w = Math.floor(width) || 600;
-      const h = Math.floor(height) || 800;
-      readerDebugLog("init: viewer getBoundingClientRect (renderTo 尺寸来源)", {
-        width: vr.width,
-        height: vr.height,
-        w,
-        h,
-      });
+      const w = Math.floor(vr.width) || 600;
+      const h = Math.floor(vr.height) || 800;
 
-      const ePub = (await import("epubjs")).default;
       const book = ePub(blobUrl);
       bookRef.current = book;
+
+      try {
+        await book.ready;
+      } catch {
+        if (mounted) setBookLoading(false);
+        return;
+      }
+      if (!mounted) return;
+
+      const navToc: NavItem[] = book.navigation?.toc ?? [];
+      navTocRef.current = navToc;
+      onTocReady?.(navToc);
 
       const rendition = book.renderTo(viewerRef.current, {
         width: w,
         height: h,
-        flow: "scrolled-doc",
-        spread: "none",
+        flow: "paginated",
+        spread: "auto",
       });
       renditionRef.current = rendition;
-
-      let displayFinishedAt = 0;
-      let relocatedCount = 0;
-      let resizeObserverCallCount = 0;
-
-      if (isReaderDebug()) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const r = rendition as any;
-        try {
-          await r.started;
-        } catch (e) {
-          readerDebugLog("rendition.started rejected", e);
-        }
-        readerDebugLog("rendition.started OK", {
-          manager: r.manager?.name,
-          flow: r.settings?.flow,
-        });
-        rendition.on("displayed", (section: { href?: string }) => {
-          readerDebugLog("event rendition.displayed", { href: section?.href });
-        });
-        const mgr = r.manager;
-        mgr?.on?.("scrolled", (payload: unknown) => {
-          readerDebugLog("event manager.scrolled", payload, mgrScrollSnapshot(rendition));
-        });
-        mgr?.on?.("resized", (payload: unknown) => {
-          readerDebugLog("event manager.resized", payload, mgrScrollSnapshot(rendition));
-        });
-      }
 
       onReady?.({
         prev: () => renditionRef.current?.prev(),
@@ -246,243 +279,10 @@ export function EpubReader({
         displayChapter: (href: string) => renditionRef.current?.display(href),
       });
 
-      // 在 display() 之前加载导航目录，后续 relocated 中直接同步使用
-      // ⚠️ ResizeObserver 必须在 display() 之后再启动，否则首次展示前 resize 会破坏定位。
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let navToc: any[] = [];
-      try {
-        const nav = await book.loaded.navigation;
-        navToc = nav?.toc ?? [];
-        if (mounted) onTocReady?.(navToc as TocItem[]);
-      } catch { /* silent */ }
+      // 视口锚点变化：更新 CFI、全书/本章进度、本地与服务端持久化
+      rendition.on("relocated", debouncedRelocated);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      function findChapterLabel(href: string, items: any[]): string {
-        for (const item of items) {
-          const itemHref = (item.href ?? "").split("#")[0];
-          if (itemHref && href.endsWith(itemHref)) return item.label?.trim() ?? "";
-          if (item.subitems?.length) {
-            const found = findChapterLabel(href, item.subitems);
-            if (found) return found;
-          }
-        }
-        return "";
-      }
-
-      /** 分页模式下用页码/总页；滚动模式无分页信息时返回 null，上层回退全书进度 */
-      function chapterPercentFromDisplayed(displayed: { page?: number; total?: number } | undefined): number | null {
-        const total = displayed?.total;
-        const page = displayed?.page;
-        if (typeof total !== "number" || total < 1 || typeof page !== "number" || page < 1) return null;
-        if (total === 1) return 100;
-        return ((page - 1) / (total - 1)) * 100;
-      }
-
-      // ── 所有事件必须在 display() 之前注册 ──
-
-      // 首轮 display 后的 relocated 不写入（视口顶端 CFI 可能尚未对齐）。
-      // 若 ResizeObserver 安排了「尺寸稳定后二次 display」，在触发前会 +1，以跳过二次 display 对应的那次 relocated。
-      let relocatedSaveSkipsRemaining = 1;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      rendition.on("relocated", (location: any) => {
-        if (!mounted) return;
-        const cfi = location.start.cfi;
-        relocatedCount += 1;
-        const willSkipSave = relocatedSaveSkipsRemaining > 0;
-        const chapterPct = chapterPercentFromDisplayed(location.start?.displayed);
-        const chapterName = findChapterLabel(location.start.href ?? "", navToc);
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const locs = book.locations as any;
-        const locationsLen = typeof locs?.length === "function" ? locs.length() : -1;
-        const locationsTotal = typeof locs?.total === "number" ? locs.total : 0;
-        const locIndex =
-          locationsLen > 0 && typeof locs?.locationFromCfi === "function" ? locs.locationFromCfi(cfi) : null;
-
-        /**
-         * epubjs：generate() 跑队列时会不断往 _locations 里推条目，但 total 只在 **整本书扫完后** 才设为 length-1。
-         * 此阶段 percentageFromCfi → percentageFromLocation 里 `if (!this.total) return 0`，全书进度会 **恒为 0**（与 _locations 是否已有几百条无关）。
-         * generate 完成后用 locIndex/total 手算，同时避免 percentageFromLocation(0) 把索引 0 当 falsy 的 bug。
-         */
-        let rawBookPct: number | null = null;
-        if (locationsTotal > 0 && typeof locIndex === "number" && locIndex >= 0) {
-          rawBookPct = locIndex / locationsTotal;
-        }
-
-        const bookPctUi = rawBookPct != null ? rawBookPct * 100 : null;
-
-        if (isReaderDebug()) {
-          const libPct = book.locations.percentageFromCfi(cfi);
-          readerDebugLog(`relocated #${relocatedCount}`, {
-            cfi,
-            href: location.start?.href,
-            initialCfiRequested: initialCfi ?? null,
-            msSinceDisplayEnd: displayFinishedAt ? Date.now() - displayFinishedAt : null,
-            willSkipSave,
-            skipsLeftAfter: willSkipSave ? relocatedSaveSkipsRemaining - 1 : 0,
-            scroll: mgrScrollSnapshot(rendition),
-            locationsLen,
-            locationsTotal,
-            locIndex,
-            epubjsPercentageFromCfi: libPct,
-            rawBookPctComputed: rawBookPct,
-            bookPctUi,
-            chapterPct,
-            startDisplayed: location.start?.displayed ?? null,
-            startPercentage: location.start?.percentage,
-            progressNote: (() => {
-              if (locationsTotal < 1) {
-                return "locationsTotal<1：generate 未完成，bookPct 为 null（chapterPct 仅供调试，不作全文进度）";
-              }
-              if (rawBookPct == null) {
-                return "rawBookPct=null：locIndex 异常";
-              }
-              if (rawBookPct === 0 && locIndex === 0 && locationsTotal > 0) {
-                return "全书进度约 0%（locIndex=0）";
-              }
-              return "ok";
-            })(),
-          });
-        }
-
-        if (relocatedSaveSkipsRemaining > 0) {
-          relocatedSaveSkipsRemaining -= 1;
-          console.log("[Reader] relocated（跳过保存）:", cfi, `还可跳过 ${relocatedSaveSkipsRemaining} 次`);
-          // 视口顶端 CFI 可能尚未对齐：勿更新用于卸载/keepalive 的 ref，避免把错误位置写回服务端
-          onProgress?.(cfi, bookPctUi, chapterName, chapterPct);
-          return;
-        }
-
-        // 只持久化全文进度；未就绪时沿用上次已知的全书 %（不用 chapterPct，避免与全文语义混淆）
-        currentCfiRef.current = cfi;
-        if (bookPctUi != null) {
-          currentPctRef.current = bookPctUi;
-        }
-        const bookPctForPersist = bookPctUi ?? currentPctRef.current;
-
-        if (isReaderDebug()) {
-          readerDebugLog(`relocated #${relocatedCount} → 持久化`, {
-            bookPctForPersist,
-            wholeBookKnown: bookPctUi != null,
-          });
-        }
-
-        onProgress?.(cfi, bookPctUi, chapterName, chapterPct);
-
-        // 用户翻页或滚动导致锚点变化：正常保存
-        try {
-          localStorage.setItem(cfiKey(bookId), cfi);
-          console.log("[Reader] 记录位置 → localStorage:", cfi);
-        } catch { /* silent */ }
-
-        scheduleServerProgressSave();
-      });
-
-      rendition.on("rendered", (_section: unknown, view: { window: Window }) => {
-        const win = view.window;
-        if (setupWindows.has(win)) return;
-        setupWindows.add(win);
-
-        let startX = 0;
-        let startY = 0;
-        win.addEventListener("touchstart", (e: TouchEvent) => {
-          const t = e.touches[0];
-          startX = t.clientX;
-          startY = t.clientY;
-          const lp = longPressState(win);
-          if (lp.timer) clearTimeout(lp.timer);
-          lp.skipNextPopup = false;
-          lp.lpStartX = t.clientX;
-          lp.lpStartY = t.clientY;
-          lp.timer = setTimeout(() => {
-            lp.skipNextPopup = true;
-            lp.timer = null;
-          }, LONG_PRESS_MS);
-        }, { passive: true });
-        win.addEventListener("touchmove", (e: TouchEvent) => {
-          const lp = longPressState(win);
-          if (!lp.timer || !e.touches[0]) return;
-          const t = e.touches[0];
-          const dx = Math.abs(t.clientX - lp.lpStartX);
-          const dy = Math.abs(t.clientY - lp.lpStartY);
-          if (dx > LONG_PRESS_SLOP || dy > LONG_PRESS_SLOP) {
-            clearTimeout(lp.timer);
-            lp.timer = null;
-          }
-        }, { passive: true });
-        win.addEventListener("touchend", (e: TouchEvent) => {
-          const lp = longPressState(win);
-          if (lp.timer) {
-            clearTimeout(lp.timer);
-            lp.timer = null;
-          }
-          // 滑动切章（与长按抑制解耦；默认关闭，避免误触；需要时取消下行注释）
-          // const diffX = startX - e.changedTouches[0].clientX;
-          // const diffY = startY - e.changedTouches[0].clientY;
-          // if (Math.abs(diffX) < 70 || Math.abs(diffX) < Math.abs(diffY) * 1.5) return;
-          // if (diffX > 0) renditionRef.current?.next();
-          // else renditionRef.current?.prev();
-          // 滑动未启用时避免 no-unused-vars；恢复滑动后请删除下面三行 void
-          void startX;
-          void startY;
-          void e;
-        }, { passive: true });
-      });
-
-      /** 合并多行选区为单一包围盒（iframe 内坐标） */
-      function unionSelectionRects(sel: Selection): DOMRect | null {
-        if (sel.rangeCount === 0) return null;
-        let u: DOMRect | null = null;
-        for (let i = 0; i < sel.rangeCount; i++) {
-          const r = sel.getRangeAt(i).getBoundingClientRect();
-          if (r.width === 0 && r.height === 0) continue;
-          if (!u) {
-            u = new DOMRect(r.left, r.top, r.width, r.height);
-          } else {
-            const left = Math.min(u.left, r.left);
-            const top = Math.min(u.top, r.top);
-            const right = Math.max(u.right, r.right);
-            const bottom = Math.max(u.bottom, r.bottom);
-            u = new DOMRect(left, top, right - left, bottom - top);
-          }
-        }
-        return u;
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      rendition.on("selected", (cfiRange: string, contents: any) => {
-        if (!mounted) return;
-        lastSelectedAt = Date.now();
-        const win = contents.window as Window;
-        const sel = win.getSelection();
-        if (!sel) return;
-        const text = sel.toString().trim();
-        if (!text || text.length > 200) return;
-        const local = unionSelectionRects(sel);
-        const iframe = win.frameElement as HTMLIFrameElement | null;
-        if (!local || !iframe) return;
-        const ir = iframe.getBoundingClientRect();
-        const anchorRect: WordPopupAnchorRect = {
-          top: local.top + ir.top,
-          left: local.left + ir.left,
-          right: local.right + ir.left,
-          bottom: local.bottom + ir.top,
-          width: local.width,
-          height: local.height,
-        };
-        const lp = longPressState(win);
-        if (lp.skipNextPopup) {
-          lp.skipNextPopup = false;
-          return;
-        }
-        const raw =
-          sel.anchorNode?.parentElement?.closest("p")?.textContent?.trim() ??
-          sel.anchorNode?.parentElement?.textContent?.trim() ??
-          "";
-        const context = excerptSentenceForVocabulary(raw, text);
-        setSelection({ word: text, context, cfi: cfiRange, anchorRect });
-      });
+      rendition.on("selected", debouncedSelected);
 
       rendition.on("click", () => {
         if (!mounted) return;
@@ -490,108 +290,31 @@ export function EpubReader({
         setSelection(null);
       });
 
-      // 滚动模式：在内容注入前注册，首节也会生效（减轻 Chromium scroll anchoring 回弹）
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      rendition.hooks.content.register((contents: any) => {
-        const doc = contents?.document as Document | undefined;
-        if (!doc) return;
-        doc.documentElement.style.setProperty("overflow-anchor", "none", "important");
-        doc.body.style.setProperty("overflow-anchor", "none", "important");
-      });
-
-      // 必须在 display 之前设置字号：先 display 再改字体会整体重排，滚动像素不变但视口顶端的正文会「漂移」，
-      // scrolledLocation() 会误报成别的段落 CFI（例如 106→74），刷新后看起来「没回到上次位置」。
-      readerDebugLog("before themes.fontSize (init)", { fontSizePx: fontSize });
       rendition.themes.fontSize(`${fontSize}px`);
 
-      // ── 事件绑定完毕后再 display ──
-      if (initialCfi) {
-        console.log("[Reader] 回显位置 → display(initialCfi):", initialCfi);
-        await rendition.display(initialCfi);
+      const startCfi = initialCfi?.trim();
+      if (startCfi) {
+        await rendition.display(startCfi);
       } else {
-        console.log("[Reader] 回显位置 → display() 从头开始（无 initialCfi）");
         await rendition.display();
       }
       if (!mounted) return;
 
-      displayFinishedAt = Date.now();
-      readerDebugLog("display() promise resolved", {
-        initialCfi: initialCfi ?? null,
-        scroll: mgrScrollSnapshot(rendition),
-      });
-
-      const locationsGenStartedAt = Date.now();
-      readerDebugLog("book.locations.generate(1600) 已开始（异步，大书可能要几十秒）");
-      book.locations
-        .generate(1600)
-        .then(() => {
-          readerDebugLog("book.locations.generate(1600) 完成", {
-            ms: Date.now() - locationsGenStartedAt,
-            locationsLen: book.locations?.length?.() ?? null,
-            // runtime 有 total；@types/epubjs 未声明
-            locationsTotal: (book.locations as { total?: number }).total ?? null,
-            scroll: mgrScrollSnapshot(rendition),
-          });
-          if (mounted && renditionRef.current) {
-            renditionRef.current.reportLocation();
-          }
-        })
-        .catch((err: unknown) => {
-          readerDebugLog("book.locations.generate(1600) 失败（此后 percentageFromCfi 会一直为 null）", err);
-          console.error("[Reader] locations.generate 失败:", err);
-        });
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const stage = ((rendition as any).manager?.container ?? null) as HTMLElement | null;
-      stage?.style.setProperty("overflow-anchor", "none");
-
-      // ── display() 完成后再启动 ResizeObserver ──
-      resizeObserver = new ResizeObserver((entries) => {
-        const entry = entries[0];
-        if (!entry || !renditionRef.current) return;
-        const { width: rw, height: rh } = entry.contentRect;
-        if (rw > 0 && rh > 0) {
-          resizeObserverCallCount += 1;
-          readerDebugLog(`ResizeObserver #${resizeObserverCallCount} → rendition.resize`, {
-            contentRect: { rw: Math.floor(rw), rh: Math.floor(rh) },
-            scrollBefore: mgrScrollSnapshot(renditionRef.current),
-          });
-          renditionRef.current.resize(Math.floor(rw), Math.floor(rh));
-          requestAnimationFrame(() => {
-            readerDebugLog(`after resize rAF (#${resizeObserverCallCount})`, {
-              scrollAfter: mgrScrollSnapshot(renditionRef.current),
-            });
-          });
-
-          // resize 会改变 iframe 高度与章节内排版，若不再次 display，视口顶端 CFI 会落在目标段落之前（如 258→218）
-          if (initialCfi && mounted && !didPostOpenLayoutRedisplay) {
-            if (postOpenLayoutRedisplayTimer) clearTimeout(postOpenLayoutRedisplayTimer);
-            postOpenLayoutRedisplayTimer = setTimeout(() => {
-              postOpenLayoutRedisplayTimer = null;
-              if (!mounted || !renditionRef.current || !initialCfi || didPostOpenLayoutRedisplay) return;
-              didPostOpenLayoutRedisplay = true;
-              readerDebugLog("容器尺寸稳定 → 二次 display(initialCfi)", { initialCfi });
-              relocatedSaveSkipsRemaining += 1;
-              void renditionRef.current.display(initialCfi);
-            }, 160);
-          }
-        }
-      });
-      resizeObserver.observe(viewerRef.current);
+      setBookLoading(false);
+      window.addEventListener("resize", onWindowResize);
     }
 
-    initReader().catch(console.error);
+    initReader().catch((err) => {
+      console.error(err);
+      setBookLoading(false);
+    });
 
     return () => {
       mounted = false;
-      document.removeEventListener("visibilitychange", onVisibilityForProgress);
-      if (postOpenLayoutRedisplayTimer) clearTimeout(postOpenLayoutRedisplayTimer);
-      resizeObserver?.disconnect();
-      // 取消防抖定时器并立刻落库（含离开阅读页 / 切 tab 未走完防抖的情况）
-      if (currentCfiRef.current) {
-        console.log("[Reader] 组件卸载，记录位置 → 服务端 PUT (keepalive):", currentCfiRef.current);
-      }
-      flushServerProgressSave();
+      debouncedRelocated.cancel();
+      debouncedSelected.cancel();
+      window.removeEventListener("resize", onWindowResize);
+      persistProgressToServer();
       renditionRef.current?.destroy();
       bookRef.current?.destroy();
     };
@@ -599,13 +322,11 @@ export function EpubReader({
   }, [blobUrl, initialCfi, bookId]);
 
   useEffect(() => {
-    readerDebugLog("useEffect[fontSize] → themes.fontSize", { fontSizePx: fontSize });
     renditionRef.current?.themes.fontSize(`${fontSize}px`);
   }, [fontSize]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // 滚动模式：上下键留给正文内滚动，仅用左右键切换 spine 片段
       if (e.key === "ArrowRight") renditionRef.current?.next();
       if (e.key === "ArrowLeft") renditionRef.current?.prev();
     };
@@ -615,10 +336,16 @@ export function EpubReader({
 
   return (
     <div className="relative h-full w-full min-h-0">
-      <div
-        ref={viewerRef}
-        className="h-full w-full min-h-0 overflow-hidden [overflow-anchor:none]"
-      />
+      <div ref={viewerRef} className="h-full w-full min-h-0 overflow-hidden [overflow-anchor:none]" />
+      {bookLoading ? (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center bg-background/80"
+          role="status"
+          aria-live="polite"
+        >
+          <p className="text-sm text-muted-foreground">加载书籍中…</p>
+        </div>
+      ) : null}
       {selection && (
         <WordPopup
           word={selection.word}
