@@ -12,7 +12,7 @@ import { resolveTimeZone } from "@/lib/user-timezone";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-const DEFAULT_PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 100;
 
 function escapeIlikePattern(raw: string) {
@@ -30,7 +30,7 @@ const addWordSchema = z.object({
   audioUs: z.string().max(2048).optional(),
 });
 
-// GET /api/vocabulary?filter=all|pending|mastered&search=xxx&page=1&pageSize=50
+// GET /api/vocabulary?filter=all|pending|mastered&search=xxx&page=1&pageSize=10
 export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {

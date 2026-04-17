@@ -31,7 +31,7 @@ interface VocabWord {
 }
 
 const VOCAB_VIEW_STORAGE_KEY = "english-read-vocabulary-view";
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 10;
 
 type VocabViewMode = "card" | "table";
 
