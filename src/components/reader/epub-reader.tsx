@@ -164,6 +164,35 @@ function unionSelectionRects(sel: Selection): DOMRect | null {
 }
 
 /**
+ * iOS WebKit 上有时 `getRange(i).getBoundingClientRect()` 全为 0，但 `getClientRects()` 或
+ * 合并后的 Range 仍有有效矩形；用于避免划词成功却因锚点为 null 而不弹窗。
+ */
+function selectionAnchorRectFallback(sel: Selection): DOMRect | null {
+  if (sel.rangeCount === 0) return null;
+  const range = sel.getRangeAt(0);
+  if (range.collapsed) return null;
+  const rects = range.getClientRects();
+  let u: DOMRect | null = null;
+  for (let i = 0; i < rects.length; i++) {
+    const r = rects[i];
+    if (r.width === 0 && r.height === 0) continue;
+    if (!u) {
+      u = new DOMRect(r.left, r.top, r.width, r.height);
+    } else {
+      const left = Math.min(u.left, r.left);
+      const top = Math.min(u.top, r.top);
+      const right = Math.max(u.right, r.right);
+      const bottom = Math.max(u.bottom, r.bottom);
+      u = new DOMRect(left, top, right - left, bottom - top);
+    }
+  }
+  if (u) return u;
+  const br = range.getBoundingClientRect();
+  if (br.width > 0 || br.height > 0) return br;
+  return null;
+}
+
+/**
  * 回显上次阅读位置：先立即 `display` 一次，再在双 `requestAnimationFrame` 后 `display` 一次，
  * 等布局与 iframe 稳定后再对齐，避免仅单次 display 时的分页错位。
  */
@@ -265,7 +294,10 @@ export function EpubReader({
         if (!sel) return;
         const text = sel.toString().trim();
         if (!text || text.length > 200) return;
-        const local = unionSelectionRects(sel);
+        let local = unionSelectionRects(sel);
+        if (!local) {
+          local = selectionAnchorRectFallback(sel);
+        }
         const iframe = win.frameElement as HTMLIFrameElement | null;
         if (!local || !iframe) return;
         const ir = iframe.getBoundingClientRect();
@@ -407,10 +439,30 @@ export function EpubReader({
           "touchend",
           (e: TouchEvent) => {
             if (!e.changedTouches[0]) return;
+            /**
+             * 划词时手指多为横向拖动，易被误判为「横滑翻页」并在 touchend 里 removeAllRanges，
+             * iOS 上表现为选不中词、弹窗不出现。touchend 时若已有选区则不要翻页。
+             */
+            const selectedText =
+              (() => {
+                try {
+                  return win.getSelection()?.toString().trim() ?? "";
+                } catch {
+                  return "";
+                }
+              })();
+            if (selectedText.length > 0) return;
+
             const dx = e.changedTouches[0].clientX - startX;
             const dy = e.changedTouches[0].clientY - startY;
+            const vw = win.innerWidth || 400;
+            /** 窄屏上 112px 过长，适当按视口宽度降低，仍设下限避免误触 */
+            const minSwipePx = Math.min(
+              SWIPE_PAGE_MIN_PX,
+              Math.max(72, Math.floor(vw * 0.22))
+            );
             const isHorizontalSwipe =
-              Math.abs(dx) >= SWIPE_PAGE_MIN_PX &&
+              Math.abs(dx) >= minSwipePx &&
               Math.abs(dy) <= SWIPE_MAX_VERTICAL_PX &&
               Math.abs(dx) > Math.abs(dy);
             if (!isHorizontalSwipe) return;

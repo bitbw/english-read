@@ -16,10 +16,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DailyStudyChart } from "@/components/dashboard/daily-study-chart";
+import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
   const session = await auth();
-  if (!session?.user?.id) return null;
+  if (!session?.user?.id) redirect("/login");
 
   const userId = session.user.id;
   const now = new Date();

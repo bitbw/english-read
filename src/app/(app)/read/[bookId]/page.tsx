@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { books } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ReaderClient } from "./reader-client";
 
 interface ReadPageProps {
@@ -11,7 +11,7 @@ interface ReadPageProps {
 
 export default async function ReadPage({ params }: ReadPageProps) {
   const session = await auth();
-  if (!session?.user?.id) return null;
+  if (!session?.user?.id) redirect("/login");
 
   const [book] = await db
     .select()
