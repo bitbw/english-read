@@ -51,8 +51,8 @@ const SELECTED_DEBOUNCE_MS = 200;
 const SWIPE_PAGE_MIN_PX = 112;
 /** 滑动时允许的最大纵向偏移（px），超过则视为滚动而非翻页。 */
 const SWIPE_MAX_VERTICAL_PX = 96;
-/** 从 touchstart 到选区出现超过此时长视为长按选词：不打开查词弹层（在防抖前判定，不含防抖延迟）。 */
-const LONG_PRESS_NO_POPUP_MS = 450;
+// /** 从 touchstart 到选区出现超过此时长视为长按选词：不打开查词弹层（在防抖前判定，不含防抖延迟）。 */
+// const LONG_PRESS_NO_POPUP_MS = 450;
 
 /**
  * 阅读器外壳样式。勿对宿主设 `-webkit-touch-callout: none`：在 iOS/WebKit 上会抑制长按呼出的
@@ -220,8 +220,8 @@ export function EpubReader({
     let mounted = true;
     /** 最近一次划词完成时间，用于区分「点击关闭弹层」与「划词后误触 click」。 */
     let lastSelectedAt = 0;
-    /** iframe 内最近一次 touchstart 时间（用于长按不弹窗，仅触摸）。 */
-    const touchStartedAtByWin = new WeakMap<Window, number>();
+    // /** iframe 内最近一次 touchstart 时间（用于长按不弹窗，仅触摸）。 */
+    // const touchStartedAtByWin = new WeakMap<Window, number>();
     /** 最近一次滑动翻页时间，避免翻页手势仍打开查词层。 */
     const swipeNavAtByWin = new WeakMap<Window, number>();
     const touchSwipeAttached = new WeakSet<Window>();
@@ -292,19 +292,19 @@ export function EpubReader({
       SELECTED_DEBOUNCE_MS
     );
 
-    /**
-     * 在防抖前判定长按：仅跳过查词弹层，不得 `removeAllRanges()`。
-     * 移动端选词从 touchstart 到 `selected` 往往 >450ms，清选区会导致「根本选不中字」。
-     */
-    function handleSelected(cfiRange: string, contents: Contents) {
-      if (!mounted) return;
-      const win = contents.window as Window;
-      const t0 = touchStartedAtByWin.get(win);
-      if (t0 !== undefined && Date.now() - t0 >= LONG_PRESS_NO_POPUP_MS) {
-        return;
-      }
-      debouncedSelected(cfiRange, contents);
-    }
+    // /**
+    //  * 在防抖前判定长按：仅跳过查词弹层。
+    //  * 已暂时关闭：长按也应允许打开查词弹层（见 debouncedSelected）。
+    //  */
+    // function handleSelected(cfiRange: string, contents: Contents) {
+    //   if (!mounted) return;
+    //   const win = contents.window as Window;
+    //   const t0 = touchStartedAtByWin.get(win);
+    //   if (t0 !== undefined && Date.now() - t0 >= LONG_PRESS_NO_POPUP_MS) {
+    //     return;
+    //   }
+    //   debouncedSelected(cfiRange, contents);
+    // }
 
     /** 将指定 CFI 与全书进度百分比写入服务端。 */
     function saveToServer(cfi: string, pct: number) {
@@ -398,7 +398,7 @@ export function EpubReader({
             if (!e.touches[0]) return;
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
-            touchStartedAtByWin.set(win, Date.now());
+            // touchStartedAtByWin.set(win, Date.now());
           },
           { passive: true }
         );
@@ -428,7 +428,7 @@ export function EpubReader({
         );
       });
 
-      rendition.on("selected", handleSelected);
+      rendition.on("selected", debouncedSelected);
 
       // 点击空白关闭弹层；划词后短时间内忽略 click，避免立刻关掉弹层
       rendition.on("click", () => {
