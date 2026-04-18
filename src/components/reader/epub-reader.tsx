@@ -54,9 +54,11 @@ const SWIPE_MAX_VERTICAL_PX = 96;
 /** 从 touchstart 到选区出现超过此时长视为长按选词：不打开查词弹层（在防抖前判定，不含防抖延迟）。 */
 const LONG_PRESS_NO_POPUP_MS = 450;
 
-/** 宿主容器样式：减轻 WebKit 长按菜单/拖拽与分页 iframe 的冲突（试用于移动端选词后版面错乱）。 */
+/**
+ * 阅读器外壳样式。勿对宿主设 `-webkit-touch-callout: none`：在 iOS/WebKit 上会抑制长按呼出的
+ * 选词/复制菜单，表现为「划不了词」。正文在 iframe 内，该属性也解决不了 iframe 内冲突。
+ */
 const VIEWER_HOST_STYLE: CSSProperties & { WebkitUserDrag?: "none" } = {
-  WebkitTouchCallout: "none",
   WebkitUserDrag: "none",
   userSelect: "text",
 };
@@ -290,17 +292,15 @@ export function EpubReader({
       SELECTED_DEBOUNCE_MS
     );
 
-    /** 在防抖前判定长按：避免把防抖延迟算进「按住时长」误判。 */
+    /**
+     * 在防抖前判定长按：仅跳过查词弹层，不得 `removeAllRanges()`。
+     * 移动端选词从 touchstart 到 `selected` 往往 >450ms，清选区会导致「根本选不中字」。
+     */
     function handleSelected(cfiRange: string, contents: Contents) {
       if (!mounted) return;
       const win = contents.window as Window;
       const t0 = touchStartedAtByWin.get(win);
       if (t0 !== undefined && Date.now() - t0 >= LONG_PRESS_NO_POPUP_MS) {
-        try {
-          win.getSelection()?.removeAllRanges();
-        } catch {
-          /* ignore */
-        }
         return;
       }
       debouncedSelected(cfiRange, contents);
