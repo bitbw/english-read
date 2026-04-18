@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { books, publicLibraryBooks, users } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   PublicBookDetailClient,
   type PublicBookDetailPayload,
@@ -17,7 +17,7 @@ interface PageProps {
 
 export default async function PublicBookDetailPage({ params }: PageProps) {
   const session = await auth();
-  if (!session?.user?.id) return null;
+  if (!session?.user?.id) redirect("/login");
 
   const userId = session.user.id;
   const publicBookId = params.publicBookId;

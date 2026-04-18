@@ -9,10 +9,11 @@ import { BookOpen, ExternalLink, Upload } from "lucide-react";
 import { LibraryBookCard } from "./library-book-card";
 import { EXTERNAL_EPUB_FIND_URL } from "@/lib/external-epub-find";
 import { cn } from "@/lib/utils";
+import { redirect } from "next/navigation";
 
 export default async function LibraryPage() {
   const session = await auth();
-  if (!session?.user?.id) return null;
+  if (!session?.user?.id) redirect("/login");
 
   const userBooks = await db
     .select()
