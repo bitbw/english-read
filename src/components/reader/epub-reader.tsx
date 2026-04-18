@@ -226,6 +226,8 @@ export function EpubReader({
     /** 最近一次滑动翻页时间，避免翻页手势仍打开查词层。 */
     const swipeNavAtByWin = new WeakMap<Window, number>();
     // const touchSwipeAttached = new WeakSet<Window>(); // 与触摸翻页 hooks 一并启用
+    /** 每个 iframe 窗口只挂一次 selectionchange（与 epubjs 内监听并存，我们走独立防抖逻辑）。 */
+    const iframeSelectionHookAttached = new WeakSet<Window>();
 
     /** 锚点变化：进度 UI、服务端 PUT（整段防抖，见 RELOCATED_DEBOUNCE_MS）。 */
     const debouncedRelocated = debounce((location: Location) => {
@@ -252,47 +254,64 @@ export function EpubReader({
       persistProgressToServer();
     }, RELOCATED_DEBOUNCE_MS);
 
-    /** 划词结束：计算锚点矩形与摘录上下文，打开查词弹层（防抖见 SELECTED_DEBOUNCE_MS）。 */
-    const debouncedSelected = debounce(
-      (cfiRange: string, contents: Contents) => {
-        if (!mounted) return;
-        toast.message("EPUB rendition selected 已触发");
-        const win = contents.window as Window;
-        const swipeAt = swipeNavAtByWin.get(win);
-        if (swipeAt !== undefined && Date.now() - swipeAt < 900) {
-          return;
-        }
-        lastSelectedAt = Date.now();
-        const sel = win.getSelection();
-        if (!sel) return;
-        const text = sel.toString().trim();
-        if (!text || text.length > 200) return;
-        const local = unionSelectionRects(sel);
-        const iframe = win.frameElement as HTMLIFrameElement | null;
-        if (!local || !iframe) return;
-        const ir = iframe.getBoundingClientRect();
-        const anchorRect: WordPopupAnchorRect = {
-          top: local.top + ir.top,
-          left: local.left + ir.left,
-          right: local.right + ir.left,
-          bottom: local.bottom + ir.top,
-          width: local.width,
-          height: local.height,
-        };
-        const raw =
-          sel.anchorNode?.parentElement?.closest("p")?.textContent?.trim() ??
-          sel.anchorNode?.parentElement?.textContent?.trim() ??
-          "";
-        const context = excerptSentenceForVocabulary(raw, text);
-        readerDebugLog("selected", {
-          cfiRange,
-          wordLen: text.length,
-          word: text.length > 64 ? `${text.slice(0, 64)}…` : text,
+    /**
+     * 划词结束：计算锚点矩形与摘录上下文，打开查词弹层（防抖见 SELECTED_DEBOUNCE_MS）。
+     *
+     * 为何不用 `rendition.on("selected")` 一条链：epubjs `contents.triggerSelectedEvent` 里
+     * `new EpubCFI(range, this.cfiBase).toString()` **没有 try/catch**，在部分 iOS WebKit 选区上会抛错，
+     * 导致 **根本不 emit `selected`**，`debounce` 永远不会跑。
+     * 这里在 `hooks.content` 里另挂 `selectionchange`，对 `cfiFromRange` 包 try/catch，失败时用当前阅读 CFI 兜底。
+     */
+    const debouncedApplyIframeSelection = debounce((contents: Contents) => {
+      if (!mounted) return;
+      toast.message("EPUB rendition selected 已触发");
+      const win = contents.window as Window;
+      const swipeAt = swipeNavAtByWin.get(win);
+      if (swipeAt !== undefined && Date.now() - swipeAt < 900) {
+        return;
+      }
+      lastSelectedAt = Date.now();
+      const sel = win.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const text = sel.toString().trim();
+      if (!text || text.length > 200) return;
+
+      let cfiRange: string;
+      try {
+        const range = sel.getRangeAt(0);
+        if (range.collapsed) return;
+        cfiRange = contents.cfiFromRange(range);
+      } catch (e) {
+        readerDebugLog("epub-cfi-from-range-failed", {
+          message: e instanceof Error ? e.message : String(e),
         });
-        setSelection({ word: text, context, cfi: cfiRange, anchorRect });
-      },
-      SELECTED_DEBOUNCE_MS
-    );
+        cfiRange = currentCfiRef.current ?? "";
+      }
+
+      const local = unionSelectionRects(sel);
+      const iframe = win.frameElement as HTMLIFrameElement | null;
+      if (!local || !iframe) return;
+      const ir = iframe.getBoundingClientRect();
+      const anchorRect: WordPopupAnchorRect = {
+        top: local.top + ir.top,
+        left: local.left + ir.left,
+        right: local.right + ir.left,
+        bottom: local.bottom + ir.top,
+        width: local.width,
+        height: local.height,
+      };
+      const raw =
+        sel.anchorNode?.parentElement?.closest("p")?.textContent?.trim() ??
+        sel.anchorNode?.parentElement?.textContent?.trim() ??
+        "";
+      const context = excerptSentenceForVocabulary(raw, text);
+      readerDebugLog("selected", {
+        cfiRange,
+        wordLen: text.length,
+        word: text.length > 64 ? `${text.slice(0, 64)}…` : text,
+      });
+      setSelection({ word: text, context, cfi: cfiRange, anchorRect });
+    }, SELECTED_DEBOUNCE_MS);
 
     // /**
     //  * 在防抖前判定长按：仅跳过查词弹层。
@@ -386,6 +405,17 @@ export function EpubReader({
       // 必须在 display 之前注册，否则会漏首次 relocated
       rendition.on("relocated", debouncedRelocated);
 
+      rendition.hooks.content.register((contents: Contents) => {
+        const w = contents.window;
+        if (iframeSelectionHookAttached.has(w)) return;
+        iframeSelectionHookAttached.add(w);
+        contents.document.addEventListener(
+          "selectionchange",
+          () => debouncedApplyIframeSelection(contents),
+          { passive: true }
+        );
+      });
+
       // 触摸横滑翻页（易与 iOS 划词冲突，先关闭；可用顶栏/键盘方向键翻页）
       // rendition.hooks.content.register((contents: Contents) => {
       //   const win = contents.window;
@@ -431,7 +461,7 @@ export function EpubReader({
       //   );
       // });
 
-      rendition.on("selected", debouncedSelected);
+      // 划词见 debouncedApplyIframeSelection（不依赖 rendition「selected」，避免 iOS 上 EpubCFI 抛错导致整条链静默）
 
       // 点击空白关闭弹层；划词后短时间内忽略 click，避免立刻关掉弹层
       rendition.on("click", () => {
@@ -458,7 +488,7 @@ export function EpubReader({
     return () => {
       mounted = false;
       debouncedRelocated.cancel();
-      debouncedSelected.cancel();
+      debouncedApplyIframeSelection.cancel();
       window.removeEventListener("resize", onWindowResize);
       persistProgressToServer();
       renditionRef.current?.destroy();
