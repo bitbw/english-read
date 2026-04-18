@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import ePub, {
   type Book,
   type Contents,
@@ -46,6 +46,22 @@ const CONTEXT_SENTENCE_MAX = 320;
 
 const RELOCATED_DEBOUNCE_MS = 300;
 const SELECTED_DEBOUNCE_MS = 200;
+
+/** 横向滑动超过此距离（px）且以水平为主时触发翻页（略大以减少误触）。 */
+const SWIPE_PAGE_MIN_PX = 112;
+/** 滑动时允许的最大纵向偏移（px），超过则视为滚动而非翻页。 */
+const SWIPE_MAX_VERTICAL_PX = 96;
+// /** 从 touchstart 到选区出现超过此时长视为长按选词：不打开查词弹层（在防抖前判定，不含防抖延迟）。 */
+// const LONG_PRESS_NO_POPUP_MS = 450;
+
+/**
+ * 阅读器外壳样式。勿对宿主设 `-webkit-touch-callout: none`：在 iOS/WebKit 上会抑制长按呼出的
+ * 选词/复制菜单，表现为「划不了词」。正文在 iframe 内，该属性也解决不了 iframe 内冲突。
+ */
+const VIEWER_HOST_STYLE: CSSProperties & { WebkitUserDrag?: "none" } = {
+  WebkitUserDrag: "none",
+  userSelect: "text",
+};
 
 /** 从所在段落中截取一句（或整段截断）作为划词收藏时的「上下文」展示文案。 */
 function excerptSentenceForVocabulary(
@@ -204,6 +220,11 @@ export function EpubReader({
     let mounted = true;
     /** 最近一次划词完成时间，用于区分「点击关闭弹层」与「划词后误触 click」。 */
     let lastSelectedAt = 0;
+    // /** iframe 内最近一次 touchstart 时间（用于长按不弹窗，仅触摸）。 */
+    // const touchStartedAtByWin = new WeakMap<Window, number>();
+    /** 最近一次滑动翻页时间，避免翻页手势仍打开查词层。 */
+    const swipeNavAtByWin = new WeakMap<Window, number>();
+    const touchSwipeAttached = new WeakSet<Window>();
 
     /** 锚点变化：进度 UI、服务端 PUT（整段防抖，见 RELOCATED_DEBOUNCE_MS）。 */
     const debouncedRelocated = debounce((location: Location) => {
@@ -234,8 +255,12 @@ export function EpubReader({
     const debouncedSelected = debounce(
       (cfiRange: string, contents: Contents) => {
         if (!mounted) return;
-        lastSelectedAt = Date.now();
         const win = contents.window as Window;
+        const swipeAt = swipeNavAtByWin.get(win);
+        if (swipeAt !== undefined && Date.now() - swipeAt < 900) {
+          return;
+        }
+        lastSelectedAt = Date.now();
         const sel = win.getSelection();
         if (!sel) return;
         const text = sel.toString().trim();
@@ -266,6 +291,20 @@ export function EpubReader({
       },
       SELECTED_DEBOUNCE_MS
     );
+
+    // /**
+    //  * 在防抖前判定长按：仅跳过查词弹层。
+    //  * 已暂时关闭：长按也应允许打开查词弹层（见 debouncedSelected）。
+    //  */
+    // function handleSelected(cfiRange: string, contents: Contents) {
+    //   if (!mounted) return;
+    //   const win = contents.window as Window;
+    //   const t0 = touchStartedAtByWin.get(win);
+    //   if (t0 !== undefined && Date.now() - t0 >= LONG_PRESS_NO_POPUP_MS) {
+    //     return;
+    //   }
+    //   debouncedSelected(cfiRange, contents);
+    // }
 
     /** 将指定 CFI 与全书进度百分比写入服务端。 */
     function saveToServer(cfi: string, pct: number) {
@@ -345,6 +384,50 @@ export function EpubReader({
       // 必须在 display 之前注册，否则会漏首次 relocated
       rendition.on("relocated", debouncedRelocated);
 
+      rendition.hooks.content.register((contents: Contents) => {
+        const win = contents.window;
+        if (touchSwipeAttached.has(win)) return;
+        touchSwipeAttached.add(win);
+        const doc = contents.document;
+        let startX = 0;
+        let startY = 0;
+
+        doc.addEventListener(
+          "touchstart",
+          (e: TouchEvent) => {
+            if (!e.touches[0]) return;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            // touchStartedAtByWin.set(win, Date.now());
+          },
+          { passive: true }
+        );
+
+        doc.addEventListener(
+          "touchend",
+          (e: TouchEvent) => {
+            if (!e.changedTouches[0]) return;
+            const dx = e.changedTouches[0].clientX - startX;
+            const dy = e.changedTouches[0].clientY - startY;
+            const isHorizontalSwipe =
+              Math.abs(dx) >= SWIPE_PAGE_MIN_PX &&
+              Math.abs(dy) <= SWIPE_MAX_VERTICAL_PX &&
+              Math.abs(dx) > Math.abs(dy);
+            if (!isHorizontalSwipe) return;
+            swipeNavAtByWin.set(win, Date.now());
+            try {
+              win.getSelection()?.removeAllRanges();
+            } catch {
+              /* ignore */
+            }
+            if (dx < 0) rendition.next();
+            else rendition.prev();
+            e.preventDefault();
+          },
+          { passive: false }
+        );
+      });
+
       rendition.on("selected", debouncedSelected);
 
       // 点击空白关闭弹层；划词后短时间内忽略 click，避免立刻关掉弹层
@@ -361,10 +444,6 @@ export function EpubReader({
       if (!mounted) return;
       setBookLoading(false);
       window.addEventListener("resize", onWindowResize);
-
-     
-
-     
     }
 
     initReader().catch((err) => {
@@ -405,6 +484,7 @@ export function EpubReader({
       <div
         ref={viewerRef}
         className="h-full w-full min-h-0 overflow-hidden [overflow-anchor:none]"
+        style={VIEWER_HOST_STYLE}
       />
       {bookLoading ? (
         <div

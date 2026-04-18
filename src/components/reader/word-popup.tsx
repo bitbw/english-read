@@ -131,7 +131,7 @@ export function WordPopup({
   const [lookupLoading, setLookupLoading] = useState(true);
   const [removing, setRemoving] = useState(false);
 
-  /** 与 /api/dictionary 一致：多词/整句不展示发音（无词典音频，也不 TTS 念整段） */
+  /** 多词为词组：无词典 mp3，仍可提供系统 TTS 朗读整段 */
   const isPhrase = word.trim().split(/\s+/).length > 1;
 
   useEffect(() => {
@@ -347,48 +347,58 @@ export function WordPopup({
           ) : null}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {!isPhrase && !loading && (
-            <>
-              {audioUs && audioUk ? (
-                <>
+          {!loading &&
+            (isPhrase ? (
+              <button
+                type="button"
+                onClick={speakTts}
+                className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+                title="发音（语音合成）"
+              >
+                <Volume2 className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <>
+                {audioUs && audioUk ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => playPronunciationMp3(audioUs)}
+                      className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium leading-none"
+                      title="美音"
+                    >
+                      美
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => playPronunciationMp3(audioUk)}
+                      className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium leading-none"
+                      title="英音"
+                    >
+                      英
+                    </button>
+                  </>
+                ) : audioUs || audioUk ? (
                   <button
                     type="button"
-                    onClick={() => playPronunciationMp3(audioUs)}
-                    className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium leading-none"
-                    title="美音"
+                    onClick={() => playPronunciationMp3(audioUs || audioUk)}
+                    className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+                    title={audioUs ? "美音" : "英音"}
                   >
-                    美
+                    <Volume2 className="h-3.5 w-3.5" />
                   </button>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => playPronunciationMp3(audioUk)}
-                    className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium leading-none"
-                    title="英音"
+                    onClick={speakTts}
+                    className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+                    title="发音（语音合成）"
                   >
-                    英
+                    <Volume2 className="h-3.5 w-3.5" />
                   </button>
-                </>
-              ) : audioUs || audioUk ? (
-                <button
-                  type="button"
-                  onClick={() => playPronunciationMp3(audioUs || audioUk)}
-                  className="text-muted-foreground hover:text-foreground p-0.5 rounded"
-                  title={audioUs ? "美音" : "英音"}
-                >
-                  <Volume2 className="h-3.5 w-3.5" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={speakTts}
-                  className="text-muted-foreground hover:text-foreground p-0.5 rounded"
-                  title="发音（语音合成）"
-                >
-                  <Volume2 className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </>
-          )}
+                )}
+              </>
+            ))}
           <button
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground p-0.5 rounded"
