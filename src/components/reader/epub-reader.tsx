@@ -12,6 +12,7 @@ import { WordPopup, type WordPopupAnchorRect } from "./word-popup";
 import { clientFetch } from "@/lib/client-fetch";
 import { debounce } from "@/lib/debounce";
 import { readerDebugLog } from "@/lib/reader-debug";
+import { toast } from "sonner";
 
 interface SelectionInfo {
   word: string;
@@ -255,6 +256,7 @@ export function EpubReader({
     const debouncedSelected = debounce(
       (cfiRange: string, contents: Contents) => {
         if (!mounted) return;
+        toast.message("EPUB rendition selected 已触发");
         const win = contents.window as Window;
         const swipeAt = swipeNavAtByWin.get(win);
         if (swipeAt !== undefined && Date.now() - swipeAt < 900) {
