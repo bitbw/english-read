@@ -47,10 +47,10 @@ const CONTEXT_SENTENCE_MAX = 320;
 const RELOCATED_DEBOUNCE_MS = 300;
 const SELECTED_DEBOUNCE_MS = 200;
 
-/** 横向滑动超过此距离（px）且以水平为主时触发翻页（略大以减少误触）。 */
-const SWIPE_PAGE_MIN_PX = 112;
-/** 滑动时允许的最大纵向偏移（px），超过则视为滚动而非翻页。 */
-const SWIPE_MAX_VERTICAL_PX = 96;
+// /** 横向滑动超过此距离（px）且以水平为主时触发翻页（略大以减少误触）。 */
+// const SWIPE_PAGE_MIN_PX = 112;
+// /** 滑动时允许的最大纵向偏移（px），超过则视为滚动而非翻页。 */
+// const SWIPE_MAX_VERTICAL_PX = 96;
 // /** 从 touchstart 到选区出现超过此时长视为长按选词：不打开查词弹层（在防抖前判定，不含防抖延迟）。 */
 // const LONG_PRESS_NO_POPUP_MS = 450;
 
@@ -164,35 +164,6 @@ function unionSelectionRects(sel: Selection): DOMRect | null {
 }
 
 /**
- * iOS WebKit 上有时 `getRange(i).getBoundingClientRect()` 全为 0，但 `getClientRects()` 或
- * 合并后的 Range 仍有有效矩形；用于避免划词成功却因锚点为 null 而不弹窗。
- */
-function selectionAnchorRectFallback(sel: Selection): DOMRect | null {
-  if (sel.rangeCount === 0) return null;
-  const range = sel.getRangeAt(0);
-  if (range.collapsed) return null;
-  const rects = range.getClientRects();
-  let u: DOMRect | null = null;
-  for (let i = 0; i < rects.length; i++) {
-    const r = rects[i];
-    if (r.width === 0 && r.height === 0) continue;
-    if (!u) {
-      u = new DOMRect(r.left, r.top, r.width, r.height);
-    } else {
-      const left = Math.min(u.left, r.left);
-      const top = Math.min(u.top, r.top);
-      const right = Math.max(u.right, r.right);
-      const bottom = Math.max(u.bottom, r.bottom);
-      u = new DOMRect(left, top, right - left, bottom - top);
-    }
-  }
-  if (u) return u;
-  const br = range.getBoundingClientRect();
-  if (br.width > 0 || br.height > 0) return br;
-  return null;
-}
-
-/**
  * 回显上次阅读位置：先立即 `display` 一次，再在双 `requestAnimationFrame` 后 `display` 一次，
  * 等布局与 iframe 稳定后再对齐，避免仅单次 display 时的分页错位。
  */
@@ -253,7 +224,7 @@ export function EpubReader({
     // const touchStartedAtByWin = new WeakMap<Window, number>();
     /** 最近一次滑动翻页时间，避免翻页手势仍打开查词层。 */
     const swipeNavAtByWin = new WeakMap<Window, number>();
-    const touchSwipeAttached = new WeakSet<Window>();
+    // const touchSwipeAttached = new WeakSet<Window>(); // 与触摸翻页 hooks 一并启用
 
     /** 锚点变化：进度 UI、服务端 PUT（整段防抖，见 RELOCATED_DEBOUNCE_MS）。 */
     const debouncedRelocated = debounce((location: Location) => {
@@ -294,10 +265,7 @@ export function EpubReader({
         if (!sel) return;
         const text = sel.toString().trim();
         if (!text || text.length > 200) return;
-        let local = unionSelectionRects(sel);
-        if (!local) {
-          local = selectionAnchorRectFallback(sel);
-        }
+        const local = unionSelectionRects(sel);
         const iframe = win.frameElement as HTMLIFrameElement | null;
         if (!local || !iframe) return;
         const ir = iframe.getBoundingClientRect();
@@ -416,69 +384,50 @@ export function EpubReader({
       // 必须在 display 之前注册，否则会漏首次 relocated
       rendition.on("relocated", debouncedRelocated);
 
-      rendition.hooks.content.register((contents: Contents) => {
-        const win = contents.window;
-        if (touchSwipeAttached.has(win)) return;
-        touchSwipeAttached.add(win);
-        const doc = contents.document;
-        let startX = 0;
-        let startY = 0;
+      // 触摸横滑翻页（易与 iOS 划词冲突，先关闭；可用顶栏/键盘方向键翻页）
+      // rendition.hooks.content.register((contents: Contents) => {
+      //   const win = contents.window;
+      //   if (touchSwipeAttached.has(win)) return;
+      //   touchSwipeAttached.add(win);
+      //   const doc = contents.document;
+      //   let startX = 0;
+      //   let startY = 0;
 
-        doc.addEventListener(
-          "touchstart",
-          (e: TouchEvent) => {
-            if (!e.touches[0]) return;
-            startX = e.touches[0].clientX;
-            startY = e.touches[0].clientY;
-            // touchStartedAtByWin.set(win, Date.now());
-          },
-          { passive: true }
-        );
+      //   doc.addEventListener(
+      //     "touchstart",
+      //     (e: TouchEvent) => {
+      //       if (!e.touches[0]) return;
+      //       startX = e.touches[0].clientX;
+      //       startY = e.touches[0].clientY;
+      //       // touchStartedAtByWin.set(win, Date.now());
+      //     },
+      //     { passive: true }
+      //   );
 
-        doc.addEventListener(
-          "touchend",
-          (e: TouchEvent) => {
-            if (!e.changedTouches[0]) return;
-            /**
-             * 划词时手指多为横向拖动，易被误判为「横滑翻页」并在 touchend 里 removeAllRanges，
-             * iOS 上表现为选不中词、弹窗不出现。touchend 时若已有选区则不要翻页。
-             */
-            const selectedText =
-              (() => {
-                try {
-                  return win.getSelection()?.toString().trim() ?? "";
-                } catch {
-                  return "";
-                }
-              })();
-            if (selectedText.length > 0) return;
-
-            const dx = e.changedTouches[0].clientX - startX;
-            const dy = e.changedTouches[0].clientY - startY;
-            const vw = win.innerWidth || 400;
-            /** 窄屏上 112px 过长，适当按视口宽度降低，仍设下限避免误触 */
-            const minSwipePx = Math.min(
-              SWIPE_PAGE_MIN_PX,
-              Math.max(72, Math.floor(vw * 0.22))
-            );
-            const isHorizontalSwipe =
-              Math.abs(dx) >= minSwipePx &&
-              Math.abs(dy) <= SWIPE_MAX_VERTICAL_PX &&
-              Math.abs(dx) > Math.abs(dy);
-            if (!isHorizontalSwipe) return;
-            swipeNavAtByWin.set(win, Date.now());
-            try {
-              win.getSelection()?.removeAllRanges();
-            } catch {
-              /* ignore */
-            }
-            if (dx < 0) rendition.next();
-            else rendition.prev();
-            e.preventDefault();
-          },
-          { passive: false }
-        );
-      });
+      //   doc.addEventListener(
+      //     "touchend",
+      //     (e: TouchEvent) => {
+      //       if (!e.changedTouches[0]) return;
+      //       const dx = e.changedTouches[0].clientX - startX;
+      //       const dy = e.changedTouches[0].clientY - startY;
+      //       const isHorizontalSwipe =
+      //         Math.abs(dx) >= SWIPE_PAGE_MIN_PX &&
+      //         Math.abs(dy) <= SWIPE_MAX_VERTICAL_PX &&
+      //         Math.abs(dx) > Math.abs(dy);
+      //       if (!isHorizontalSwipe) return;
+      //       swipeNavAtByWin.set(win, Date.now());
+      //       try {
+      //         win.getSelection()?.removeAllRanges();
+      //       } catch {
+      //         /* ignore */
+      //       }
+      //       if (dx < 0) rendition.next();
+      //       else rendition.prev();
+      //       e.preventDefault();
+      //     },
+      //     { passive: false }
+      //   );
+      // });
 
       rendition.on("selected", debouncedSelected);
 
