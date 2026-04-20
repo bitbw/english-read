@@ -703,40 +703,45 @@ export function ReviewSession({
   const audioUsTrim = current.audioUs?.trim() ?? "";
   const audioUkTrim = current.audioUk?.trim() ?? "";
 
-  return (
-    <div className="relative flex flex-col items-center gap-6 max-w-lg mx-auto w-full py-6 pr-11">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="absolute right-0 top-0 z-10 size-9 text-muted-foreground hover:text-foreground"
-        onClick={toggleAutoPlayPronunciation}
-        title={autoPlayPronunciation ? "关闭自动发音" : "开启自动发音"}
-        aria-pressed={autoPlayPronunciation}
-        aria-label={autoPlayPronunciation ? "关闭自动发音" : "开启自动发音"}
-      >
-        {autoPlayPronunciation ? (
-          <Volume2 className="h-5 w-5" />
-        ) : (
-          <VolumeX className="h-5 w-5" />
-        )}
-      </Button>
-      <div className="w-full">
-        <div className="flex justify-between text-sm text-muted-foreground mb-2">
-          <span>
-            已掌握 {rememberedCount} / 本轮共 {totalInRound} 词
-          </span>
-          <span className="text-green-600">✓ {rememberedCount}</span>
-        </div>
-        <Progress value={progress} className="h-2" />
-      </div>
+  const autoPlayPronunciationToggle = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="absolute top-2 right-2 z-10 size-9 shrink-0 text-muted-foreground hover:text-foreground"
+      onClick={toggleAutoPlayPronunciation}
+      title={autoPlayPronunciation ? "关闭自动发音" : "开启自动发音"}
+      aria-pressed={autoPlayPronunciation}
+      aria-label={autoPlayPronunciation ? "关闭自动发音" : "开启自动发音"}
+    >
+      {autoPlayPronunciation ? (
+        <Volume2 className="h-5 w-5" />
+      ) : (
+        <VolumeX className="h-5 w-5" />
+      )}
+    </Button>
+  );
 
-      <Badge variant="secondary" className="text-xs">
-        第 {current.reviewStage === 0 ? "首次" : `${current.reviewStage}`} 次复习
-      </Badge>
+  return (
+    <div className="w-full py-6">
+      <div className="flex flex-col items-center gap-6 max-w-lg mx-auto w-full">
+        <div className="w-full">
+          <div className="flex justify-between text-sm text-muted-foreground mb-2">
+            <span>
+              已掌握 {rememberedCount} / 本轮共 {totalInRound} 词
+            </span>
+            <span className="text-green-600">✓ {rememberedCount}</span>
+          </div>
+          <Progress value={progress} className="h-2" />
+        </div>
+
+        <Badge variant="secondary" className="text-xs">
+          第 {current.reviewStage === 0 ? "首次" : `${current.reviewStage}`} 次复习
+        </Badge>
 
       {step === "meaning" && (
-        <Card className="w-full p-6 space-y-5">
+        <Card className="relative w-full p-6 space-y-5">
+          {autoPlayPronunciationToggle}
           <div className="text-center space-y-2">
             <h2 className="text-4xl font-bold tracking-tight">{current.word}</h2>
             <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
@@ -864,7 +869,8 @@ export function ReviewSession({
       )}
 
       {step === "spelling" && (
-        <Card className="w-full p-6 space-y-5">
+        <Card className="relative w-full p-6 space-y-5">
+          {autoPlayPronunciationToggle}
           <div className="rounded-lg border border-border bg-muted/30 px-3 py-3 text-center space-y-1">
             <p className="text-[11px] font-medium text-muted-foreground">中文释义</p>
             {spellGlossDisplay ? (
@@ -1096,6 +1102,7 @@ export function ReviewSession({
       <p className="text-xs text-muted-foreground text-center px-2">
         释义干扰项优先来自与当前词相关的英文联想词（Datamuse），不足时辅以词库中近形词。拼写环节：单词同时提供字块与字母点选（各含少量干扰），也可在输入框内手动键入；词组按单词块点选或手动输入均可。
       </p>
+      </div>
     </div>
   );
 }
