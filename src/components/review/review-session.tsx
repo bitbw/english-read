@@ -13,7 +13,15 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Delete, Lightbulb, Loader2, Undo2, Volume2 } from "lucide-react";
+import {
+  CheckCircle2,
+  Delete,
+  Lightbulb,
+  Loader2,
+  Undo2,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -38,6 +46,19 @@ import {
   playPronunciationMp3,
   stopPronunciationAudio,
 } from "@/lib/pronunciation-audio";
+
+const REVIEW_AUTO_PLAY_PRONUNCIATION_KEY = "english-read-review-auto-play-pronunciation";
+
+/** 复习与手动添加生词一致：浏览器语音合成读英文 */
+function speakReviewWordTts(word: string): void {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  const w = word.trim();
+  if (!w) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(w);
+  utterance.lang = "en-US";
+  window.speechSynthesis.speak(utterance);
+}
 
 export interface ReviewWord {
   id: string;
@@ -183,19 +204,13 @@ function ReviewPronunciationControls({
   phrase: boolean;
 }) {
   const w = word.trim();
-  const speakTts = useCallback(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(w);
-    utterance.lang = "en-US";
-    window.speechSynthesis.speak(utterance);
-  }, [w]);
+  const speakTts = useCallback(() => speakReviewWordTts(w), [w]);
 
   const playMp3 = useCallback(
     (url: string) => {
-      playPronunciationMp3(url, speakTts);
+      playPronunciationMp3(url, () => speakReviewWordTts(w));
     },
-    [speakTts]
+    [w]
   );
 
   if (!w) return null;
@@ -289,9 +304,32 @@ export function ReviewSession({
   const [meaningLoading, setMeaningLoading] = useState(false);
   const [meaningPhase, setMeaningPhase] = useState<"pick" | "revealed">("pick");
   const [pickMeta, setPickMeta] = useState<{ index: number; correct: boolean } | null>(null);
+  const [autoPlayPronunciation, setAutoPlayPronunciation] = useState(true);
   const glossCacheRef = useRef<Map<string, string>>(new Map());
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(REVIEW_AUTO_PLAY_PRONUNCIATION_KEY);
+      if (raw === "0") setAutoPlayPronunciation(false);
+      else if (raw === "1") setAutoPlayPronunciation(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleAutoPlayPronunciation = useCallback(() => {
+    setAutoPlayPronunciation((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(REVIEW_AUTO_PLAY_PRONUNCIATION_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     setQueue(words);
@@ -316,19 +354,25 @@ export function ReviewSession({
     if (main) main.scrollTop = 0;
   }, [current?.id]);
 
-  /** 释义题展示单词时自动播放（优先美音）；切题或离开本步时停止 */
+  /** 释义题展示单词时自动播放（优先美音，无 mp3 时用语音合成）；切题或离开本步时停止 */
   useEffect(() => {
-    if (step !== "meaning" || !current) return;
+    if (!autoPlayPronunciation || step !== "meaning" || !current) return;
     const url = preferredPronunciationUrl(current);
-    if (!url) return;
     const t = window.setTimeout(() => {
-      playPronunciationMp3(url);
+      if (url) {
+        playPronunciationMp3(url, () => speakReviewWordTts(current.word));
+      } else {
+        speakReviewWordTts(current.word);
+      }
     }, 120);
     return () => {
       clearTimeout(t);
       stopPronunciationAudio();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
     };
-  }, [current, step]);
+  }, [autoPlayPronunciation, current, step]);
 
   /** 同一词排在队首再次失败时需重新洗牌选项，与 `current` 引用是否变化无关 */
   const quizRegenKey = current ? (failVersions[current.id] ?? 0) : 0;
@@ -660,7 +704,23 @@ export function ReviewSession({
   const audioUkTrim = current.audioUk?.trim() ?? "";
 
   return (
-    <div className="flex flex-col items-center gap-6 max-w-lg mx-auto w-full py-6">
+    <div className="relative flex flex-col items-center gap-6 max-w-lg mx-auto w-full py-6 pr-11">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="absolute right-0 top-0 z-10 size-9 text-muted-foreground hover:text-foreground"
+        onClick={toggleAutoPlayPronunciation}
+        title={autoPlayPronunciation ? "关闭自动发音" : "开启自动发音"}
+        aria-pressed={autoPlayPronunciation}
+        aria-label={autoPlayPronunciation ? "关闭自动发音" : "开启自动发音"}
+      >
+        {autoPlayPronunciation ? (
+          <Volume2 className="h-5 w-5" />
+        ) : (
+          <VolumeX className="h-5 w-5" />
+        )}
+      </Button>
       <div className="w-full">
         <div className="flex justify-between text-sm text-muted-foreground mb-2">
           <span>

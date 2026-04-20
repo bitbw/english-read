@@ -28,6 +28,14 @@ export default function DevIndexPage() {
             similar-words API 调试
           </Link>
         </li>
+        <li>
+          <Link
+            href="/dev/sentry-test"
+            className={cn(buttonVariants({ variant: "link" }), "inline h-auto p-0 align-baseline")}
+          >
+            Sentry 上报测试
+          </Link>
+        </li>
       </ul>
     </div>
   );
