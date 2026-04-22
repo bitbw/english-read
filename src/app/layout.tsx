@@ -3,8 +3,10 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { SessionProvider } from "next-auth/react";
+import { SentryUserSync } from "@/components/sentry-user-sync";
 import { Toaster } from "@/components/ui/sonner";
 import { auth } from "@/lib/auth";
+import { setSentryUserFromSession } from "@/lib/sentry-user";
 import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = localFont({
@@ -30,11 +32,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  setSentryUserFromSession(session);
 
   return (
     <html lang="zh" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <SessionProvider session={session}>
+          <SentryUserSync />
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
