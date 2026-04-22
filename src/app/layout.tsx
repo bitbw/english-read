@@ -6,6 +6,7 @@ import { SessionProvider } from "next-auth/react";
 import { SentryUserSync } from "@/components/sentry-user-sync";
 import { Toaster } from "@/components/ui/sonner";
 import { auth } from "@/lib/auth";
+import { isProductionAnalytics } from "@/lib/analytics-env";
 import { setSentryUserFromSession } from "@/lib/sentry-user";
 import { Analytics } from "@vercel/analytics/next";
 import { PostHogIdentify } from "@/components/posthog-identify";
@@ -35,22 +36,24 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
-  setSentryUserFromSession(session);
+  if (isProductionAnalytics) {
+    setSentryUserFromSession(session);
+  }
 
   return (
     <html lang="zh" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <PostHogProvider>
+        <PostHogProvider enabled={isProductionAnalytics}>
           <SessionProvider session={session}>
             <SentryUserSync />
-            <PostHogIdentify />
+            {isProductionAnalytics ? <PostHogIdentify /> : null}
             <ThemeProvider
               attribute="class"
               defaultTheme="system"
               enableSystem
               disableTransitionOnChange
             >
-              <SuspendedPostHogPageView />
+              {isProductionAnalytics ? <SuspendedPostHogPageView /> : null}
               {children}
               <Toaster />
             </ThemeProvider>

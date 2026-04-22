@@ -43,7 +43,8 @@ export default function VocabularyPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
-  const [dueCount, setDueCount] = useState(0);
+  /** null = 尚未拉取到期数量；避免首屏 0 导致「开始复习」整块晚出现 */
+  const [dueCount, setDueCount] = useState<number | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [listTick, setListTick] = useState(0);
   const [viewMode, setViewMode] = useState<VocabViewMode>("card");
@@ -106,7 +107,10 @@ export default function VocabularyPage() {
 
   async function fetchDueCount() {
     const res = await clientFetch("/api/review", { showErrorToast: false });
-    if (!res.ok) return;
+    if (!res.ok) {
+      setDueCount(0);
+      return;
+    }
     const data = await res.json();
     const n = Array.isArray(data) ? data.length : (data.words?.length ?? 0);
     setDueCount(n);
@@ -188,21 +192,21 @@ export default function VocabularyPage() {
             <Calendar className="h-4 w-4 shrink-0" />
             <span className="truncate">复习计划</span>
           </Link>
-          {dueCount > 0 && (
-            <Link
-              href="/vocabulary/review"
-              className={cn(
-                buttonVariants(),
-                "inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial"
-              )}
-            >
-              <GraduationCap className="h-4 w-4 shrink-0" />
-              <span className="truncate">开始复习</span>
-              <Badge variant="secondary" className="shrink-0">
+          <Link
+            href="/vocabulary/review"
+            className={cn(
+              buttonVariants(),
+              "inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial"
+            )}
+          >
+            <GraduationCap className="h-4 w-4 shrink-0" />
+            <span className="truncate">开始复习</span>
+            {dueCount !== null && dueCount > 0 && (
+              <Badge variant="secondary" className="shrink-0 tabular-nums">
                 {dueCount}
               </Badge>
-            </Link>
-          )}
+            )}
+          </Link>
         </div>
       </div>
 
