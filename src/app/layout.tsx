@@ -8,6 +8,9 @@ import { Toaster } from "@/components/ui/sonner";
 import { auth } from "@/lib/auth";
 import { setSentryUserFromSession } from "@/lib/sentry-user";
 import { Analytics } from "@vercel/analytics/next";
+import { PostHogIdentify } from "@/components/posthog-identify";
+import { PostHogProvider } from "@/components/posthog-provider";
+import { SuspendedPostHogPageView } from "@/components/posthog-pageview";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -37,19 +40,23 @@ export default async function RootLayout({
   return (
     <html lang="zh" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <SessionProvider session={session}>
-          <SentryUserSync />
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-            <Toaster />
-          </ThemeProvider>
-        </SessionProvider>
-        <Analytics />
+        <PostHogProvider>
+          <SessionProvider session={session}>
+            <SentryUserSync />
+            <PostHogIdentify />
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <SuspendedPostHogPageView />
+              {children}
+              <Toaster />
+            </ThemeProvider>
+          </SessionProvider>
+          <Analytics />
+        </PostHogProvider>
       </body>
     </html>
   );
