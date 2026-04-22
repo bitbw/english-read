@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { setSentryUserFromSession } from "@/lib/sentry-user";
 import { NextResponse } from "next/server";
 
 const protectedRoutes = [
@@ -10,6 +11,8 @@ const protectedRoutes = [
 ];
 
 export default auth((req) => {
+  setSentryUserFromSession(req.auth);
+
   const isLoggedIn = !!req.auth;
   const pathname = req.nextUrl.pathname;
 

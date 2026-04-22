@@ -10,11 +10,11 @@ const patchBookSchema = z.object({
   coverUrl: z.union([z.string().url(), z.null()]),
 });
 
+type IdParams = { params: Promise<{ id: string }> };
+
 // GET /api/books/[id]
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(_req: Request, { params }: IdParams) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -23,7 +23,7 @@ export async function GET(
   const [book] = await db
     .select()
     .from(books)
-    .where(and(eq(books.id, params.id), eq(books.userId, session.user.id)));
+    .where(and(eq(books.id, id), eq(books.userId, session.user.id)));
 
   if (!book) {
     return NextResponse.json({ error: "Book not found" }, { status: 404 });
@@ -33,16 +33,12 @@ export async function GET(
 }
 
 // PATCH /api/books/[id] — 更新封面等
-export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(req: Request, { params }: IdParams) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  const { id } = params;
   const body = await req.json();
   const parsed = patchBookSchema.safeParse(body);
   if (!parsed.success) {
@@ -89,10 +85,8 @@ export async function PATCH(
 }
 
 // DELETE /api/books/[id]
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: Request, { params }: IdParams) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -101,7 +95,7 @@ export async function DELETE(
   const [book] = await db
     .select()
     .from(books)
-    .where(and(eq(books.id, params.id), eq(books.userId, session.user.id)));
+    .where(and(eq(books.id, id), eq(books.userId, session.user.id)));
 
   if (!book) {
     return NextResponse.json({ error: "Book not found" }, { status: 404 });
@@ -119,7 +113,7 @@ export async function DELETE(
 
   await db
     .delete(books)
-    .where(and(eq(books.id, params.id), eq(books.userId, session.user.id)));
+    .where(and(eq(books.id, id), eq(books.userId, session.user.id)));
 
   return NextResponse.json({ success: true });
 }

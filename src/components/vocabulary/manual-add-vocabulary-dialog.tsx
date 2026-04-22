@@ -54,6 +54,8 @@ export function ManualAddVocabularyDialog({
   const [translation, setTranslation] = useState("");
   const [audioUk, setAudioUk] = useState("");
   const [audioUs, setAudioUs] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [alreadyInVocabulary, setAlreadyInVocabulary] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const trimmedWord = word.trim();
@@ -72,6 +74,8 @@ export function ManualAddVocabularyDialog({
 
     if (!open) {
       setDictLoading(false);
+      setLookupLoading(false);
+      setAlreadyInVocabulary(false);
       setPhonetic("");
       setDefinitions([]);
       setTranslation("");
@@ -83,6 +87,8 @@ export function ManualAddVocabularyDialog({
     const q = word.trim();
     if (!q) {
       setDictLoading(false);
+      setLookupLoading(false);
+      setAlreadyInVocabulary(false);
       setPhonetic("");
       setDefinitions([]);
       setTranslation("");
@@ -91,10 +97,17 @@ export function ManualAddVocabularyDialog({
       return;
     }
 
+    // 新输入先清空旧释义并进入加载态，避免防抖窗口内仍显示上一次的释义从而误点「加入生词本」
+    setPhonetic("");
+    setDefinitions([]);
+    setTranslation("");
+    setAudioUk("");
+    setAudioUs("");
+    setDictLoading(true);
+
     const tid = setTimeout(() => {
       const ac = new AbortController();
       abortRef.current = ac;
-      setDictLoading(true);
       void (async () => {
         try {
           /** 须用原生 fetch：clientFetch 会把 AbortError 包装成网络错误，无法正确取消防抖请求 */
@@ -146,6 +159,46 @@ export function ManualAddVocabularyDialog({
     };
   }, [open, word]);
 
+  /** 与阅读划词一致：防抖后查 normalizedWord 是否已在生词本 */
+  useEffect(() => {
+    let cancelled = false;
+    if (!open) {
+      setLookupLoading(false);
+      setAlreadyInVocabulary(false);
+      return;
+    }
+    const key = word.trim().toLowerCase();
+    if (!key) {
+      setLookupLoading(false);
+      setAlreadyInVocabulary(false);
+      return;
+    }
+    setLookupLoading(true);
+    setAlreadyInVocabulary(false);
+    const tid = setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await clientFetch(
+            `/api/vocabulary?lookup=${encodeURIComponent(key)}`,
+            { showErrorToast: false },
+          );
+          if (!res.ok || cancelled) return;
+          const data = (await res.json()) as { entry?: { id: string } | null };
+          if (cancelled) return;
+          setAlreadyInVocabulary(Boolean(data.entry?.id));
+        } catch {
+          if (!cancelled) setAlreadyInVocabulary(false);
+        } finally {
+          if (!cancelled) setLookupLoading(false);
+        }
+      })();
+    }, 450);
+    return () => {
+      cancelled = true;
+      clearTimeout(tid);
+    };
+  }, [open, word]);
+
   function speakTts() {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
@@ -158,11 +211,23 @@ export function ManualAddVocabularyDialog({
     playPronunciationMp3Url(url, speakTts);
   }
 
+  const hasSavableDefinition =
+    definitions.length > 0 || translation.trim().length > 0;
+  const canSubmitToVocab =
+    Boolean(trimmedWord) &&
+    !dictLoading &&
+    !lookupLoading &&
+    hasSavableDefinition &&
+    !alreadyInVocabulary;
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const w = trimmedWord;
     if (!w) {
       toast.error("请填写单词或短语");
+      return;
+    }
+    if (!canSubmitToVocab || alreadyInVocabulary) {
       return;
     }
     setSubmitting(true);
@@ -330,7 +395,9 @@ export function ManualAddVocabularyDialog({
                     </div>
                   ) : null}
                   {!translation && definitions.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">暂无词典结果（仍可加入生词本）</p>
+                    <p className="text-xs text-muted-foreground">
+                      暂无释义或翻译，请检查拼写或稍后重试
+                    </p>
                   ) : null}
                 </>
               ) : null}
@@ -353,8 +420,31 @@ export function ManualAddVocabularyDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               取消
             </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "添加中…" : "加入生词本"}
+            <Button
+              type="submit"
+              disabled={submitting || !canSubmitToVocab}
+              variant={alreadyInVocabulary ? "secondary" : "default"}
+              title={
+                !trimmedWord
+                  ? "请先输入单词或短语"
+                  : dictLoading
+                    ? "请等待释义加载完成"
+                    : lookupLoading
+                      ? "正在检查是否已在生词本"
+                      : alreadyInVocabulary
+                        ? "该词已在生词本中，无需重复添加"
+                        : !hasSavableDefinition
+                          ? "暂无词典释义或翻译，无法加入生词本"
+                          : undefined
+              }
+            >
+              {submitting
+                ? "添加中…"
+                : alreadyInVocabulary
+                  ? "已在生词本中"
+                  : lookupLoading && trimmedWord
+                    ? "检查生词本中…"
+                    : "加入生词本"}
             </Button>
           </div>
         </form>

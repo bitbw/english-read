@@ -10,11 +10,11 @@ const updateProgressSchema = z.object({
   readingProgress: z.number().min(0).max(100).optional(),
 });
 
+type IdParams = { params: Promise<{ id: string }> };
+
 // GET /api/books/[id]/progress
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(_req: Request, { params }: IdParams) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -27,7 +27,7 @@ export async function GET(
       lastReadAt: books.lastReadAt,
     })
     .from(books)
-    .where(and(eq(books.id, params.id), eq(books.userId, session.user.id)));
+    .where(and(eq(books.id, id), eq(books.userId, session.user.id)));
 
   if (!book) {
     return NextResponse.json({ error: "Book not found" }, { status: 404 });
@@ -37,10 +37,8 @@ export async function GET(
 }
 
 // PUT /api/books/[id]/progress
-export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: Request, { params }: IdParams) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -59,7 +57,7 @@ export async function PUT(
       lastReadAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(and(eq(books.id, params.id), eq(books.userId, session.user.id)));
+    .where(and(eq(books.id, id), eq(books.userId, session.user.id)));
 
   return NextResponse.json({ success: true });
 }

@@ -12,7 +12,7 @@ import { zhCN } from "date-fns/locale";
 import type { ReadingTierId } from "@/lib/reading-tiers";
 
 interface PageProps {
-  params: { publicBookId: string };
+  params: Promise<{ publicBookId: string }>;
 }
 
 export default async function PublicBookDetailPage({ params }: PageProps) {
@@ -20,7 +20,7 @@ export default async function PublicBookDetailPage({ params }: PageProps) {
   if (!session?.user?.id) redirect("/login");
 
   const userId = session.user.id;
-  const publicBookId = params.publicBookId;
+  const { publicBookId } = await params;
 
   const [publicRows, shelfRows] = await Promise.all([
     db

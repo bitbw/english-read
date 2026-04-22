@@ -13,11 +13,11 @@ const updateWordSchema = z.object({
   audioUs: z.string().max(2048).optional().nullable(),
 });
 
+type IdParams = { params: Promise<{ id: string }> };
+
 // GET /api/vocabulary/[id]
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(_req: Request, { params }: IdParams) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,7 +26,7 @@ export async function GET(
   const [word] = await db
     .select()
     .from(vocabulary)
-    .where(and(eq(vocabulary.id, params.id), eq(vocabulary.userId, session.user.id)));
+    .where(and(eq(vocabulary.id, id), eq(vocabulary.userId, session.user.id)));
 
   if (!word) {
     return NextResponse.json({ error: "Word not found" }, { status: 404 });
@@ -36,10 +36,8 @@ export async function GET(
 }
 
 // PUT /api/vocabulary/[id]
-export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: Request, { params }: IdParams) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -54,7 +52,7 @@ export async function PUT(
   const [updated] = await db
     .update(vocabulary)
     .set({ ...parsed.data, updatedAt: new Date() })
-    .where(and(eq(vocabulary.id, params.id), eq(vocabulary.userId, session.user.id)))
+    .where(and(eq(vocabulary.id, id), eq(vocabulary.userId, session.user.id)))
     .returning();
 
   if (!updated) {
@@ -65,10 +63,8 @@ export async function PUT(
 }
 
 // DELETE /api/vocabulary/[id]
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: Request, { params }: IdParams) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -76,7 +72,7 @@ export async function DELETE(
 
   const deleted = await db
     .delete(vocabulary)
-    .where(and(eq(vocabulary.id, params.id), eq(vocabulary.userId, session.user.id)))
+    .where(and(eq(vocabulary.id, id), eq(vocabulary.userId, session.user.id)))
     .returning();
 
   if (!deleted.length) {

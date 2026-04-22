@@ -251,7 +251,7 @@ export function WordPopup({
     definitions.length > 0 || translation.trim().length > 0;
 
   async function handleSave() {
-    if (!hasSavableDefinition || loading) return;
+    if (!word.trim() || !hasSavableDefinition || loading || lookupLoading) return;
     setSaving(true);
     try {
       const definitionStr = serializeVocabularyDefinition(definitions, translation);
@@ -487,15 +487,18 @@ export function WordPopup({
             saved ||
             loading ||
             lookupLoading ||
+            !word.trim() ||
             !hasSavableDefinition
           }
           variant={saved ? "secondary" : "default"}
           title={
-            loading
-              ? "请等待释义加载完成"
-              : !hasSavableDefinition && !loading
-                ? "暂无词典释义或翻译，无法保存"
-                : undefined
+            !word.trim()
+              ? "没有选中的词"
+              : loading || lookupLoading
+                ? "请等待释义与生词本状态加载完成"
+                : !hasSavableDefinition
+                  ? "暂无词典释义或翻译，无法保存"
+                  : undefined
           }
         >
           {saving ? (
