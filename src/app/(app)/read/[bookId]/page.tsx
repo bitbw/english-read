@@ -6,17 +6,18 @@ import { notFound, redirect } from "next/navigation";
 import { ReaderClient } from "./reader-client";
 
 interface ReadPageProps {
-  params: { bookId: string };
+  params: Promise<{ bookId: string }>;
 }
 
 export default async function ReadPage({ params }: ReadPageProps) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
+  const { bookId } = await params;
   const [book] = await db
     .select()
     .from(books)
-    .where(and(eq(books.id, params.bookId), eq(books.userId, session.user.id)));
+    .where(and(eq(books.id, bookId), eq(books.userId, session.user.id)));
 
   if (!book) notFound();
 
