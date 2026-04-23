@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { DailyStudyChart } from "@/components/dashboard/daily-study-chart";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -47,17 +48,19 @@ export default async function DashboardPage() {
   const totalVocab = totalVocabRows[0]?.count ?? 0;
   const masteredCount = masteredRows[0]?.count ?? 0;
 
+  const t = await getTranslations("dashboard");
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">你好，{session.user.name?.split(" ")[0]} 👋</h1>
-        <p className="text-muted-foreground mt-1">今天也要坚持学习哦</p>
+        <h1 className="text-2xl font-bold">{t("greeting", { name: session.user.name?.split(" ")[0] ?? "" })}</h1>
+        <p className="text-muted-foreground mt-1">{t("motto")}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Link
           href="/vocabulary/review"
-          aria-label={`今日待复习，共 ${dueCount} 个单词，前往复习`}
+          aria-label={t("dueAriaLabel", { count: dueCount })}
           className={cn(
             "block rounded-xl outline-offset-2 transition-[box-shadow,background-color] hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
           )}
@@ -65,19 +68,19 @@ export default async function DashboardPage() {
           <Card className="h-full transition-colors hover:bg-muted/40">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
-                <GraduationCap className="h-4 w-4" />今日待复习
+                <GraduationCap className="h-4 w-4" />{t("dueReview")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-primary">{dueCount}</p>
-              <p className="text-xs text-muted-foreground mt-1">个单词</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("words")}</p>
             </CardContent>
           </Card>
         </Link>
 
         <Link
           href="/vocabulary"
-          aria-label={`生词本总计 ${totalVocab} 条，前往生词本`}
+          aria-label={t("vocabAriaLabel", { count: totalVocab })}
           className={cn(
             "block rounded-xl outline-offset-2 transition-[box-shadow,background-color] hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
           )}
@@ -85,19 +88,19 @@ export default async function DashboardPage() {
           <Card className="h-full transition-colors hover:bg-muted/40">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
-                <BookMarked className="h-4 w-4" />生词本总计
+                <BookMarked className="h-4 w-4" />{t("vocabTotal")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold">{totalVocab}</p>
-              <p className="text-xs text-muted-foreground mt-1">已掌握 {masteredCount} 个</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("mastered", { count: masteredCount })}</p>
             </CardContent>
           </Card>
         </Link>
 
         <Link
           href="/library"
-          aria-label="前往书架"
+          aria-label={t("bookshelf")}
           className={cn(
             "block rounded-xl outline-offset-2 transition-[box-shadow,background-color] hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
           )}
@@ -105,12 +108,12 @@ export default async function DashboardPage() {
           <Card className="h-full transition-colors hover:bg-muted/40">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
-                <Library className="h-4 w-4" />书架
+                <Library className="h-4 w-4" />{t("bookshelf")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold">{recentBooks.length}</p>
-              <p className="text-xs text-muted-foreground mt-1">本书</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("books")}</p>
             </CardContent>
           </Card>
         </Link>
@@ -120,7 +123,7 @@ export default async function DashboardPage() {
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <Timer className="h-4 w-4 text-muted-foreground" />
-            每日学习时长
+            {t("dailyStudy")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -132,15 +135,15 @@ export default async function DashboardPage() {
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pt-6">
             <div>
-              <p className="font-semibold">你有 {dueCount} 个单词等待复习</p>
-              <p className="text-sm text-muted-foreground mt-0.5">趁热打铁，现在复习效果最好</p>
+              <p className="font-semibold">{t("dueNotice", { count: dueCount })}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">{t("dueHint")}</p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0">
               <Link href="/vocabulary/plan" className={cn(buttonVariants({ variant: "outline" }))}>
-                复习计划
+                {t("reviewPlan")}
               </Link>
               <Link href="/vocabulary/review" className={cn(buttonVariants())}>
-                开始复习<ArrowRight className="ml-2 h-4 w-4" />
+                {t("startReview")}<ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </div>
           </CardContent>
@@ -149,9 +152,9 @@ export default async function DashboardPage() {
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold">最近阅读</h2>
+          <h2 className="font-semibold">{t("recentReading")}</h2>
           <Link href="/library" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-            查看全部 <ArrowRight className="ml-1 h-3 w-3" />
+            {t("viewAll")} <ArrowRight className="ml-1 h-3 w-3" />
           </Link>
         </div>
         {recentBooks.length > 0 ? (
@@ -176,7 +179,7 @@ export default async function DashboardPage() {
                     </div>
                   </div>
                   <Link href={`/read/${book.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}>
-                    继续阅读
+                    {t("continueReading")}
                   </Link>
                 </CardContent>
               </Card>
@@ -187,16 +190,16 @@ export default async function DashboardPage() {
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
               <Library className="h-10 w-10 text-muted-foreground" />
               <p className="text-muted-foreground max-w-sm">
-                还没有最近阅读记录。去公共书库选一本，加入「我的书架」后即可开始阅读。
+                {t("noRecentReading")}
               </p>
               <Link href="/library/store" className={cn(buttonVariants())}>
-                前往公共书库
+                {t("goToStore")}
               </Link>
               <Link
                 href="/library/upload"
                 className={cn(buttonVariants({ variant: "link" }), "text-sm text-muted-foreground")}
               >
-                或上传自己的 EPUB
+                {t("uploadEpub")}
               </Link>
             </CardContent>
           </Card>

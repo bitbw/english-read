@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { CLIENT_FETCH_NETWORK_ERROR, clientFetch } from "@/lib/client-fetch";
 import { toastConfirmAction } from "@/lib/toast-confirm";
+import { useTranslations } from "next-intl";
 
 interface DeleteBookButtonProps {
   bookId: string;
@@ -14,21 +15,22 @@ interface DeleteBookButtonProps {
 
 export function DeleteBookButton({ bookId, bookTitle }: DeleteBookButtonProps) {
   const router = useRouter();
+  const t = useTranslations("library");
 
   function requestDelete() {
     toastConfirmAction({
-      message: "确定删除这本书？",
-      description: `《${bookTitle}》及关联文件将无法恢复。`,
-      confirmLabel: "确认删除",
+      message: t("deleteBookConfirm"),
+      description: t("deleteBookDesc", { title: bookTitle }),
+      confirmLabel: t("deleteBookConfirmBtn"),
       onConfirm: async () => {
         try {
           const res = await clientFetch(`/api/books/${bookId}`, { method: "DELETE" });
           if (!res.ok) return;
-          toast.success("书籍已删除");
+          toast.success(t("deleteBookSuccess"));
           router.refresh();
         } catch (err) {
           if (!(err instanceof Error && err.message === CLIENT_FETCH_NETWORK_ERROR)) {
-            toast.error("删除失败，请重试");
+            toast.error(t("deleteBookFailed"));
           }
         }
       },
@@ -41,7 +43,7 @@ export function DeleteBookButton({ bookId, bookTitle }: DeleteBookButtonProps) {
       variant="ghost"
       size="icon"
       className="h-7 w-7 text-muted-foreground hover:text-destructive"
-      title="删除书籍"
+      title={t("deleteBookBtn")}
       onClick={requestDelete}
     >
       <Trash2 className="h-3.5 w-3.5" />

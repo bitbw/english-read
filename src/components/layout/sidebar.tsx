@@ -12,6 +12,7 @@ import {
   Calendar,
   ExternalLink,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 function navItemIsActive(pathname: string, href: string) {
   if (href === "/vocabulary/plan") {
@@ -26,17 +27,18 @@ function navItemIsActive(pathname: string, href: string) {
 
 const GITHUB_REPO_URL = "https://github.com/bitbw/english-read";
 
-const navItems = [
-  { href: "/dashboard", label: "首页", icon: LayoutDashboard },
-  { href: "/library/store", label: "公共书库", icon: Library },
-  { href: "/library", label: "我的书架", icon: BookOpen },
-  { href: "/vocabulary", label: "生词本", icon: BookMarked },
-  { href: "/vocabulary/plan", label: "复习计划", icon: Calendar },
-  { href: "/settings", label: "设置", icon: Settings },
-];
-
 export function Sidebar() {
   const pathname = usePathname();
+  const t = useTranslations("nav");
+
+  const navItems = [
+    { href: "/dashboard", label: t("home"), icon: LayoutDashboard },
+    { href: "/library/store", label: t("publicLibrary"), icon: Library },
+    { href: "/library", label: t("myLibrary"), icon: BookOpen },
+    { href: "/vocabulary", label: t("vocabulary"), icon: BookMarked },
+    { href: "/vocabulary/plan", label: t("reviewPlan"), icon: Calendar },
+    { href: "/settings", label: t("settings"), icon: Settings },
+  ];
 
   return (
     <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border bg-card h-screen sticky top-0">
@@ -76,7 +78,7 @@ export function Sidebar() {
           className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md outline-offset-2 focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
-          <span>GitHub 开源仓库</span>
+          <span>{t("github")}</span>
         </a>
       </div>
     </aside>

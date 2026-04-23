@@ -15,6 +15,7 @@ import {
   getReviewScopeDay,
 } from "@/lib/review-session-cache";
 import { clientFetch } from "@/lib/client-fetch";
+import { useTranslations } from "next-intl";
 
 type DistractorItem = { id: string; word: string; definition: string | null };
 
@@ -37,13 +38,8 @@ function buildFetchUrl(date: string | null, preview: boolean) {
   return q ? `/api/review?${q}` : "/api/review";
 }
 
-function pageTitle(date: string | null, preview: boolean) {
-  if (!date) return "今日复习";
-  if (preview) return `${date} 排期`;
-  return `${date} 复习`;
-}
-
 export function ReviewPageClient() {
+  const t = useTranslations("review");
   const searchParams = useSearchParams();
   const date = searchParams.get("date");
   const preview = searchParams.get("preview") === "1";
@@ -69,7 +65,6 @@ export function ReviewPageClient() {
       } else {
         const isPreview = Boolean(data.preview);
         let nextWords = data.words ?? [];
-        // 非「仅浏览」模式：去掉本日/本 scope 已在本地标记为已完成的词（刷新后不必重做）
         if (!isPreview && !preview) {
           nextWords = filterOutClearedReviews(nextWords, reviewScopeDay);
         }
@@ -88,7 +83,12 @@ export function ReviewPageClient() {
 
   const handleReviewComplete = useCallback(() => {}, []);
 
-  const title = pageTitle(date, preview);
+  const title = !date
+    ? t("todayTitle")
+    : preview
+      ? t("dateSchedule", { date })
+      : t("dateReview", { date });
+
   const showSession = !apiPreview && words.length > 0;
   const showPreviewList = apiPreview && words.length > 0;
 
@@ -116,7 +116,7 @@ export function ReviewPageClient() {
       ) : showPreviewList ? (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            以下为该日排期中的单词，尚未到复习时间，仅可浏览。
+            {t("previewNote")}
           </p>
           {words.map((w) => (
             <Card key={w.id} className="p-4">
@@ -129,17 +129,18 @@ export function ReviewPageClient() {
                   w.definition ? (
                     <p className="text-sm text-muted-foreground mt-2">{w.definition}</p>
                   ) : (
-                    <p className="text-sm text-muted-foreground mt-2">暂无释义</p>
+                    <p className="text-sm text-muted-foreground mt-2">{t("noDefinition")}</p>
                   )
                 }
               />
               {w.nextReviewAt && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  排期：
-                  {new Date(w.nextReviewAt).toLocaleString("zh-CN", {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
+                  {t("scheduledAt", {
+                    date: new Date(w.nextReviewAt).toLocaleString("zh-CN", {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                    }),
                   })}
                 </p>
               )}
@@ -152,23 +153,21 @@ export function ReviewPageClient() {
           <div>
             <p className="text-xl font-semibold">
               {!date
-                ? "当前没有需要复习的单词"
+                ? t("emptyTodayTitle")
                 : preview
-                  ? "这一天没有排期中的单词"
-                  : "这一天没有已到期的复习项"}
+                  ? t("emptyPreviewTitle")
+                  : t("emptyPastTitle")}
             </p>
             <p className="text-muted-foreground mt-1">
-              {!date
-                ? "若刚复习完，说明今日任务已完成；也可在复习计划中查看后续排期"
-                : "返回日历查看其它日期，或去阅读继续积累生词"}
+              {!date ? t("emptyTodayHint") : t("emptyDateHint")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 justify-center">
             <Link href="/vocabulary/plan" className={cn(buttonVariants({ variant: "outline" }))}>
-              复习计划
+              {t("reviewPlan")}
             </Link>
             <Link href="/library" className={cn(buttonVariants({ variant: "outline" }))}>
-              去阅读
+              {t("goRead")}
             </Link>
           </div>
         </div>

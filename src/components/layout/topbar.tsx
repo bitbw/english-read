@@ -35,15 +35,7 @@ const GITHUB_REPO_URL = "https://github.com/bitbw/english-read";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/dashboard", label: "首页", icon: LayoutDashboard },
-  { href: "/library/store", label: "公共书库", icon: Library },
-  { href: "/library", label: "我的书架", icon: BookOpen },
-  { href: "/vocabulary", label: "生词本", icon: BookMarked },
-  { href: "/vocabulary/plan", label: "复习计划", icon: Calendar },
-  { href: "/settings", label: "设置", icon: Settings },
-];
+import { useTranslations } from "next-intl";
 
 function navItemIsActive(pathname: string, href: string) {
   if (href === "/vocabulary/plan") {
@@ -61,6 +53,17 @@ export function Topbar() {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileNavPending, setMobileNavPending] = useState(false);
+  const tNav = useTranslations("nav");
+  const tTopbar = useTranslations("topbar");
+
+  const navItems = [
+    { href: "/dashboard", label: tNav("home"), icon: LayoutDashboard },
+    { href: "/library/store", label: tNav("publicLibrary"), icon: Library },
+    { href: "/library", label: tNav("myLibrary"), icon: BookOpen },
+    { href: "/vocabulary", label: tNav("vocabulary"), icon: BookMarked },
+    { href: "/vocabulary/plan", label: tNav("reviewPlan"), icon: Calendar },
+    { href: "/settings", label: tNav("settings"), icon: Settings },
+  ];
 
   useEffect(() => {
     setMobileNavPending(false);
@@ -76,7 +79,7 @@ export function Topbar() {
             aria-busy="true"
           >
             <Loader2 className="h-10 w-10 animate-spin text-primary" aria-hidden />
-            <span className="sr-only">加载中</span>
+            <span className="sr-only">{tTopbar("loading")}</span>
           </div>,
           document.body
         )
@@ -128,7 +131,7 @@ export function Topbar() {
               className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md outline-offset-2 focus-visible:ring-2 focus-visible:ring-ring"
             >
               <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
-              <span>GitHub 开源仓库</span>
+              <span>{tNav("github")}</span>
             </a>
           </div>
         </SheetContent>
@@ -161,14 +164,14 @@ export function Topbar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem render={<Link href="/settings" />}>
               <User className="mr-2 h-4 w-4" />
-              设置
+              {tTopbar("settings")}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => signOut({ callbackUrl: "/login" })}
               variant="destructive"
             >
               <LogOut className="mr-2 h-4 w-4" />
-              退出登录
+              {tTopbar("logout")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

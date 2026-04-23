@@ -3,8 +3,11 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
+import { getTranslations } from "next-intl/server";
 
-export default function UploadPage() {
+export default async function UploadPage() {
+  const t = await getTranslations("upload");
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
@@ -12,8 +15,8 @@ export default function UploadPage() {
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">上传电子书</h1>
-          <p className="text-sm text-muted-foreground">支持 EPUB 格式，最大 50MB</p>
+          <h1 className="text-2xl font-bold">{t("pageTitle")}</h1>
+          <p className="text-sm text-muted-foreground">{t("pageSubtitle")}</p>
         </div>
       </div>
 

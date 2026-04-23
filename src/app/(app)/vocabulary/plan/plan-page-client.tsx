@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { padMonthGrid } from "@/lib/review-plan";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { clientFetch } from "@/lib/client-fetch";
+import { useTranslations } from "next-intl";
 
 type DayCell = { scheduled: number; dueNow: number };
 
@@ -20,8 +21,6 @@ type PlanResponse = {
   days: Record<string, DayCell>;
 };
 
-const WEEK_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
-
 function cellDisplayCount(key: string, plan: PlanResponse): number {
   if (key > plan.todayKey) {
     return plan.days[key]?.scheduled ?? 0;
@@ -32,17 +31,16 @@ function cellDisplayCount(key: string, plan: PlanResponse): number {
   return plan.days[key]?.dueNow ?? 0;
 }
 
-function formatMonthTitle(year: number, month: number) {
-  return `${year} 年 ${month} 月`;
-}
-
 export function PlanPageClient() {
+  const t = useTranslations("plan");
   const router = useRouter();
   const now = useMemo(() => new Date(), []);
   const [year, setYear] = useState(() => now.getFullYear());
   const [month, setMonth] = useState(() => now.getMonth() + 1);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const WEEK_LABELS = t.raw("weekLabels") as string[];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,22 +116,22 @@ export function PlanPageClient() {
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">复习计划</h1>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            按学习时区日历日汇总（与阅读时长、生词日上限一致）；今日格子数字含所有已到期（含更早拖欠）
+            {t("subtitle")}
           </p>
         </div>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-lg font-semibold">{formatMonthTitle(year, month)}</CardTitle>
+          <CardTitle className="text-lg font-semibold">{t("monthTitle", { year, month })}</CardTitle>
           <div className="flex gap-1">
             <button
               type="button"
               onClick={goPrevMonth}
               className={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-8 w-8")}
-              aria-label="上一月"
+              aria-label={t("prevMonth")}
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -141,7 +139,7 @@ export function PlanPageClient() {
               type="button"
               onClick={goNextMonth}
               className={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-8 w-8")}
-              aria-label="下一月"
+              aria-label={t("nextMonth")}
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -189,7 +187,7 @@ export function PlanPageClient() {
                       {Number(key.slice(8, 10))}
                     </span>
                     {hasMark ? (
-                      <span className="text-[10px] leading-none text-muted-foreground">{n} 词</span>
+                      <span className="text-[10px] leading-none text-muted-foreground">{t("words", { count: n })}</span>
                     ) : (
                       <span className="text-[10px] leading-none text-transparent">.</span>
                     )}
@@ -200,9 +198,9 @@ export function PlanPageClient() {
           )}
 
           <ul className="text-xs text-muted-foreground space-y-1 pt-2 border-t border-border">
-            <li>今日：显示当前所有已到期待复习数量（与首页一致）</li>
-            <li>往日：该日排期且仍到期的词；点入有到期则直接开始复习</li>
-            <li>未来：仅预览当日排期，尚未到期不会进入测验</li>
+            <li>{t("legendToday")}</li>
+            <li>{t("legendPast")}</li>
+            <li>{t("legendFuture")}</li>
           </ul>
         </CardContent>
       </Card>

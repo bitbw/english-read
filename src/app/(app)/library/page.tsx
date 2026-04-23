@@ -10,6 +10,7 @@ import { LibraryBookCard } from "./library-book-card";
 import { EXTERNAL_EPUB_FIND_URL } from "@/lib/external-epub-find";
 import { cn } from "@/lib/utils";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 export default async function LibraryPage() {
   const session = await auth();
@@ -21,33 +22,34 @@ export default async function LibraryPage() {
     .where(eq(books.userId, session.user.id))
     .orderBy(desc(books.lastReadAt), desc(books.createdAt));
 
+  const t = await getTranslations("library");
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">我的书架</h1>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            此处上传的书仅自己可见。浏览{" "}
+            {t("subtitle")}{" "}
             <Link href="/library/store" className="text-primary underline-offset-4 hover:underline">
-              公共书库
+              {t("storeLink")}
             </Link>
-            可将书籍加入此处。
           </p>
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           <Link href="/library/store" className={cn(buttonVariants({ variant: "outline" }))}>
-            公共书库
+            {t("publicLibrary")}
           </Link>
           <Link href="/library/upload" className={cn(buttonVariants())}>
             <Upload className="h-4 w-4 mr-2" />
-            上传 EPUB
+            {t("uploadEpub")}
           </Link>
         </div>
       </div>
 
       <div className="space-y-2 text-left">
         <p className="text-sm text-muted-foreground max-w-xl">
-          还没有 EPUB？可先到外部站点查找。
+          {t("noEpubHint")}
         </p>
         <div className="flex justify-start">
           <a
@@ -57,7 +59,7 @@ export default async function LibraryPage() {
             className={cn(buttonVariants({ variant: "outline" }), "justify-center")}
           >
             <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
-            去下载电子书
+            {t("downloadEbook")}
           </a>
         </div>
       </div>
@@ -73,12 +75,12 @@ export default async function LibraryPage() {
           <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
             <BookOpen className="h-14 w-14 text-muted-foreground" />
             <div>
-              <p className="font-medium">书架空空如也</p>
-              <p className="text-sm text-muted-foreground mt-1">上传你的第一本 EPUB 电子书，开始阅读</p>
+              <p className="font-medium">{t("emptyTitle")}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("emptyHint")}</p>
             </div>
             <Link href="/library/upload" className={cn(buttonVariants())}>
               <Upload className="h-4 w-4 mr-2" />
-              上传 EPUB
+              {t("uploadEpub")}
             </Link>
           </CardContent>
         </Card>

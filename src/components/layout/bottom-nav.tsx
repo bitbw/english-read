@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import {
   LayoutDashboard,
   Library,
@@ -11,16 +12,17 @@ import {
   Settings,
 } from "lucide-react";
 
-const navItems = [
-  { href: "/dashboard", label: "首页", icon: LayoutDashboard },
-  { href: "/library", label: "我的书架", icon: Library },
-  { href: "/vocabulary", label: "生词本", icon: BookMarked },
-  { href: "/vocabulary/plan", label: "计划", icon: Calendar },
-  { href: "/settings", label: "设置", icon: Settings },
-];
-
 export function BottomNav() {
   const pathname = usePathname();
+  const t = useTranslations("nav");
+
+  const navItems = [
+    { href: "/dashboard", label: t("home"), icon: LayoutDashboard },
+    { href: "/library", label: t("myLibrary"), icon: Library },
+    { href: "/vocabulary", label: t("vocabulary"), icon: BookMarked },
+    { href: "/vocabulary/plan", label: t("reviewPlan"), icon: Calendar },
+    { href: "/settings", label: t("settings"), icon: Settings },
+  ];
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border flex items-stretch h-16 safe-area-inset-bottom">

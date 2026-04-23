@@ -6,9 +6,10 @@ import { Card } from "@/components/ui/card";
 import { getStageName, getStageColor } from "@/lib/srs";
 import { Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { zhCN } from "date-fns/locale";
+import { zhCN, enUS } from "date-fns/locale";
 import { linkifyToReactNodes } from "@/components/linkified-text";
 import { VocabularyDefinitionView } from "@/components/vocabulary/vocabulary-definition-view";
+import { useTranslations, useLocale } from "next-intl";
 
 interface VocabWord {
   id: string;
@@ -28,6 +29,9 @@ interface WordCardProps {
 }
 
 export function WordCard({ word, onDelete }: WordCardProps) {
+  const t = useTranslations("vocabulary");
+  const locale = useLocale();
+  const dateFnsLocale = locale === "zh" ? zhCN : enUS;
   const nextReview = new Date(word.nextReviewAt);
   const isPastDue = !word.isMastered && nextReview <= new Date();
 
@@ -46,7 +50,7 @@ export function WordCard({ word, onDelete }: WordCardProps) {
             </Badge>
             {isPastDue && (
               <Badge variant="destructive" className="text-xs px-1.5 py-0">
-                待复习
+                {t("dueReview")}
               </Badge>
             )}
           </div>
@@ -55,7 +59,7 @@ export function WordCard({ word, onDelete }: WordCardProps) {
           <VocabularyDefinitionView
             definition={word.definition}
             className="mt-1.5"
-            emptyFallback={<p className="mt-1 text-sm text-muted-foreground">暂无释义</p>}
+            emptyFallback={<p className="mt-1 text-sm text-muted-foreground">{t("noDefinition")}</p>}
           />
 
           {/* 上下文 */}
@@ -69,8 +73,8 @@ export function WordCard({ word, onDelete }: WordCardProps) {
           {!word.isMastered && (
             <p className="mt-2 text-xs text-muted-foreground">
               {isPastDue
-                ? "现在可以复习"
-                : `下次复习：${formatDistanceToNow(nextReview, { addSuffix: true, locale: zhCN })}`}
+                ? t("reviewNow")
+                : t("nextReview", { time: formatDistanceToNow(nextReview, { addSuffix: true, locale: dateFnsLocale }) })}
             </p>
           )}
         </div>

@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { registerWithCredentials } from "@/app/(auth)/signup/actions";
+import { useTranslations } from "next-intl";
 
 type SignupFormProps = {
   className?: string;
@@ -26,6 +27,7 @@ type OAuthProvider = "google" | "github";
 
 export function SignupForm({ className }: SignupFormProps) {
   const router = useRouter();
+  const t = useTranslations("signup");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [oauthPending, setOauthPending] = useState<OAuthProvider | null>(null);
@@ -67,7 +69,7 @@ export function SignupForm({ className }: SignupFormProps) {
         redirect: false,
       });
       if (signRes?.error) {
-        setError("注册成功，但自动登录失败，请返回登录页手动登录");
+        setError(t("autoLoginFailed"));
         return;
       }
       if (signRes?.ok) {
@@ -83,14 +85,14 @@ export function SignupForm({ className }: SignupFormProps) {
     <div className={cn("flex flex-col gap-6", className)}>
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">注册</h1>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
           <p className="text-sm text-balance text-muted-foreground">
-            仅需邮箱与密码；显示名可在「设置」中稍后再填。
+            {t("subtitle")}
           </p>
         </div>
         <form className="flex flex-col gap-4" onSubmit={onRegisterSubmit}>
           <Field>
-            <FieldLabel htmlFor="signup-email">邮箱</FieldLabel>
+            <FieldLabel htmlFor="signup-email">{t("email")}</FieldLabel>
             <Input
               id="signup-email"
               name="email"
@@ -101,10 +103,10 @@ export function SignupForm({ className }: SignupFormProps) {
               className="bg-background"
               disabled={busy}
             />
-            <FieldDescription>用于登录，我们不会向他人展示你的邮箱。</FieldDescription>
+            <FieldDescription>{t("emailDesc")}</FieldDescription>
           </Field>
           <Field>
-            <FieldLabel htmlFor="signup-password">密码</FieldLabel>
+            <FieldLabel htmlFor="signup-password">{t("password")}</FieldLabel>
             <PasswordInput
               id="signup-password"
               name="password"
@@ -113,10 +115,10 @@ export function SignupForm({ className }: SignupFormProps) {
               className="bg-background"
               disabled={busy}
             />
-            <FieldDescription>至少 8 位字符。</FieldDescription>
+            <FieldDescription>{t("passwordDesc")}</FieldDescription>
           </Field>
           <Field>
-            <FieldLabel htmlFor="signup-confirm-password">确认密码</FieldLabel>
+            <FieldLabel htmlFor="signup-confirm-password">{t("confirmPassword")}</FieldLabel>
             <PasswordInput
               id="signup-confirm-password"
               name="confirmPassword"
@@ -125,7 +127,7 @@ export function SignupForm({ className }: SignupFormProps) {
               className="bg-background"
               disabled={busy}
             />
-            <FieldDescription>请再次输入密码。</FieldDescription>
+            <FieldDescription>{t("confirmPasswordDesc")}</FieldDescription>
           </Field>
           {error ? (
             <p className="text-sm text-destructive" role="alert">
@@ -134,11 +136,11 @@ export function SignupForm({ className }: SignupFormProps) {
           ) : null}
           <Field>
             <Button type="submit" className="w-full" disabled={busy}>
-              {pending ? "处理中…" : "创建账号"}
+              {pending ? t("processing") : t("createAccount")}
             </Button>
           </Field>
         </form>
-        <FieldSeparator>或使用</FieldSeparator>
+        <FieldSeparator>{t("or")}</FieldSeparator>
         <Field className="gap-3">
           <Button
             variant="outline"
@@ -169,7 +171,7 @@ export function SignupForm({ className }: SignupFormProps) {
                 />
               </svg>
             )}
-            {oauthPending === "google" ? "跳转中…" : "使用 Google 继续"}
+            {oauthPending === "google" ? t("redirecting") : t("continueWithGoogle")}
           </Button>
           <Button
             variant="outline"
@@ -190,15 +192,15 @@ export function SignupForm({ className }: SignupFormProps) {
                 <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
               </svg>
             )}
-            {oauthPending === "github" ? "跳转中…" : "使用 GitHub 继续"}
+            {oauthPending === "github" ? t("redirecting") : t("continueWithGithub")}
           </Button>
           <FieldDescription className="text-center px-0">
-            已有账号？{" "}
+            {t("hasAccount")}{" "}
             <Link
               href="/login"
               className="underline underline-offset-4 text-foreground"
             >
-              登录
+              {t("login")}
             </Link>
           </FieldDescription>
         </Field>

@@ -12,6 +12,7 @@ import { WordPopup, type WordPopupAnchorRect } from "./word-popup";
 import { clientFetch } from "@/lib/client-fetch";
 import { debounce } from "@/lib/debounce";
 import { readerDebugLog } from "@/lib/reader-debug";
+import { useTranslations } from "next-intl";
 
 interface SelectionInfo {
   word: string;
@@ -137,10 +138,10 @@ function chapterLabelFromNavToc(
   return undefined;
 }
 
-/** 当前位置的目录标题；目录无匹配时用「第 N 章」（N 为 spine 索引 + 1）。 */
-function chapterDisplayName(location: Location, navToc: NavItem[]): string {
+/** 当前位置的目录标题；目录无匹配时用 defaultFn（N 为 spine 索引 + 1）。 */
+function chapterDisplayName(location: Location, navToc: NavItem[], defaultFn: (n: number) => string): string {
   const label = chapterLabelFromNavToc(navToc, location.start.href);
-  return label?.trim() || `第 ${location.start.index + 1} 章`;
+  return label?.trim() || defaultFn(location.start.index + 1);
 }
 
 /** 将选区内多个 Range 的包围矩形合并为一个，用于弹层锚定。 */
@@ -201,6 +202,7 @@ export function EpubReader({
   onReady,
   onTocReady,
 }: EpubReaderProps) {
+  const t = useTranslations("reader");
   const viewerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
@@ -234,7 +236,7 @@ export function EpubReader({
 
       const cfi = location.start.cfi;
       const bookPct = wholeBookPctFromSpine(book, location);
-      const chapterName = chapterDisplayName(location, navTocRef.current);
+      const chapterName = chapterDisplayName(location, navTocRef.current, (n) => t("chapterDefault", { n }));
       const chapterPct = chapterPctFromDisplayed(location.start.displayed);
 
       currentCfiRef.current = cfi;
@@ -493,7 +495,7 @@ export function EpubReader({
           role="status"
           aria-live="polite"
         >
-          <p className="text-sm text-muted-foreground">加载书籍中…</p>
+          <p className="text-sm text-muted-foreground">{t("loadingBook")}</p>
         </div>
       ) : null}
       {selection && (
