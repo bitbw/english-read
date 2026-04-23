@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { isProductionAnalytics } from "@/lib/analytics-env";
 import { setSentryUserFromSession } from "@/lib/sentry-user";
 import { NextResponse } from "next/server";
 
@@ -11,7 +12,9 @@ const protectedRoutes = [
 ];
 
 export default auth((req) => {
-  setSentryUserFromSession(req.auth);
+  if (isProductionAnalytics) {
+    setSentryUserFromSession(req.auth);
+  }
 
   const isLoggedIn = !!req.auth;
   const pathname = req.nextUrl.pathname;

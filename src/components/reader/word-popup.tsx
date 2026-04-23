@@ -13,6 +13,7 @@ import {
   playPronunciationMp3 as playPronunciationMp3Url,
   stopPronunciationAudio,
 } from "@/lib/pronunciation-audio";
+import { useTranslations } from "next-intl";
 
 interface Definition {
   partOfSpeech: string;
@@ -117,6 +118,7 @@ export function WordPopup({
   onClose,
   onSaved,
 }: WordPopupProps) {
+  const t = useTranslations("wordPopup");
   const rootRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const [phonetic, setPhonetic] = useState("");
@@ -282,12 +284,12 @@ export function WordPopup({
 
       if (data.alreadyExists && data.id) {
         setExistingEntryId(data.id);
-        toast.message(`「${word}」已在生词本`);
+        toast.message(t("alreadyIn", { word }));
         return;
       }
       if (data.id) setExistingEntryId(data.id);
       setSaved(true);
-      toast.success(`"${word}" 已加入生词本`);
+      toast.success(t("addedSuccess", { word }));
       onSaved();
     } catch {
       toast.error(CLIENT_FETCH_NETWORK_ERROR);
@@ -301,9 +303,9 @@ export function WordPopup({
     const entryId = existingEntryId;
     const label = word;
     toastConfirmAction({
-      message: `确定从生词本删除「${label}」？`,
-      description: "删除后需在阅读中重新添加才会回到生词本。",
-      confirmLabel: "确认删除",
+      message: t("deleteConfirm", { word: label }),
+      description: t("deleteDescription"),
+      confirmLabel: t("confirmDelete"),
       onConfirm: async () => {
         setRemoving(true);
         try {
@@ -312,7 +314,7 @@ export function WordPopup({
           });
           if (res.ok) {
             setExistingEntryId(null);
-            toast.success(`已从生词本移除「${label}」`);
+            toast.success(t("removedSuccess", { word: label }));
           }
         } catch {
           toast.error(CLIENT_FETCH_NETWORK_ERROR);
@@ -353,7 +355,7 @@ export function WordPopup({
                 type="button"
                 onClick={speakTts}
                 className="text-muted-foreground hover:text-foreground p-0.5 rounded"
-                title="发音（语音合成）"
+                title={t("ttsPronunciation")}
               >
                 <Volume2 className="h-3.5 w-3.5" />
               </button>
@@ -365,17 +367,17 @@ export function WordPopup({
                       type="button"
                       onClick={() => playPronunciationMp3(audioUs)}
                       className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium leading-none"
-                      title="美音"
+                      title={t("usAccent")}
                     >
-                      美
+                      {t("usAccent")}
                     </button>
                     <button
                       type="button"
                       onClick={() => playPronunciationMp3(audioUk)}
                       className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium leading-none"
-                      title="英音"
+                      title={t("ukAccent")}
                     >
-                      英
+                      {t("ukAccent")}
                     </button>
                   </>
                 ) : audioUs || audioUk ? (
@@ -383,7 +385,7 @@ export function WordPopup({
                     type="button"
                     onClick={() => playPronunciationMp3(audioUs || audioUk)}
                     className="text-muted-foreground hover:text-foreground p-0.5 rounded"
-                    title={audioUs ? "美音" : "英音"}
+                    title={audioUs ? t("usAccent") : t("ukAccent")}
                   >
                     <Volume2 className="h-3.5 w-3.5" />
                   </button>
@@ -392,7 +394,7 @@ export function WordPopup({
                     type="button"
                     onClick={speakTts}
                     className="text-muted-foreground hover:text-foreground p-0.5 rounded"
-                    title="发音（语音合成）"
+                    title={t("ttsPronunciation")}
                   >
                     <Volume2 className="h-3.5 w-3.5" />
                   </button>
@@ -413,7 +415,7 @@ export function WordPopup({
         {loading ? (
           <div className="flex items-center gap-2 py-2 text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span className="text-xs">查询中...</span>
+            <span className="text-xs">{t("lookingUp")}</span>
           </div>
         ) : (
           <>
@@ -445,7 +447,7 @@ export function WordPopup({
 
             {/* 无释义也无翻译 */}
             {!translation && definitions.length === 0 && (
-              <p className="mb-2 text-xs text-muted-foreground">暂无释义</p>
+              <p className="mb-2 text-xs text-muted-foreground">{t("noDefinition")}</p>
             )}
           </>
         )}
@@ -475,7 +477,7 @@ export function WordPopup({
           ) : (
             <BookmarkMinus className="h-3.5 w-3.5 mr-1" />
           )}
-          移除生词本
+          {t("removeFromVocab")}
         </Button>
       ) : (
         <Button
@@ -493,11 +495,11 @@ export function WordPopup({
           variant={saved ? "secondary" : "default"}
           title={
             !word.trim()
-              ? "没有选中的词"
+              ? t("noSelectedWord")
               : loading || lookupLoading
-                ? "请等待释义与生词本状态加载完成"
+                ? t("waitLoading")
                 : !hasSavableDefinition
-                  ? "暂无词典释义或翻译，无法保存"
+                  ? t("noDefinitionForSave")
                   : undefined
           }
         >
@@ -508,7 +510,7 @@ export function WordPopup({
           ) : (
             <BookmarkPlus className="h-3.5 w-3.5 mr-1" />
           )}
-          {saved ? "已加入生词本" : "加入生词本"}
+          {saved ? t("addedToVocab") : t("addToVocab")}
         </Button>
       )}
     </div>

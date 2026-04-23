@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { postCoverUpload } from "@/lib/post-cover-upload";
 import { CLIENT_FETCH_NETWORK_ERROR, clientFetch } from "@/lib/client-fetch";
 import { toastConfirmAction } from "@/lib/toast-confirm";
+import { useTranslations } from "next-intl";
 
 interface ChangeCoverButtonProps {
   bookId: string;
@@ -18,6 +19,7 @@ export function ChangeCoverButton({ bookId, hasCover }: ChangeCoverButtonProps) 
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const t = useTranslations("library");
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -32,13 +34,13 @@ export function ChangeCoverButton({ bookId, hasCover }: ChangeCoverButtonProps) 
         body: JSON.stringify({ coverUrl: url }),
       });
       if (!patchRes.ok) return;
-      toast.success("封面已更新");
+      toast.success(t("changeCoverUpdated"));
       router.refresh();
     } catch (err) {
       if (err instanceof Error && err.message === CLIENT_FETCH_NETWORK_ERROR) {
         /* clientFetch 已 toast */
       } else {
-        toast.error(err instanceof Error ? err.message : "操作失败");
+        toast.error(err instanceof Error ? err.message : t("changeCoverFailed"));
       }
     } finally {
       setLoading(false);
@@ -47,9 +49,9 @@ export function ChangeCoverButton({ bookId, hasCover }: ChangeCoverButtonProps) 
 
   function requestRemoveCover() {
     toastConfirmAction({
-      message: "确定移除封面？",
-      description: "移除后书架将显示默认占位图，可随时重新上传。",
-      confirmLabel: "确认移除",
+      message: t("removeCoverConfirm"),
+      description: t("removeCoverDesc"),
+      confirmLabel: t("removeCoverConfirmBtn"),
       onConfirm: async () => {
         setLoading(true);
         try {
@@ -59,11 +61,11 @@ export function ChangeCoverButton({ bookId, hasCover }: ChangeCoverButtonProps) 
             body: JSON.stringify({ coverUrl: null }),
           });
           if (!patchRes.ok) return;
-          toast.success("已移除封面");
+          toast.success(t("removeCoverSuccess"));
           router.refresh();
         } catch (err) {
           if (!(err instanceof Error && err.message === CLIENT_FETCH_NETWORK_ERROR)) {
-            toast.error("移除失败，请重试");
+            toast.error(t("removeCoverFailed"));
           }
         } finally {
           setLoading(false);
@@ -88,7 +90,7 @@ export function ChangeCoverButton({ bookId, hasCover }: ChangeCoverButtonProps) 
           size="icon"
           className="h-7 w-7 text-muted-foreground"
           disabled={loading}
-          title="移除封面"
+          title={t("removeCoverBtn")}
           onClick={requestRemoveCover}
         >
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageOff className="h-3.5 w-3.5" />}
@@ -100,7 +102,7 @@ export function ChangeCoverButton({ bookId, hasCover }: ChangeCoverButtonProps) 
           size="icon"
           className="h-7 w-7 text-muted-foreground"
           disabled={loading}
-          title="添加封面"
+          title={t("addCoverBtn")}
           onClick={() => inputRef.current?.click()}
         >
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}

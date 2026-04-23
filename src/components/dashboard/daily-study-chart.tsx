@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { clientFetch } from "@/lib/client-fetch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTranslations } from "next-intl";
 
 type SeriesPoint = { day: string; seconds: number };
 
@@ -21,6 +22,7 @@ function formatBarMinutes(seconds: number) {
 }
 
 export function DailyStudyChart() {
+  const t = useTranslations("chart");
   const [series, setSeries] = useState<SeriesPoint[] | null>(null);
   const [narrow, setNarrow] = useState(false);
 
@@ -69,10 +71,10 @@ export function DailyStudyChart() {
     <div className="space-y-4">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          近 {displaySeries.length} 天（按学习时区日历）
+          {t("lastNDays", { count: displaySeries.length })}
         </p>
         <p className="text-sm tabular-nums text-muted-foreground">
-          今天约 <span className="font-semibold text-foreground">{todayMin}</span> 分钟
+          {t("todayMinutes", { min: todayMin })}
         </p>
       </div>
 
@@ -91,7 +93,7 @@ export function DailyStudyChart() {
               >
                 <span
                   className="text-[10px] sm:text-xs font-medium tabular-nums text-foreground leading-none min-h-[14px] flex items-end justify-center"
-                  title={`${formatDayLabel(s.day)}：${label === "<1" ? "不足 1 分钟" : `${label} 分钟`}`}
+                  title={`${formatDayLabel(s.day)}：${label === "<1" ? t("lessThanOneMin") : t("minutes", { min: label })}`}
                 >
                   {label}
                 </span>
@@ -101,7 +103,7 @@ export function DailyStudyChart() {
                     hasTime ? "bg-primary/90 dark:bg-primary/80" : "bg-muted"
                   )}
                   style={{ height: `${barPx}px` }}
-                  title={`${formatDayLabel(s.day)}：${Math.round(m)} 分钟`}
+                  title={`${formatDayLabel(s.day)}：${t("minutes", { min: String(Math.round(m)) })}`}
                 />
               </div>
             );

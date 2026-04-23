@@ -10,17 +10,23 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { clientFetch } from "@/lib/client-fetch";
 import { readerDebugLog } from "@/lib/reader-debug";
 import type { NavItem } from "epubjs";
+import { useTranslations } from "next-intl";
+
+function EpubReaderLoading() {
+  const t = useTranslations("reader");
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="text-muted-foreground">{t("loadingReader")}</div>
+    </div>
+  );
+}
 
 /** 仅在下发并执行 EpubReader 的 JS 分包时展示；拉取 EPUB（blobUrl）时的 loading 在 EpubReader 内部 */
 const EpubReader = dynamic(
   () => import("@/components/reader/epub-reader").then((m) => m.EpubReader),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-muted-foreground">加载阅读器…</div>
-      </div>
-    ),
+    loading: EpubReaderLoading,
   }
 );
 
@@ -40,6 +46,7 @@ interface ReaderClientProps {
 }
 
 export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClientProps) {
+  const t = useTranslations("reader");
   const controlsRef = useRef<ReaderControls | null>(null);
   const [fontSize, setFontSize] = useState(20);
   const [chapterName, setChapterName] = useState("");
@@ -219,11 +226,11 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
           >
             <div className="flex items-center gap-2 px-4 py-4 border-b border-border shrink-0">
               <List className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-base">章节目录</span>
+              <span className="font-semibold text-base">{t("toc")}</span>
             </div>
             <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-2">
               {toc.length === 0 ? (
-                <p className="px-3 py-6 text-sm text-muted-foreground text-center">暂无目录</p>
+                <p className="px-3 py-6 text-sm text-muted-foreground text-center">{t("noToc")}</p>
               ) : (
                 renderTocItems(toc)
               )}
@@ -256,7 +263,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
         <button
           onClick={() => controlsRef.current?.prev()}
           className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 shrink-0")}
-          aria-label="上一章"
+          aria-label={t("prevChapter")}
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -266,10 +273,10 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             <p className="text-xs text-muted-foreground truncate">{chapterName}</p>
           )}
           <p className="text-xs text-muted-foreground tabular-nums">
-            全书{" "}
+            {t("bookProgress")}{" "}
             {bookPercent == null ? "…" : `${Math.round(bookPercent)}%`}
             <span className="text-muted-foreground/70"> · </span>
-            本章{" "}
+            {t("chapterProgress")}{" "}
             {chapterPercent == null ? "…" : `${Math.round(chapterPercent)}%`}
           </p>
         </div>
@@ -277,7 +284,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
         <button
           onClick={() => controlsRef.current?.next()}
           className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 shrink-0")}
-          aria-label="下一章"
+          aria-label={t("nextChapter")}
         >
           <ChevronRight className="h-4 w-4" />
         </button>

@@ -3,15 +3,18 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { PublicLibraryClient } from "@/components/library/public-library-client";
 import { BookOpen, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getTranslations } from "next-intl/server";
 
-export default function PublicLibraryStorePage() {
+export default async function PublicLibraryStorePage() {
+  const t = await getTranslations("library");
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">公共书库</h1>
+          <h1 className="text-2xl font-bold">{t("storeTitle")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            浏览公共电子书，点进书籍查看详情；在详情页「开始阅读」会自动加入书架。需要上传新书请点击「上传到书库」。
+            {t("storeSubtitle")}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
@@ -20,11 +23,11 @@ export default function PublicLibraryStorePage() {
             className={cn(buttonVariants({ variant: "default" }), "justify-center")}
           >
             <Upload className="h-4 w-4 mr-2" />
-            上传到书库
+            {t("uploadToStore")}
           </Link>
           <Link href="/library" className={cn(buttonVariants({ variant: "outline" }), "justify-center")}>
             <BookOpen className="h-4 w-4 mr-2" />
-            我的书架
+            {t("myShelf")}
           </Link>
         </div>
       </div>

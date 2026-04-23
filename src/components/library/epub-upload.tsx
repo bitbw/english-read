@@ -16,8 +16,10 @@ import { EXTERNAL_EPUB_FIND_URL } from "@/lib/external-epub-find";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { useEpubCoverPreview } from "@/hooks/use-epub-cover-preview";
+import { useTranslations } from "next-intl";
 
 export function EpubUpload() {
+  const t = useTranslations("upload");
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -53,7 +55,7 @@ export function EpubUpload() {
     if (dropped?.name.endsWith(".epub")) {
       setFile(dropped);
     } else {
-      toast.error("请上传 .epub 格式的文件");
+      toast.error(t("invalidFormat"));
     }
   }
 
@@ -62,7 +64,7 @@ export function EpubUpload() {
     if (selected?.name.endsWith(".epub")) {
       setFile(selected);
     } else {
-      toast.error("请上传 .epub 格式的文件");
+      toast.error(t("invalidFormat"));
     }
   }
 
@@ -96,7 +98,7 @@ export function EpubUpload() {
             const cover = await postCoverUpload(coverFile);
             coverUrl = cover.url;
           } catch (coverErr) {
-            throw coverErr instanceof Error ? coverErr : new Error("封面上传失败");
+            throw coverErr instanceof Error ? coverErr : new Error(t("coverUploadFailed"));
           }
         } else {
           try {
@@ -117,7 +119,7 @@ export function EpubUpload() {
             const cover = await postCoverUpload(coverFile);
             coverUrl = cover.url;
           } catch (coverErr) {
-            throw coverErr instanceof Error ? coverErr : new Error("封面上传失败");
+            throw coverErr instanceof Error ? coverErr : new Error(t("coverUploadFailed"));
           }
         }
         /* 否则仅保留默认 title（文件名），author 为空 */
@@ -147,13 +149,13 @@ export function EpubUpload() {
       if (!bookRes.ok) return;
       const book = await bookRes.json();
 
-      toast.success(`《${title}》上传成功！`);
+      toast.success(t("uploadSuccess", { title }));
       router.push(`/read/${book.id}`);
     } catch (err) {
       if (err instanceof Error && err.message === CLIENT_FETCH_NETWORK_ERROR) {
         /* clientFetch 已 toast */
       } else {
-        toast.error(err instanceof Error ? err.message : "上传出错，请重试");
+        toast.error(err instanceof Error ? err.message : t("uploadError"));
       }
     } finally {
       setUploading(false);
@@ -196,16 +198,16 @@ export function EpubUpload() {
               onClick={(e) => { e.stopPropagation(); setFile(null); }}
             >
               <X className="h-4 w-4 mr-1" />
-              重新选择
+              {t("reselect")}
             </Button>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3">
             <Upload className="h-12 w-12 text-muted-foreground" />
             <div>
-              <p className="font-medium">拖拽 EPUB 文件到此处</p>
+              <p className="font-medium">{t("dropEpub")}</p>
               <p className="text-sm text-muted-foreground mt-1">
-                或点击选择文件 · 最大 50MB
+                {t("clickToSelect")}
               </p>
             </div>
           </div>
@@ -217,9 +219,9 @@ export function EpubUpload() {
           <div className="flex items-start gap-2 text-sm min-w-0">
             <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium">封面（可选）</p>
+              <p className="font-medium">{t("coverOptional")}</p>
               <p className="text-xs text-muted-foreground">
-                选书后会自动显示内嵌封面；也可手动替换为 JPG / PNG / WebP（最大 5MB）
+                {t("coverHint")}
               </p>
             </div>
           </div>
@@ -246,7 +248,7 @@ export function EpubUpload() {
               ) : epubCoverLoading ? (
                 <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" aria-hidden />
               ) : (
-                <span className="text-xs text-muted-foreground px-2">点击选择封面</span>
+                <span className="text-xs text-muted-foreground px-2">{t("clickSelectCover")}</span>
               )}
             </button>
             {coverFile ? (
@@ -266,9 +268,9 @@ export function EpubUpload() {
                 </Button>
               </div>
             ) : epubEmbeddedPreviewUrl ? (
-              <span className="text-xs text-muted-foreground">内嵌封面</span>
+              <span className="text-xs text-muted-foreground">{t("embeddedCover")}</span>
             ) : epubCoverLoading ? (
-              <span className="text-xs text-muted-foreground">正在读取封面…</span>
+              <span className="text-xs text-muted-foreground">{t("readingCover")}</span>
             ) : null}
           </div>
         </div>
@@ -282,15 +284,15 @@ export function EpubUpload() {
         {uploading ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            上传中...
+            {t("uploading")}
           </>
         ) : (
-          "上传并开始阅读"
+          t("uploadAndRead")
         )}
       </Button>
 
       <p className="text-sm text-muted-foreground max-w-xl text-left">
-        还没有 EPUB？可先到外部站点查找。
+        {t("noEpubHint")}
       </p>
       <div className="flex justify-start">
         <a
@@ -300,7 +302,7 @@ export function EpubUpload() {
           className={cn(buttonVariants({ variant: "outline" }), "justify-center")}
         >
           <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
-          去下载电子书
+          {t("downloadEbook")}
         </a>
       </div>
     </div>

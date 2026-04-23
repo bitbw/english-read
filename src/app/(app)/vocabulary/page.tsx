@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { clientFetch } from "@/lib/client-fetch";
 import { toastConfirmAction } from "@/lib/toast-confirm";
 import { ManualAddVocabularyDialog } from "@/components/vocabulary/manual-add-vocabulary-dialog";
+import { useTranslations } from "next-intl";
 
 type FilterType = "all" | "pending" | "mastered";
 
@@ -36,6 +37,7 @@ const PAGE_SIZE = 10;
 type VocabViewMode = "card" | "table";
 
 export default function VocabularyPage() {
+  const t = useTranslations("vocabulary");
   const [words, setWords] = useState<VocabWord[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -43,7 +45,8 @@ export default function VocabularyPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
-  const [dueCount, setDueCount] = useState(0);
+  /** null = 尚未拉取到期数量；避免首屏 0 导致「开始复习」整块晚出现 */
+  const [dueCount, setDueCount] = useState<number | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [listTick, setListTick] = useState(0);
   const [viewMode, setViewMode] = useState<VocabViewMode>("card");
@@ -93,7 +96,7 @@ export default function VocabularyPage() {
         return;
       }
       if (data.items.length === 0 && data.total > 0 && page > 1) {
-        setPage((p) => Math.max(1, p - 1));
+        setPage((prev) => Math.max(1, prev - 1));
         return;
       }
       setWords(data.items);
@@ -106,7 +109,10 @@ export default function VocabularyPage() {
 
   async function fetchDueCount() {
     const res = await clientFetch("/api/review", { showErrorToast: false });
-    if (!res.ok) return;
+    if (!res.ok) {
+      setDueCount(0);
+      return;
+    }
     const data = await res.json();
     const n = Array.isArray(data) ? data.length : (data.words?.length ?? 0);
     setDueCount(n);
@@ -122,31 +128,31 @@ export default function VocabularyPage() {
 
   async function handleManualAdded() {
     setPage(1);
-    setListTick((t) => t + 1);
+    setListTick((prev) => prev + 1);
     await fetchDueCount();
   }
 
   function handleDelete(id: string) {
     const word = words.find((w) => w.id === id);
-    const label = word?.word ?? "该单词";
+    const label = word?.word ?? id;
     toastConfirmAction({
-      message: `确定从生词本删除「${label}」？`,
-      description: "删除后需在阅读中重新添加才会回到生词本。",
-      confirmLabel: "确认删除",
+      message: t("deleteConfirm", { word: label }),
+      description: t("deleteDescription"),
+      confirmLabel: t("confirmDelete"),
       onConfirm: async () => {
         const res = await clientFetch(`/api/vocabulary/${id}`, { method: "DELETE" });
         if (res.ok) {
-          setListTick((t) => t + 1);
-          toast.success("已从生词本删除");
+          setListTick((prev) => prev + 1);
+          toast.success(t("deleteSuccess"));
         }
       },
     });
   }
 
   const filters: { value: FilterType; label: string }[] = [
-    { value: "all", label: "全部" },
-    { value: "pending", label: "复习中" },
-    { value: "mastered", label: "已掌握" },
+    { value: "all", label: t("filterAll") },
+    { value: "pending", label: t("filterPending") },
+    { value: "mastered", label: t("filterMastered") },
   ];
 
   return (
@@ -158,9 +164,9 @@ export default function VocabularyPage() {
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div className="min-w-0 shrink-0">
-          <h1 className="text-2xl font-bold">生词本</h1>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground mt-0.5 whitespace-nowrap sm:whitespace-normal">
-            共 {total} 条
+            {t("total", { count: total })}
           </p>
         </div>
         <div className="flex w-full flex-row flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
@@ -171,7 +177,7 @@ export default function VocabularyPage() {
             onClick={() => setAddOpen(true)}
           >
             <Plus className="h-4 w-4 shrink-0" />
-            <span className="truncate">手动添加</span>
+            <span className="truncate">{t("manualAdd")}</span>
           </Button>
           <ManualAddVocabularyDialog
             open={addOpen}
@@ -186,23 +192,23 @@ export default function VocabularyPage() {
             )}
           >
             <Calendar className="h-4 w-4 shrink-0" />
-            <span className="truncate">复习计划</span>
+            <span className="truncate">{t("reviewPlan")}</span>
           </Link>
-          {dueCount > 0 && (
-            <Link
-              href="/vocabulary/review"
-              className={cn(
-                buttonVariants(),
-                "inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial"
-              )}
-            >
-              <GraduationCap className="h-4 w-4 shrink-0" />
-              <span className="truncate">开始复习</span>
-              <Badge variant="secondary" className="shrink-0">
+          <Link
+            href="/vocabulary/review"
+            className={cn(
+              buttonVariants(),
+              "inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial"
+            )}
+          >
+            <GraduationCap className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t("startReview")}</span>
+            {dueCount !== null && dueCount > 0 && (
+              <Badge variant="secondary" className="shrink-0 tabular-nums">
                 {dueCount}
               </Badge>
-            </Link>
-          )}
+            )}
+          </Link>
         </div>
       </div>
 
@@ -226,7 +232,7 @@ export default function VocabularyPage() {
           <div
             className="inline-flex rounded-lg border border-foreground/10 bg-muted/30 p-0.5"
             role="group"
-            aria-label="展示形式"
+            aria-label={t("viewModeAriaLabel")}
           >
             <Button
               type="button"
@@ -234,7 +240,7 @@ export default function VocabularyPage() {
               size="icon"
               className="h-8 w-8"
               onClick={() => setViewMode("card")}
-              title="卡片"
+              title={t("cardView")}
               aria-pressed={viewMode === "card"}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -245,7 +251,7 @@ export default function VocabularyPage() {
               size="icon"
               className="h-8 w-8"
               onClick={() => setViewMode("table")}
-              title="表格"
+              title={t("tableView")}
               aria-pressed={viewMode === "table"}
             >
               <Table2 className="h-4 w-4" />
@@ -255,7 +261,7 @@ export default function VocabularyPage() {
         <div className="relative flex-1 sm:max-w-xs sm:min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="搜索单词..."
+            placeholder={t("searchPlaceholder")}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -295,10 +301,10 @@ export default function VocabularyPage() {
         )
       ) : (
         <div className="text-center py-16 text-muted-foreground">
-          <p className="text-lg">{search ? `没有找到"${search}"` : "生词本还没有单词"}</p>
+          <p className="text-lg">{search ? t("noResults", { search }) : t("emptyTitle")}</p>
           {!search && (
             <p className="text-sm mt-2">
-              点击「手动添加」或阅读时选中单词即可加入生词本
+              {t("emptyHint")}
             </p>
           )}
         </div>
@@ -311,9 +317,9 @@ export default function VocabularyPage() {
             variant="outline"
             size="sm"
             disabled={page <= 1 || loading}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
           >
-            上一页
+            {t("prevPage")}
           </Button>
           <span className="text-sm text-muted-foreground self-center tabular-nums">
             {page} / {totalPages}
@@ -323,9 +329,9 @@ export default function VocabularyPage() {
             variant="outline"
             size="sm"
             disabled={page >= totalPages || loading}
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => setPage((prev) => prev + 1)}
           >
-            下一页
+            {t("nextPage")}
           </Button>
         </div>
       )}

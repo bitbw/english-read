@@ -6,11 +6,14 @@ import { SessionProvider } from "next-auth/react";
 import { SentryUserSync } from "@/components/sentry-user-sync";
 import { Toaster } from "@/components/ui/sonner";
 import { auth } from "@/lib/auth";
+import { isProductionAnalytics } from "@/lib/analytics-env";
 import { setSentryUserFromSession } from "@/lib/sentry-user";
 import { Analytics } from "@vercel/analytics/next";
 import { PostHogIdentify } from "@/components/posthog-identify";
 import { PostHogProvider } from "@/components/posthog-provider";
 import { SuspendedPostHogPageView } from "@/components/posthog-pageview";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -35,28 +38,35 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
-  setSentryUserFromSession(session);
+  if (isProductionAnalytics) {
+    setSentryUserFromSession(session);
+  }
+
+  const locale = await getLocale();
+  const messages = await getMessages();
 
   return (
-    <html lang="zh" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <PostHogProvider>
-          <SessionProvider session={session}>
-            <SentryUserSync />
-            <PostHogIdentify />
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-              <SuspendedPostHogPageView />
-              {children}
-              <Toaster />
-            </ThemeProvider>
-          </SessionProvider>
-          <Analytics />
-        </PostHogProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <PostHogProvider enabled={isProductionAnalytics}>
+            <SessionProvider session={session}>
+              <SentryUserSync />
+              {isProductionAnalytics ? <PostHogIdentify /> : null}
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+              >
+                {isProductionAnalytics ? <SuspendedPostHogPageView /> : null}
+                {children}
+                <Toaster />
+              </ThemeProvider>
+            </SessionProvider>
+            {isProductionAnalytics ? <Analytics /> : null}
+          </PostHogProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

@@ -14,8 +14,10 @@ import { vocabularyDefinitionPreview } from "@/components/vocabulary/vocabulary-
 import { getStageColor, getStageName } from "@/lib/srs";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
-import { zhCN } from "date-fns/locale";
+import { zhCN, enUS } from "date-fns/locale";
 import { Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 
 interface VocabWord {
   id: string;
@@ -35,19 +37,22 @@ interface VocabularyWordTableProps {
 }
 
 export function VocabularyWordTable({ words, onDelete }: VocabularyWordTableProps) {
+  const t = useTranslations("vocabulary");
+  const locale = useLocale();
+  const dateFnsLocale = locale === "zh" ? zhCN : enUS;
   return (
     <div className="rounded-xl border border-foreground/10 bg-card">
       <Table className="min-w-[640px]">
         <TableHeader className="[&_th]:text-xs [&_th]:text-muted-foreground">
           <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="w-12 pl-3 text-center tabular-nums">序号</TableHead>
-            <TableHead>单词</TableHead>
-            <TableHead className="min-w-[200px] whitespace-normal">释义</TableHead>
-            <TableHead>阶段</TableHead>
-            <TableHead>复习</TableHead>
-            <TableHead>音标</TableHead>
+            <TableHead className="w-12 pl-3 text-center tabular-nums">{t("tableNo")}</TableHead>
+            <TableHead>{t("tableWord")}</TableHead>
+            <TableHead className="min-w-[200px] whitespace-normal">{t("tableDefinition")}</TableHead>
+            <TableHead>{t("tableStage")}</TableHead>
+            <TableHead>{t("tableReview")}</TableHead>
+            <TableHead>{t("tablePhonetic")}</TableHead>
             <TableHead className="w-12 pr-3 text-right">
-              <span className="sr-only">操作</span>
+              <span className="sr-only">{t("tableActions")}</span>
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -70,7 +75,7 @@ export function VocabularyWordTable({ words, onDelete }: VocabularyWordTableProp
                         !preview && "text-muted-foreground"
                       )}
                     >
-                      {preview || "暂无释义"}
+                      {preview || t("noDefinition")}
                     </p>
                     {word.context ? (
                       <p className="line-clamp-1 text-xs italic text-muted-foreground wrap-break-word">
@@ -86,14 +91,14 @@ export function VocabularyWordTable({ words, onDelete }: VocabularyWordTableProp
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {word.isMastered ? (
-                    <span>已掌握</span>
+                    <span>{t("mastered")}</span>
                   ) : isPastDue ? (
                     <Badge variant="destructive" className="px-1.5 py-0 text-[10px] font-normal">
-                      待复习
+                      {t("dueReview")}
                     </Badge>
                   ) : (
                     <span title={nextReview.toLocaleString()}>
-                      {formatDistanceToNow(nextReview, { addSuffix: true, locale: zhCN })}
+                      {formatDistanceToNow(nextReview, { addSuffix: true, locale: dateFnsLocale })}
                     </span>
                   )}
                 </TableCell>

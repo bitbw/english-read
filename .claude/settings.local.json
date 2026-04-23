@@ -12,7 +12,12 @@
       "Bash(echo:*)",
       "Bash(yarn build)",
       "Bash(tree:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(find D:/bowen/git-project/english-read -maxdepth 2 -type f \\\\\\( -name \"*.config.*\" -o -name \"next.config.*\" -o -name \"tsconfig.*\" -o -name \".env*\" \\\\\\) 2>/dev/null | head -20)",
+      "Bash(ls -la D:/bowen/git-project/english-read/ | grep -E \"\\\\.\\(ts|js\\)$|\\\\.config\")",
+      "Bash(cd \"D:\\\\bowen\\\\git-project\\\\english-read\" && yarn add next-intl 2>&1 | tail -5)",
+      "Bash(cd \"D:\\\\bowen\\\\git-project\\\\english-read\" && yarn add next-intl 2>&1)",
+      "Bash(cd \"D:\\\\bowen\\\\git-project\\\\english-read\" && grep -rn --include=\"*.tsx\" -P \"[\\\\x{4e00}-\\\\x{9fff}]\" src/components/ src/app/ 2>/dev/null | grep -v \"//\\\\|/\\\\*\\\\|debugLog\\\\|messages\\\\|i18n\\\\|\\\\.json\\\\|node_modules\\\\|src/app/dev\\\\|vocabulary-definition-view\\\\|reading-tier\" | grep -v '^\\\\s*//' | grep \"\\\\\"[^\\\\\"]*[\\\\x{4e00}-\\\\x{9fff}]\" 2>/dev/null | head -20)"
     ]
   }
 }

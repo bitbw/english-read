@@ -5,10 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BookOpen } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { zhCN } from "date-fns/locale";
+import { zhCN, enUS } from "date-fns/locale";
 import { DeleteBookButton } from "./delete-book-button";
 import { ChangeCoverButton } from "./change-cover-button";
 import { RemoveFromShelfButton } from "./remove-from-shelf-button";
+import { useTranslations, useLocale } from "next-intl";
 
 export type LibraryBookCardBook = {
   id: string;
@@ -17,12 +18,14 @@ export type LibraryBookCardBook = {
   coverUrl: string | null;
   readingProgress: number | null;
   lastReadAt: Date | string | null;
-  /** 来自公共书库：可阅读、可从书架移除，不可换封面（与私有上传区分） */
   publicBookId?: string | null;
 };
 
 export function LibraryBookCard(book: LibraryBookCardBook) {
   const router = useRouter();
+  const t = useTranslations("library");
+  const locale = useLocale();
+  const dateLocale = locale === "zh" ? zhCN : enUS;
 
   function goRead() {
     router.push(`/read/${book.id}`);
@@ -30,8 +33,8 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
 
   const lastRead =
     book.lastReadAt != null
-      ? formatDistanceToNow(new Date(book.lastReadAt), { addSuffix: true, locale: zhCN })
-      : "未开始";
+      ? formatDistanceToNow(new Date(book.lastReadAt), { addSuffix: true, locale: dateLocale })
+      : t("notStarted");
 
   const fromPublicLibrary = Boolean(book.publicBookId);
 
@@ -48,7 +51,7 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
           goRead();
         }
       }}
-      aria-label={`阅读《${book.title}》`}
+      aria-label={t("readAriaLabel", { title: book.title })}
     >
       <CardContent className="p-2.5 sm:p-4">
         <div className="w-full aspect-[2/3] rounded-md overflow-hidden mb-2 sm:mb-3 bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center group-hover:opacity-90 transition-opacity">
@@ -74,7 +77,7 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
 
         <div className="mt-2 sm:mt-3 space-y-1">
           <div className="flex justify-between gap-1 text-[11px] sm:text-xs text-muted-foreground">
-            <span className="min-w-0 shrink-0 truncate">阅读进度</span>
+            <span className="min-w-0 shrink-0 truncate">{t("readingProgress")}</span>
             <span className="tabular-nums shrink-0">{book.readingProgress ?? 0}%</span>
           </div>
           <Progress value={book.readingProgress ?? 0} className="h-1 sm:h-1.5" />
@@ -92,8 +95,8 @@ export function LibraryBookCard(book: LibraryBookCardBook) {
           >
             {fromPublicLibrary ? (
               <>
-                <span className="text-[10px] sm:text-[11px] text-muted-foreground whitespace-nowrap shrink-0" title="来自公共书库，封面与文件由书库统一管理">
-                  书库
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground whitespace-nowrap shrink-0" title={t("fromPublicLibTitle")}>
+                  {t("fromPublicLib")}
                 </span>
                 <RemoveFromShelfButton bookId={book.id} bookTitle={book.title} />
               </>

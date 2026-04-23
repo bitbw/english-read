@@ -21,8 +21,9 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
-import { getTierLabel, type ReadingTierId } from "@/lib/reading-tiers";
+import type { ReadingTierId } from "@/lib/reading-tiers";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 export type PublicBookDetailPayload = {
   id: string;
@@ -71,6 +72,7 @@ function MetaRow({
 export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload }) {
   const router = useRouter();
   const [starting, setStarting] = useState(false);
+  const t = useTranslations("library");
 
   async function startReading() {
     if (book.shelfBookId) {
@@ -87,9 +89,9 @@ export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload
       if (!res.ok) return;
       const data = (await res.json()) as { bookId: string; alreadyAdded?: boolean };
       if (data.alreadyAdded) {
-        toast.info("本书已在你的书架中");
+        toast.info(t("alreadyOnShelf"));
       } else {
-        toast.success("已加入书架");
+        toast.success(t("addedToShelf"));
       }
       router.push(`/read/${data.bookId}`);
     } catch (e) {
@@ -113,7 +115,7 @@ export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload
         )}
       >
         <ArrowLeft className="h-4 w-4 mr-1" />
-        返回书库
+        {t("backToStore")}
       </Link>
 
       <Card className="overflow-hidden py-0 gap-0 shadow-sm ring-1 ring-foreground/10">
@@ -137,11 +139,11 @@ export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <Badge variant="secondary" className="font-normal gap-1">
                   <Layers className="h-3 w-3 opacity-80" />
-                  {getTierLabel(book.tier)}
+                  {t(`readingTier.${book.tier}`)}
                 </Badge>
                 {book.shelfBookId && (
                   <Badge variant="outline" className="font-normal text-muted-foreground border-border">
-                    已在书架
+                    {t("onShelfBadge")}
                   </Badge>
                 )}
               </div>
@@ -156,16 +158,16 @@ export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload
               <Separator className="my-6" />
 
               <div className="rounded-xl border border-border/80 bg-muted/25 p-4 space-y-4">
-                <MetaRow icon={Calendar} label="入库时间">
+                <MetaRow icon={Calendar} label={t("metaDateAdded")}>
                   {book.createdAtLabel}
                 </MetaRow>
                 {sizeLabel && (
-                  <MetaRow icon={HardDrive} label="文件大小">
+                  <MetaRow icon={HardDrive} label={t("metaFileSize")}>
                     {sizeLabel}
                   </MetaRow>
                 )}
                 {book.uploaderName && (
-                  <MetaRow icon={User} label="上传者">
+                  <MetaRow icon={User} label={t("metaUploader")}>
                     {book.uploaderName}
                   </MetaRow>
                 )}
@@ -176,7 +178,7 @@ export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload
 
         <CardFooter className="flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between border-t bg-muted/40 px-6 py-5 sm:px-8">
           <p className="text-xs text-muted-foreground text-center sm:text-left order-2 sm:order-1 sm:max-w-md">
-            开始阅读时会自动将本书加入你的书架，之后在「我的书架」中可随时打开。
+            {t("readDesc")}
           </p>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto order-1 sm:order-2 shrink-0">
             <Button
@@ -189,9 +191,9 @@ export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload
               {starting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : book.shelfBookId ? (
-                "继续阅读"
+                t("continueReading")
               ) : (
-                "开始阅读"
+                t("startReading")
               )}
             </Button>
             <Link
@@ -202,7 +204,7 @@ export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload
               )}
             >
               <Library className="h-4 w-4 mr-2 opacity-80" />
-              我的书架
+              {t("myShelf")}
             </Link>
           </div>
         </CardFooter>

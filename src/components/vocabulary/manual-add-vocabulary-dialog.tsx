@@ -21,6 +21,7 @@ import {
   playPronunciationMp3 as playPronunciationMp3Url,
   stopPronunciationAudio,
 } from "@/lib/pronunciation-audio";
+import { useTranslations } from "next-intl";
 
 interface Definition {
   partOfSpeech: string;
@@ -45,6 +46,7 @@ export function ManualAddVocabularyDialog({
   onOpenChange,
   onAdded,
 }: ManualAddVocabularyDialogProps) {
+  const t = useTranslations("dialog");
   const [word, setWord] = useState("");
   const [reference, setReference] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -224,7 +226,7 @@ export function ManualAddVocabularyDialog({
     e.preventDefault();
     const w = trimmedWord;
     if (!w) {
-      toast.error("请填写单词或短语");
+      toast.error(t("fillWord"));
       return;
     }
     if (!canSubmitToVocab || alreadyInVocabulary) {
@@ -253,11 +255,11 @@ export function ManualAddVocabularyDialog({
         return;
       }
       if (data.alreadyExists) {
-        toast.message(`「${w}」已在生词本中`);
+        toast.message(t("alreadyExists", { word: w }));
         onOpenChange(false);
         return;
       }
-      toast.success(`「${w}」已加入生词本，将按复习计划提醒`);
+      toast.success(t("addedSuccess", { word: w }));
       setWord("");
       setReference("");
       setPhonetic("");
@@ -279,19 +281,19 @@ export function ManualAddVocabularyDialog({
       <DialogContent className="sm:max-w-lg max-h-[min(85vh,calc(100dvh-2rem))] overflow-y-auto" showCloseButton>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>手动添加生词</DialogTitle>
+            <DialogTitle>{t("addVocabTitle")}</DialogTitle>
             <DialogDescription>
-              输入后会自动查询音标与释义（与阅读划词相同数据源）；加入生词本时一并保存，并进入复习计划。
+              {t("addVocabDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="grid gap-2">
-              <Label htmlFor="vocab-manual-word">单词或短语</Label>
+              <Label htmlFor="vocab-manual-word">{t("wordLabel")}</Label>
               <Input
                 id="vocab-manual-word"
                 value={word}
                 onChange={(e) => setWord(e.target.value)}
-                placeholder="例如：serendipity 或 in spite of"
+                placeholder={t("wordPlaceholder")}
                 maxLength={500}
                 autoComplete="off"
               />
@@ -309,7 +311,7 @@ export function ManualAddVocabularyDialog({
                       ) : null}
                     </>
                   ) : (
-                    <span className="text-xs text-muted-foreground">输入单词或短语后将显示音标与释义</span>
+                    <span className="text-xs text-muted-foreground">{t("noWordYet")}</span>
                   )}
                 </div>
                 {trimmedWord && !dictLoading ? (
@@ -319,7 +321,7 @@ export function ManualAddVocabularyDialog({
                         type="button"
                         onClick={speakTts}
                         className="text-muted-foreground hover:text-foreground p-0.5 rounded"
-                        title="发音（语音合成）"
+                        title={t("ttsPronunciation")}
                       >
                         <Volume2 className="h-3.5 w-3.5" />
                       </button>
@@ -329,17 +331,17 @@ export function ManualAddVocabularyDialog({
                           type="button"
                           onClick={() => playPronunciationMp3(audioUs)}
                           className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium"
-                          title="美音"
+                          title={t("usAccent")}
                         >
-                          美
+                          {t("usAccent")}
                         </button>
                         <button
                           type="button"
                           onClick={() => playPronunciationMp3(audioUk)}
                           className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium"
-                          title="英音"
+                          title={t("ukAccent")}
                         >
-                          英
+                          {t("ukAccent")}
                         </button>
                       </>
                     ) : audioUs || audioUk ? (
@@ -347,7 +349,7 @@ export function ManualAddVocabularyDialog({
                         type="button"
                         onClick={() => playPronunciationMp3(audioUs || audioUk)}
                         className="text-muted-foreground hover:text-foreground p-0.5 rounded"
-                        title={audioUs ? "美音" : "英音"}
+                        title={audioUs ? t("usAccent") : t("ukAccent")}
                       >
                         <Volume2 className="h-3.5 w-3.5" />
                       </button>
@@ -356,7 +358,7 @@ export function ManualAddVocabularyDialog({
                         type="button"
                         onClick={speakTts}
                         className="text-muted-foreground hover:text-foreground p-0.5 rounded"
-                        title="发音（语音合成）"
+                        title={t("ttsPronunciation")}
                       >
                         <Volume2 className="h-3.5 w-3.5" />
                       </button>
@@ -368,7 +370,7 @@ export function ManualAddVocabularyDialog({
               {dictLoading ? (
                 <div className="flex items-center gap-2 text-muted-foreground py-1">
                   <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-                  <span className="text-xs">查询释义中…</span>
+                  <span className="text-xs">{t("lookingUpDef")}</span>
                 </div>
               ) : trimmedWord ? (
                 <>
@@ -396,7 +398,7 @@ export function ManualAddVocabularyDialog({
                   ) : null}
                   {!translation && definitions.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
-                      暂无释义或翻译，请检查拼写或稍后重试
+                      {t("noDefinitionOrTranslation")}
                     </p>
                   ) : null}
                 </>
@@ -404,12 +406,12 @@ export function ManualAddVocabularyDialog({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="vocab-manual-ref">引用（可选）</Label>
+              <Label htmlFor="vocab-manual-ref">{t("contextLabel")}</Label>
               <Textarea
                 id="vocab-manual-ref"
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
-                placeholder="原文句子、书名章节或你自己的笔记…"
+                placeholder={t("contextPlaceholder")}
                 rows={3}
                 maxLength={4000}
                 className="resize-y min-h-[72px]"
@@ -418,7 +420,7 @@ export function ManualAddVocabularyDialog({
           </div>
           <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              取消
+              {t("cancel")}
             </Button>
             <Button
               type="submit"
@@ -426,25 +428,25 @@ export function ManualAddVocabularyDialog({
               variant={alreadyInVocabulary ? "secondary" : "default"}
               title={
                 !trimmedWord
-                  ? "请先输入单词或短语"
+                  ? t("titleEnterWord")
                   : dictLoading
-                    ? "请等待释义加载完成"
+                    ? t("titleWaitingDef")
                     : lookupLoading
-                      ? "正在检查是否已在生词本"
+                      ? t("titleCheckingVocab")
                       : alreadyInVocabulary
-                        ? "该词已在生词本中，无需重复添加"
+                        ? t("titleAlreadyIn")
                         : !hasSavableDefinition
-                          ? "暂无词典释义或翻译，无法加入生词本"
+                          ? t("titleNoDefinition")
                           : undefined
               }
             >
               {submitting
-                ? "添加中…"
+                ? t("submitting")
                 : alreadyInVocabulary
-                  ? "已在生词本中"
+                  ? t("alreadyInVocab")
                   : lookupLoading && trimmedWord
-                    ? "检查生词本中…"
-                    : "加入生词本"}
+                    ? t("checkingVocab")
+                    : t("addToVocab")}
             </Button>
           </div>
         </form>

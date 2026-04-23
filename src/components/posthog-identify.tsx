@@ -17,6 +17,9 @@ export function PostHogIdentify() {
       const props: Record<string, string> = {};
       if (user.email) props.email = user.email;
       if (user.name) props.name = user.name;
+      if (typeof user.image === "string" && user.image.trim()) {
+        props.avatar = user.image.trim();
+      }
       posthog.identify(user.id, props);
     } else {
       posthog.reset();

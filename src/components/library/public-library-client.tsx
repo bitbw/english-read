@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookOpen, Loader2, Search } from "lucide-react";
 import { clientFetch } from "@/lib/client-fetch";
-import { READING_TIERS, getTierLabel, type ReadingTierId } from "@/lib/reading-tiers";
+import { READING_TIERS, type ReadingTierId } from "@/lib/reading-tiers";
+import { useTranslations } from "next-intl";
 
 type PublicItem = {
   id: string;
@@ -22,6 +23,7 @@ type PublicItem = {
 };
 
 export function PublicLibraryClient() {
+  const t = useTranslations("library");
   const [tier, setTier] = useState<ReadingTierId | "all">("all");
   const [q, setQ] = useState("");
   const [items, setItems] = useState<PublicItem[]>([]);
@@ -60,17 +62,17 @@ export function PublicLibraryClient() {
             size="sm"
             onClick={() => { setPage(1); setTier("all"); }}
           >
-            全部
+            {t("filterAll")}
           </Button>
-          {READING_TIERS.map((t) => (
+          {READING_TIERS.map((item) => (
             <Button
-              key={t.id}
+              key={item.id}
               type="button"
-              variant={tier === t.id ? "default" : "outline"}
+              variant={tier === item.id ? "default" : "outline"}
               size="sm"
-              onClick={() => { setPage(1); setTier(t.id); }}
+              onClick={() => { setPage(1); setTier(item.id); }}
             >
-              {t.label}
+              {t(`readingTier.${item.id}`)}
             </Button>
           ))}
         </div>
@@ -79,7 +81,7 @@ export function PublicLibraryClient() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               className="pl-9"
-              placeholder="搜索书名或作者"
+              placeholder={t("searchPlaceholder")}
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => {
@@ -91,7 +93,7 @@ export function PublicLibraryClient() {
             />
           </div>
           <Button type="button" variant="secondary" size="sm" onClick={() => { setPage(1); void loadList(); }}>
-            搜索
+            {t("search")}
           </Button>
         </div>
       </div>
@@ -104,8 +106,7 @@ export function PublicLibraryClient() {
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">
             <BookOpen className="h-12 w-12 opacity-40" />
-            <p>暂无书籍</p>
-            {/* <p className="text-sm">点击上方「上传到书库」添加第一本吧</p> */}
+            <p>{t("noBooks")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -131,11 +132,11 @@ export function PublicLibraryClient() {
                   {item.author && (
                     <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1 mt-0.5">{item.author}</p>
                   )}
-                  <p className="text-[11px] sm:text-xs text-primary mt-1">{getTierLabel(item.tier)}</p>
+                  <p className="text-[11px] sm:text-xs text-primary mt-1">{t(`readingTier.${item.tier}`)}</p>
                   {item.uploaderName && (
-                    <p className="text-[10px] text-muted-foreground mt-1 truncate">上传：{item.uploaderName}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1 truncate">{t("uploadedBy", { name: item.uploaderName })}</p>
                   )}
-                  <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-2">点击查看详情</p>
+                  <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-2">{t("clickForDetail")}</p>
                 </CardContent>
               </Card>
             </Link>
@@ -152,7 +153,7 @@ export function PublicLibraryClient() {
             disabled={page <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
-            上一页
+            {t("prevPage")}
           </Button>
           <span className="text-sm text-muted-foreground self-center tabular-nums">
             {page} / {totalPages}
@@ -164,7 +165,7 @@ export function PublicLibraryClient() {
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
           >
-            下一页
+            {t("nextPage")}
           </Button>
         </div>
       )}

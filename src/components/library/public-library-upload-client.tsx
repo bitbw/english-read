@@ -8,18 +8,21 @@ import { FileText, ImageIcon, Loader2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { upload } from "@vercel/blob/client";
 import { clientFetch } from "@/lib/client-fetch";
-import { getTierLabel, type ReadingTierId } from "@/lib/reading-tiers";
+import type { ReadingTierId } from "@/lib/reading-tiers";
 import {
   extractCoverFileFromEpubBook,
   type EpubBookForCover,
 } from "@/lib/extract-epub-cover";
 import { postCoverUpload } from "@/lib/post-cover-upload";
 import { useEpubCoverPreview } from "@/hooks/use-epub-cover-preview";
+import { useTranslations } from "next-intl";
 
 const MAX_EPUB_BYTES = 50 * 1024 * 1024;
 const MULTIPART_THRESHOLD = 5 * 1024 * 1024;
 
 export function PublicLibraryUploadClient() {
+  const t = useTranslations("upload");
+  const tLibrary = useTranslations("library");
   const router = useRouter();
   const epubInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -55,7 +58,7 @@ export function PublicLibraryUploadClient() {
     if (dropped?.name.toLowerCase().endsWith(".epub")) {
       setEpubFile(dropped);
     } else {
-      toast.error("请上传 .epub 格式的文件");
+      toast.error(t("invalidFormat"));
     }
   }
 
@@ -64,22 +67,22 @@ export function PublicLibraryUploadClient() {
     if (selected?.name.toLowerCase().endsWith(".epub")) {
       setEpubFile(selected);
     } else if (selected) {
-      toast.error("请上传 .epub 格式的文件");
+      toast.error(t("invalidFormat"));
     }
   }
 
   async function handlePublicUpload() {
     const file = epubFile;
     if (!file) {
-      toast.error("请先选择 EPUB 文件");
+      toast.error(t("selectEpubFirst"));
       return;
     }
     if (!file.name.toLowerCase().endsWith(".epub")) {
-      toast.error("请上传 .epub 文件");
+      toast.error(t("epubFormatRequired"));
       return;
     }
     if (file.size > MAX_EPUB_BYTES) {
-      toast.error("文件不能超过 50MB");
+      toast.error(t("fileTooLarge"));
       return;
     }
     setUploading(true);
@@ -107,7 +110,7 @@ export function PublicLibraryUploadClient() {
             const cover = await postCoverUpload(coverFile);
             coverUrl = cover.url;
           } catch (coverErr) {
-            throw coverErr instanceof Error ? coverErr : new Error("封面上传失败");
+            throw coverErr instanceof Error ? coverErr : new Error(t("coverUploadFailed"));
           }
         } else {
           try {
@@ -128,7 +131,7 @@ export function PublicLibraryUploadClient() {
             const cover = await postCoverUpload(coverFile);
             coverUrl = cover.url;
           } catch (coverErr) {
-            throw coverErr instanceof Error ? coverErr : new Error("封面上传失败");
+            throw coverErr instanceof Error ? coverErr : new Error(t("coverUploadFailed"));
           }
         }
       }
@@ -157,10 +160,12 @@ export function PublicLibraryUploadClient() {
       });
       if (!fin.ok) return;
       const data = (await fin.json()) as { tier: ReadingTierId };
-      toast.success(`上传成功，已归入「${getTierLabel(data.tier)}」`);
+      toast.success(
+        t("uploadPublicSuccess", { tier: tLibrary(`readingTier.${data.tier}`) })
+      );
       router.push("/library/store");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "上传出错";
+      const msg = e instanceof Error ? e.message : t("uploadError");
       toast.error(msg);
     } finally {
       setUploading(false);
@@ -208,15 +213,15 @@ export function PublicLibraryUploadClient() {
               }}
             >
               <X className="h-4 w-4 mr-1" />
-              重新选择
+              {t("reselect")}
             </Button>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3">
             <Upload className="h-12 w-12 text-muted-foreground" />
             <div>
-              <p className="font-medium">拖拽 EPUB 到此处</p>
-              <p className="text-sm text-muted-foreground mt-1">或点击选择 · 最大 50MB</p>
+              <p className="font-medium">{t("dropEpubShort")}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("clickToSelectShort")}</p>
             </div>
           </div>
         )}
@@ -227,9 +232,9 @@ export function PublicLibraryUploadClient() {
           <div className="flex items-start gap-2 text-sm min-w-0">
             <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium">封面（可选）</p>
+              <p className="font-medium">{t("coverOptional")}</p>
               <p className="text-xs text-muted-foreground">
-                选书后会自动显示内嵌封面；也可手动替换为 JPG / PNG / WebP（最大 5MB）
+                {t("coverHint")}
               </p>
             </div>
           </div>
@@ -256,7 +261,7 @@ export function PublicLibraryUploadClient() {
               ) : epubCoverLoading ? (
                 <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" aria-hidden />
               ) : (
-                <span className="text-xs text-muted-foreground px-2">点击选择封面</span>
+                <span className="text-xs text-muted-foreground px-2">{t("clickSelectCover")}</span>
               )}
             </button>
             {coverFile ? (
@@ -276,9 +281,9 @@ export function PublicLibraryUploadClient() {
                 </Button>
               </div>
             ) : epubEmbeddedPreviewUrl ? (
-              <span className="text-xs text-muted-foreground">内嵌封面</span>
+              <span className="text-xs text-muted-foreground">{t("embeddedCover")}</span>
             ) : epubCoverLoading ? (
-              <span className="text-xs text-muted-foreground">正在读取封面…</span>
+              <span className="text-xs text-muted-foreground">{t("readingCover")}</span>
             ) : null}
           </div>
         </div>
@@ -293,12 +298,12 @@ export function PublicLibraryUploadClient() {
         {uploading ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            上传中…
+            {t("uploading")}
           </>
         ) : (
           <>
             <Upload className="h-4 w-4 mr-2" />
-            上传到书库
+            {t("uploadToLibrary")}
           </>
         )}
       </Button>

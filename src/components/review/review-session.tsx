@@ -46,6 +46,7 @@ import {
   playPronunciationMp3,
   stopPronunciationAudio,
 } from "@/lib/pronunciation-audio";
+import { useTranslations } from "next-intl";
 
 const REVIEW_AUTO_PLAY_PRONUNCIATION_KEY = "english-read-review-auto-play-pronunciation";
 
@@ -152,10 +153,12 @@ function ReviewContextQuote({
   context,
   word,
   compact,
+  label,
 }: {
   context: string;
   word: string;
   compact?: boolean;
+  label: string;
 }) {
   const parts = splitContextWithHighlight(context, word);
   return (
@@ -166,7 +169,7 @@ function ReviewContextQuote({
           : "rounded-lg border border-border bg-muted/30 px-3 py-3 text-left"
       }
     >
-      <p className="text-[11px] font-medium text-muted-foreground mb-1.5">原文</p>
+      <p className="text-[11px] font-medium text-muted-foreground mb-1.5">{label}</p>
       <p
         className={
           compact
@@ -197,11 +200,17 @@ function ReviewPronunciationControls({
   audioUsTrim,
   audioUkTrim,
   phrase,
+  labelUs,
+  labelUk,
+  labelTts,
 }: {
   word: string;
   audioUsTrim: string;
   audioUkTrim: string;
   phrase: boolean;
+  labelUs: string;
+  labelUk: string;
+  labelTts: string;
 }) {
   const w = word.trim();
   const speakTts = useCallback(() => speakReviewWordTts(w), [w]);
@@ -221,7 +230,7 @@ function ReviewPronunciationControls({
         type="button"
         onClick={speakTts}
         className="text-muted-foreground hover:text-foreground p-0.5 rounded"
-        title="发音（语音合成）"
+        title={labelTts}
       >
         <Volume2 className="h-3.5 w-3.5" />
       </button>
@@ -235,24 +244,24 @@ function ReviewPronunciationControls({
           type="button"
           onClick={() => playMp3(audioUsTrim)}
           className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium"
-          title="美音"
+          title={labelUs}
         >
-          美
+          {labelUs}
         </button>
         <button
           type="button"
           onClick={() => playMp3(audioUkTrim)}
           className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded text-xs font-medium"
-          title="英音"
+          title={labelUk}
         >
-          英
+          {labelUk}
         </button>
       </span>
     );
   }
   if (audioUsTrim || audioUkTrim) {
     const url = audioUsTrim || audioUkTrim;
-    const title = audioUsTrim ? "美音" : "英音";
+    const title = audioUsTrim ? labelUs : labelUk;
     return (
       <button
         type="button"
@@ -269,7 +278,7 @@ function ReviewPronunciationControls({
       type="button"
       onClick={speakTts}
       className="text-muted-foreground hover:text-foreground p-0.5 rounded"
-      title="发音（语音合成）"
+      title={labelTts}
     >
       <Volume2 className="h-3.5 w-3.5" />
     </button>
@@ -282,6 +291,7 @@ export function ReviewSession({
   reviewScopeDay,
   onComplete,
 }: ReviewSessionProps) {
+  const t = useTranslations("review");
   const [queue, setQueue] = useState<ReviewWord[]>(words);
   const [failVersions, setFailVersions] = useState<Record<string, number>>({});
   const [step, setStep] = useState<Step>("meaning");
@@ -358,7 +368,7 @@ export function ReviewSession({
   useEffect(() => {
     if (!autoPlayPronunciation || step !== "meaning" || !current) return;
     const url = preferredPronunciationUrl(current);
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       if (url) {
         playPronunciationMp3(url, () => speakReviewWordTts(current.word));
       } else {
@@ -366,7 +376,7 @@ export function ReviewSession({
       }
     }, 120);
     return () => {
-      clearTimeout(t);
+      clearTimeout(timer);
       stopPronunciationAudio();
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
@@ -463,12 +473,12 @@ export function ReviewSession({
       if (cancelled) return;
       if (zh && looksLikeChinese(zh)) setSpellGlossDisplay(zh);
       else if (sync && looksLikeChinese(sync)) setSpellGlossDisplay(sync);
-      else setSpellGlossDisplay(zh || "暂无中文释义");
+      else setSpellGlossDisplay(zh || t("noZhDefinition"));
     })();
     return () => {
       cancelled = true;
     };
-  }, [step, current, current?.id, current?.word, current?.definition]);
+  }, [step, current, current?.id, current?.word, current?.definition, t]);
 
   const bumpFailForHead = useCallback(() => {
     const head = queue[0];
@@ -486,14 +496,14 @@ export function ReviewSession({
   }, []);
 
   const onMeaningWrong = useCallback(() => {
-    toast.error("选错了，本题已移到本轮最后再来一遍");
+    toast.error(t("wrongMoved"));
     bumpFailForHead();
     if (queue.length <= 1) {
       setStep("meaning");
       return;
     }
     moveHeadToEnd();
-  }, [bumpFailForHead, moveHeadToEnd, queue.length]);
+  }, [bumpFailForHead, moveHeadToEnd, queue.length, t]);
 
   const clearSpellingAssemblyError = useCallback(() => {
     setSpellingAssemblyError(false);
@@ -601,7 +611,7 @@ export function ReviewSession({
         setSpellingShakePlay(false);
         spellingShakeTimerRef.current = null;
       }, 450);
-      toast.error("拼写不正确，请修改后再提交");
+      toast.error(t("spellingWrong"));
       return;
     }
 
@@ -653,21 +663,21 @@ export function ReviewSession({
     return (
       <div className="flex flex-col items-center justify-center gap-6 py-12">
         <div className="text-4xl">🎉</div>
-        <h2 className="text-2xl font-bold">本轮复习完成！</h2>
+        <h2 className="text-2xl font-bold">{t("finished")}</h2>
         <div className="flex gap-6 text-center">
           <div>
             <p className="text-3xl font-bold text-green-600">{rememberedCount}</p>
-            <p className="text-sm text-muted-foreground mt-1">已记住（释义+拼写）</p>
+            <p className="text-sm text-muted-foreground mt-1">{t("rememberedLabel")}</p>
           </div>
           {requeuedCount > 0 && (
             <div>
               <p className="text-3xl font-bold text-amber-600">{requeuedCount}</p>
-              <p className="text-sm text-muted-foreground mt-1">错题重排队尾次数</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("requeuedLabel")}</p>
             </div>
           )}
         </div>
         <p className="text-muted-foreground text-sm text-center max-w-sm">
-          只有中文义与拼写都正确才会记入间隔复习；答错的题会自动排到本轮末尾再练。已过关的词会记在本地，刷新页面当天不必重做。
+          {t("finishedHint")}
         </p>
       </div>
     );
@@ -710,9 +720,9 @@ export function ReviewSession({
       size="icon"
       className="absolute top-2 right-2 z-10 size-9 shrink-0 text-muted-foreground hover:text-foreground"
       onClick={toggleAutoPlayPronunciation}
-      title={autoPlayPronunciation ? "关闭自动发音" : "开启自动发音"}
+      title={autoPlayPronunciation ? t("autoPlayOn") : t("autoPlayOff")}
       aria-pressed={autoPlayPronunciation}
-      aria-label={autoPlayPronunciation ? "关闭自动发音" : "开启自动发音"}
+      aria-label={autoPlayPronunciation ? t("autoPlayOn") : t("autoPlayOff")}
     >
       {autoPlayPronunciation ? (
         <Volume2 className="h-5 w-5" />
@@ -728,7 +738,7 @@ export function ReviewSession({
         <div className="w-full">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
             <span>
-              已掌握 {rememberedCount} / 本轮共 {totalInRound} 词
+              {t("progressLabel", { remembered: rememberedCount, total: totalInRound })}
             </span>
             <span className="text-green-600">✓ {rememberedCount}</span>
           </div>
@@ -736,7 +746,9 @@ export function ReviewSession({
         </div>
 
         <Badge variant="secondary" className="text-xs">
-          第 {current.reviewStage === 0 ? "首次" : `${current.reviewStage}`} 次复习
+          {current.reviewStage === 0
+            ? t("reviewNth", { n: t("firstReview") })
+            : t("reviewNth", { n: current.reviewStage })}
         </Badge>
 
       {step === "meaning" && (
@@ -753,36 +765,39 @@ export function ReviewSession({
                 audioUsTrim={audioUsTrim}
                 audioUkTrim={audioUkTrim}
                 phrase={phraseSpelling}
+                labelUs="US"
+                labelUk="UK"
+                labelTts="TTS"
               />
             </div>
           </div>
 
           {current.context ? (
-            <ReviewContextQuote context={current.context} word={current.word} />
+            <ReviewContextQuote context={current.context} word={current.word} label={t("originalText")} />
           ) : (
-            <p className="text-xs text-center text-muted-foreground">暂无保存时的原文片段</p>
+            <p className="text-xs text-center text-muted-foreground">{t("noContext")}</p>
           )}
 
           {meaningLoading || !meaningQuiz ? (
             <div className="flex flex-col items-center gap-2 py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">正在加载中文释义…</p>
+              <p className="text-sm text-muted-foreground">{t("loadingMeaning")}</p>
             </div>
           ) : meaningQuiz.skipMeaning ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground text-center">
-                暂时无法取得该词的中文翻译，本轮仅考查拼写。
+                {t("noMeaningNote")}
               </p>
               <Button className="w-full" onClick={onSkipMeaningToSpelling}>
-                开始拼写
+                {t("startSpelling")}
               </Button>
             </div>
           ) : (
             <>
               <p className="text-sm font-medium text-center">
                 {meaningPhase === "pick"
-                  ? "选择正确的中文释义（翻面后可见英文）"
-                  : "翻面：对应英文"}
+                  ? t("choosePrompt")
+                  : t("flipSide")}
               </p>
               <div className="grid gap-3">
                 {meaningQuiz.options.map((opt, i) => {
@@ -843,7 +858,7 @@ export function ReviewSession({
                             </p>
                             {!opt.english ? (
                               <p className="text-xs text-muted-foreground text-center mt-2">
-                                此为占位干扰项
+                                {t("placeholderDistractor")}
                               </p>
                             ) : null}
                           </div>
@@ -856,10 +871,10 @@ export function ReviewSession({
               {meaningPhase === "revealed" && pickMeta && (
                 <div className="space-y-2 pt-1">
                   <p className="text-sm text-center text-muted-foreground">
-                    {pickMeta.correct ? "回答正确。" : "回答错误，本题将排到本轮末尾。"}
+                    {pickMeta.correct ? t("correctAnswer") : t("wrongAnswer")}
                   </p>
                   <Button className="w-full" onClick={proceedAfterMeaningReveal}>
-                    {pickMeta.correct ? "继续拼写" : "下一题"}
+                    {pickMeta.correct ? t("continueSpelling") : t("nextQuestion")}
                   </Button>
                 </div>
               )}
@@ -872,7 +887,7 @@ export function ReviewSession({
         <Card className="relative w-full p-6 space-y-5">
           {autoPlayPronunciationToggle}
           <div className="rounded-lg border border-border bg-muted/30 px-3 py-3 text-center space-y-1">
-            <p className="text-[11px] font-medium text-muted-foreground">中文释义</p>
+            <p className="text-[11px] font-medium text-muted-foreground">{t("chineseMeaning")}</p>
             {spellGlossDisplay ? (
               <p className="text-sm font-medium text-foreground leading-snug">{spellGlossDisplay}</p>
             ) : (
@@ -886,13 +901,16 @@ export function ReviewSession({
                 audioUsTrim={audioUsTrim}
                 audioUkTrim={audioUkTrim}
                 phrase={phraseSpelling}
+                labelUs="US"
+                labelUk="UK"
+                labelTts="TTS"
               />
             </div>
           </div>
 
           {spellHintShown ? (
             <div className="rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-center space-y-1">
-              <p className="text-[11px] font-medium text-amber-950/80 dark:text-amber-100/90">提示</p>
+              <p className="text-[11px] font-medium text-amber-950/80 dark:text-amber-100/90">{t("hint")}</p>
               <p
                 className={cn(
                   "font-semibold tracking-tight text-foreground",
@@ -918,19 +936,19 @@ export function ReviewSession({
             >
               <Lightbulb className="h-4 w-4 mr-2" />
               {spellHintLevel === 0
-                ? "提示（先露出一部分）"
+                ? t("hintBtn0")
                 : spellHintLevel === 1
-                  ? "再提示（显示整词）"
-                  : "已全部提示"}
+                  ? t("hintBtn1")
+                  : t("hintBtn2")}
             </Button>
           </div>
 
           <p className="text-sm font-medium text-center">
             {phraseSpelling
-              ? "点选单词块组合，或在下方输入框键入完整词组（可用空格）"
+              ? t("spellingPromptPhrase")
               : spellingChunkCount > 0
-                ? "点选字块/字母组合，或在下方输入框键入完整单词"
-                : "点选字母组合，或在下方输入框键入完整单词"}
+                ? t("spellingPromptChunk")
+                : t("spellingPromptLetter")}
           </p>
           <div
             className={cn(
@@ -957,14 +975,14 @@ export function ReviewSession({
                   </span>
                 ))
               ) : manualSpelling.trim() !== "" ? (
-                <span className="text-sm text-muted-foreground">当前使用键盘输入作答</span>
+                <span className="text-sm text-muted-foreground">{t("usingKeyboard")}</span>
               ) : (
                 <span className="text-sm text-muted-foreground">
                   {phraseSpelling
-                    ? "点选下方单词块，或使用输入框"
+                    ? t("clickWordsBelow")
                     : spellingChunkCount > 0
-                      ? "点选下方字块或字母，或使用输入框"
-                      : "点选下方字母，或使用输入框"}
+                      ? t("clickChunksBelow")
+                      : t("clickLettersBelow")}
                 </span>
               )}
             </div>
@@ -974,8 +992,8 @@ export function ReviewSession({
               onChange={(e) => onManualSpellingChange(e.target.value)}
               placeholder={
                 phraseSpelling
-                  ? "手动输入完整词组（单词间可空格）"
-                  : "手动输入完整单词"
+                  ? t("inputPhrasePlaceholder")
+                  : t("inputWordPlaceholder")
               }
               autoComplete="off"
               autoCapitalize="off"
@@ -984,12 +1002,12 @@ export function ReviewSession({
                 "w-full font-mono text-base bg-background/80",
                 phraseSpelling ? "tracking-tight" : ""
               )}
-              aria-label={phraseSpelling ? "手动输入词组拼写" : "手动输入单词拼写"}
+              aria-label={phraseSpelling ? t("inputPhraseAriaLabel") : t("inputWordAriaLabel")}
             />
           </div>
           {spellingAssemblyError ? (
             <p className="text-sm text-destructive text-center -mt-2">
-              与目标拼写不符，请修改点选、输入框内容或清空后重试，拼对后才能提交进入下一词。
+              {t("spellingError")}
             </p>
           ) : null}
 
@@ -997,7 +1015,7 @@ export function ReviewSession({
             {spellingChunkCount > 0 ? (
               <>
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground text-center">字块</p>
+                  <p className="text-xs font-medium text-muted-foreground text-center">{t("chunks")}</p>
                   <div className="flex flex-wrap gap-2 justify-center">
                     {spellingSlotOrder
                       .filter((id) => id < spellingChunkCount)
@@ -1023,7 +1041,7 @@ export function ReviewSession({
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground text-center">字母</p>
+                  <p className="text-xs font-medium text-muted-foreground text-center">{t("letters")}</p>
                   <div className="flex flex-wrap gap-2 justify-center">
                     {spellingSlotOrder
                       .filter((id) => id >= spellingChunkCount)
@@ -1077,11 +1095,11 @@ export function ReviewSession({
           <div className="flex gap-2">
             <Button type="button" variant="outline" className="flex-1" onClick={undoChip}>
               <Undo2 className="h-4 w-4 mr-2" />
-              撤销一步
+              {t("undo")}
             </Button>
             <Button type="button" variant="outline" className="flex-1" onClick={clearSpelling}>
               <Delete className="h-4 w-4 mr-2" />
-              清空重选
+              {t("clearSpelling")}
             </Button>
           </div>
 
@@ -1094,13 +1112,13 @@ export function ReviewSession({
             onClick={() => void confirmSpelling()}
           >
             <CheckCircle2 className="h-4 w-4 mr-2" />
-            {submitting ? "提交中…" : "确认拼写"}
+            {submitting ? t("submitting") : t("confirmSpelling")}
           </Button>
         </Card>
       )}
 
       <p className="text-xs text-muted-foreground text-center px-2">
-        释义干扰项优先来自与当前词相关的英文联想词（Datamuse），不足时辅以词库中近形词。拼写环节：单词同时提供字块与字母点选（各含少量干扰），也可在输入框内手动键入；词组按单词块点选或手动输入均可。
+        {t("reviewInfo")}
       </p>
       </div>
     </div>

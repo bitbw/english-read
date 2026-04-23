@@ -2,7 +2,6 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { publicLibraryBooks } from "@/lib/db/schema";
 import { assignPublicReadingTier } from "@/lib/assign-public-tier";
-import { getTierLabel } from "@/lib/reading-tiers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -57,7 +56,6 @@ export async function POST(req: Request) {
     id: row.id,
     title: row.title,
     tier: row.tier,
-    tierLabel: getTierLabel(tier),
     tierSource: row.tierSource,
   });
 }
