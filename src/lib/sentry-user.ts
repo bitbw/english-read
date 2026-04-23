@@ -9,10 +9,16 @@ export function setSentryUserFromSession(
 ): void {
   const user = session?.user;
   if (user?.id) {
+    const image =
+      typeof user.image === "string" && user.image.trim()
+        ? user.image.trim()
+        : undefined;
     Sentry.setUser({
       id: user.id,
       email: user.email ?? undefined,
       username: user.name ?? undefined,
+      // User 类型含索引签名；Issue JSON / 部分 UI 的 User 区块会带上自定义字段（非头像组件）
+      ...(image ? { avatar_url: image } : {}),
     });
   } else {
     Sentry.setUser(null);

@@ -58,7 +58,7 @@ export default async function RootLayout({
               <Toaster />
             </ThemeProvider>
           </SessionProvider>
-          <Analytics />
+          {isProductionAnalytics ? <Analytics /> : null}
         </PostHogProvider>
       </body>
     </html>
