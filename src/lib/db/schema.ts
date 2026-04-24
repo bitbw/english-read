@@ -21,6 +21,8 @@ export const users = pgTable("users", {
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name"),
   email: text("email").unique(),
+  /** 中国大陆 11 位手机号，与邮箱登录二选一可空 */
+  phone: text("phone").unique(),
   emailVerified: timestamp("email_verified", { mode: "date" }),
   image: text("image"),
   /** 邮箱密码注册用户；OAuth 用户为 null */

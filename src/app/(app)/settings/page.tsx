@@ -163,7 +163,12 @@ export default function SettingsPage() {
             <Avatar className="h-16 w-16 shrink-0">
               <AvatarImage src={session?.user?.image ?? ""} />
               <AvatarFallback className="text-lg">
-                {(session?.user?.name?.[0] ?? session?.user?.email?.[0] ?? "U").toUpperCase()}
+                {(
+                  session?.user?.name?.[0] ??
+                  session?.user?.email?.[0] ??
+                  session?.user?.phone?.[0] ??
+                  "U"
+                ).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1 space-y-3">
@@ -171,7 +176,9 @@ export default function SettingsPage() {
                 <p className="font-medium truncate">
                   {session?.user?.name?.trim() ? session.user.name : t("noDisplayName")}
                 </p>
-                <p className="text-sm text-muted-foreground truncate">{session?.user?.email}</p>
+                <p className="text-sm text-muted-foreground truncate">
+                  {session?.user?.email ?? session?.user?.phone ?? ""}
+                </p>
               </div>
               <input
                 ref={avatarFileInputRef}

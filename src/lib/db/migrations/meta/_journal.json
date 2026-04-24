@@ -43,6 +43,13 @@
       "when": 1776391549814,
       "tag": "0005_vocabulary_audio_urls",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777011884125,
+      "tag": "0006_user_phone",
+      "breakpoints": true
     }
   ]
 }

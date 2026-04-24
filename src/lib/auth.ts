@@ -4,14 +4,87 @@ import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
+import { verifySmsCode } from "@/lib/aliyun-dypns";
 import { db } from "@/lib/db";
 import { users, accounts, sessions, verificationTokens } from "@/lib/db/schema";
+import {
+  maskPhoneForDisplay,
+  parsePhoneOtpPayload,
+} from "@/lib/phone-auth";
 
 /**
  * `useSession().update(payload)` 会通过 POST /session 传入 `session`；JWT 里头像字段为 `picture`。
  * 需在 DB 刷新之后合并，以便与接口返回一致并覆盖可能的读延迟。
  */
+function phoneMatchWhere(
+  e164: string,
+  /** 仅中国大陆：历史数据可能为 11 位无 +86 */
+  legacy11For86: string | null,
+) {
+  if (legacy11For86) {
+    return or(eq(users.phone, e164), eq(users.phone, legacy11For86));
+  }
+  return eq(users.phone, e164);
+}
+
+/** 新用户存 E.164（+区号+国内号码）；老用户可能为 11 位国内号 */
+async function findOrCreateUserByPhoneE164(
+  e164: string,
+  legacy11For86: string | null,
+) {
+  const [existing] = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      image: users.image,
+      phone: users.phone,
+    })
+    .from(users)
+    .where(phoneMatchWhere(e164, legacy11For86))
+    .limit(1);
+  if (existing) return existing;
+
+  const defaultName = e164.startsWith("+86")
+    ? `手机用户 ${maskPhoneForDisplay(e164)}`
+    : `User ${maskPhoneForDisplay(e164)}`;
+  try {
+    const [created] = await db
+      .insert(users)
+      .values({
+        name: defaultName,
+        phone: e164,
+        email: null,
+      })
+      .returning({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        image: users.image,
+        phone: users.phone,
+      });
+    return created;
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err.code === "23505") {
+      const [again] = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          image: users.image,
+          phone: users.phone,
+        })
+        .from(users)
+        .where(phoneMatchWhere(e164, legacy11For86))
+        .limit(1);
+      if (again) return again;
+    }
+    throw e;
+  }
+}
+
 function mergeClientSessionIntoJwt(
   token: { name?: unknown; email?: unknown; picture?: unknown },
   raw: unknown,
@@ -100,14 +173,59 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     }),
+    Credentials({
+      id: "phone-otp",
+      name: "phone-otp",
+      credentials: {
+        countryCode: { label: "Country", type: "text" },
+        phone: { label: "Phone", type: "text" },
+        code: { label: "Code", type: "text" },
+      },
+      async authorize(credentials) {
+        const rawCc = credentials?.countryCode;
+        const rawPhone = credentials?.phone;
+        const rawCode = credentials?.code;
+        if (typeof rawCode !== "string") {
+          return null;
+        }
+        const parsed = parsePhoneOtpPayload(rawCc, rawPhone);
+        const code = rawCode.trim();
+        if (!parsed || !code) return null;
+        if (
+          !(await verifySmsCode(
+            parsed.localDigits,
+            parsed.countryCode,
+            code,
+          ))
+        ) {
+          return null;
+        }
+
+        const legacy11 =
+          parsed.countryCode === "86" && parsed.localDigits.length === 11
+            ? parsed.localDigits
+            : null;
+        const row = await findOrCreateUserByPhoneE164(parsed.e164, legacy11);
+        if (!row) return null;
+
+        return {
+          id: row.id,
+          email: row.email,
+          name: row.name,
+          image: row.image,
+          phone: row.phone,
+        };
+      },
+    }),
   ],
   callbacks: {
     async jwt({ token, user, trigger, session: clientSession }) {
       if (user) {
         token.sub = user.id ?? token.sub;
-        token.email = user.email;
+        token.email = user.email ?? undefined;
         token.name = user.name;
         token.picture = user.image;
+        token.phone = user.phone ?? null;
       }
       if (trigger === "update" && token.sub) {
         const [row] = await db
@@ -115,6 +233,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             name: users.name,
             email: users.email,
             image: users.image,
+            phone: users.phone,
           })
           .from(users)
           .where(eq(users.id, token.sub as string))
@@ -123,6 +242,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.name = row.name;
           token.email = row.email;
           token.picture = row.image;
+          token.phone = row.phone;
         }
         mergeClientSessionIntoJwt(token, clientSession);
       }
@@ -132,6 +252,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.sub) {
         session.user.id = token.sub;
       }
+      session.user.phone = (token.phone as string | null | undefined) ?? null;
       return session;
     },
   },
