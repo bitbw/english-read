@@ -364,9 +364,9 @@ export function ReviewSession({
     if (main) main.scrollTop = 0;
   }, [current?.id]);
 
-  /** 释义题展示单词时自动播放（优先美音，无 mp3 时用语音合成）；切题或离开本步时停止 */
+  /** 释义题与拼写题进入时自动播放（优先美音，无 mp3 时用语音合成）；切题或离开本步时停止 */
   useEffect(() => {
-    if (!autoPlayPronunciation || step !== "meaning" || !current) return;
+    if (!autoPlayPronunciation || !current) return;
     const url = preferredPronunciationUrl(current);
     const timer = window.setTimeout(() => {
       if (url) {
