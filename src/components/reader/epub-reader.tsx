@@ -13,6 +13,8 @@ import { clientFetch } from "@/lib/client-fetch";
 import { debounce } from "@/lib/debounce";
 import { readerDebugLog } from "@/lib/reader-debug";
 import { useTranslations } from "next-intl";
+import { useTheme } from "next-themes";
+import { applyReaderSkinToContents } from "@/components/reader/reader-skin-css";
 
 interface SelectionInfo {
   word: string;
@@ -203,6 +205,9 @@ export function EpubReader({
   onTocReady,
 }: EpubReaderProps) {
   const t = useTranslations("reader");
+  const { resolvedTheme } = useTheme();
+  const resolvedThemeRef = useRef(resolvedTheme);
+  resolvedThemeRef.current = resolvedTheme;
   const viewerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
@@ -440,6 +445,10 @@ export function EpubReader({
         setSelection(null);
       });
 
+      rendition.hooks.content.register((contents: Contents) => {
+        applyReaderSkinToContents(contents, resolvedThemeRef.current === "dark");
+      });
+
       rendition.themes.fontSize(`${fontSize}px`);
 
       await displayInitialReadingPosition(rendition, initialCfi, () => mounted);
@@ -472,6 +481,17 @@ export function EpubReader({
     renditionRef.current?.themes.fontSize(`${fontSize}px`);
   }, [fontSize]);
 
+  /** 全局亮/暗切换时同步 iframe 内阅读皮肤（不重载 epub）。 */
+  useEffect(() => {
+    const rendition = renditionRef.current;
+    if (!rendition) return;
+    const isDark = resolvedTheme === "dark";
+    const contentsList = rendition.getContents() as unknown as Contents[];
+    for (const c of contentsList) {
+      applyReaderSkinToContents(c, isDark);
+    }
+  }, [resolvedTheme]);
+
   /** 左右方向键翻页（与 iframe 内滚动不冲突时由窗口捕获）。 */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -483,10 +503,10 @@ export function EpubReader({
   }, []);
 
   return (
-    <div className="relative h-full w-full min-h-0">
+    <div className="relative h-full w-full min-h-0 bg-background">
       <div
         ref={viewerRef}
-        className="h-full w-full min-h-0 overflow-hidden [overflow-anchor:none]"
+        className="h-full w-full min-h-0 overflow-hidden bg-background [overflow-anchor:none]"
         style={VIEWER_HOST_STYLE}
       />
       {bookLoading ? (
