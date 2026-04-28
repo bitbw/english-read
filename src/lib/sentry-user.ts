@@ -19,6 +19,7 @@ export function setSentryUserFromSession(
       username: user.name ?? undefined,
       // User 类型含索引签名；Issue JSON / 部分 UI 的 User 区块会带上自定义字段（非头像组件）
       ...(image ? { avatar_url: image } : {}),
+      ...(user.phone ? { phone: user.phone } : {}),
     });
   } else {
     Sentry.setUser(null);

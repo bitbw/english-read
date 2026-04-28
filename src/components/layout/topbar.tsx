@@ -158,7 +158,7 @@ export function Topbar() {
             <div className="flex flex-col px-2 py-1.5">
               <p className="text-sm font-medium truncate">{session.user.name}</p>
               <p className="text-xs text-muted-foreground truncate">
-                {session.user.email}
+                {session.user.email ?? session.user.phone ?? ""}
               </p>
             </div>
             <DropdownMenuSeparator />

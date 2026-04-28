@@ -183,7 +183,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-background">
       {/* 顶栏：返回 + 书名 + 字号调节 + 章节目录 */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-card shrink-0">
         <Link

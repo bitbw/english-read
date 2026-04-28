@@ -1,6 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ClipboardEvent,
+  type SubmitEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -15,7 +21,22 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DEFAULT_PHONE_COUNTRY_CODE,
+  PHONE_COUNTRY_CALLING_CODES,
+  isSupportedCountryCode,
+  isValidLocalForCountry,
+} from "@/lib/phone-countries";
 import { PasswordInput } from "@/components/ui/password-input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslations } from "next-intl";
 
 type LoginFormProps = {
@@ -24,13 +45,72 @@ type LoginFormProps = {
 
 type OAuthProvider = "google" | "github";
 
+const SMS_CODE_LEN = { min: 4, max: 8 } as const;
+
+/**
+ * 从整段剪贴/短信文字中提取 4～8 位连续数字，符合本页验证码与阿里云常见长度。
+ */
+function parseSmsOtpFromString(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+  if (new RegExp(`^\\d{${SMS_CODE_LEN.min},${SMS_CODE_LEN.max}}$`).test(t)) {
+    return t;
+  }
+  const compact = t.replace(/\D/g, "");
+  if (
+    compact.length >= SMS_CODE_LEN.min &&
+    compact.length <= SMS_CODE_LEN.max
+  ) {
+    return compact;
+  }
+  const m = t.match(new RegExp(`\\d{${SMS_CODE_LEN.min},${SMS_CODE_LEN.max}}`));
+  if (m) return m[0] ?? null;
+  return null;
+}
+
+function setInputValueAndNotify(input: HTMLInputElement, value: string) {
+  const proto = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    "value",
+  );
+  proto?.set?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
 export function LoginForm({ className }: LoginFormProps) {
   const router = useRouter();
   const t = useTranslations("auth");
   const [error, setError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [phoneLoginPending, setPhoneLoginPending] = useState(false);
+  const [codeCooldown, setCodeCooldown] = useState(0);
+  const [countryCode, setCountryCode] = useState(DEFAULT_PHONE_COUNTRY_CODE);
   const [oauthPending, setOauthPending] = useState<OAuthProvider | null>(null);
-  const busy = pending || oauthPending !== null;
+  const phoneBusy = sendingCode || phoneLoginPending;
+  const busy = pending || oauthPending !== null || phoneBusy;
+
+  const tryFillCodeFromClipboard = useCallback(() => {
+    const el = document.getElementById("login-sms-code") as HTMLInputElement | null;
+    if (!el || el.disabled) return;
+    if (el.value.trim() !== "") return;
+    if (!navigator.clipboard?.readText) return;
+    void navigator.clipboard.readText().then(
+      (text) => {
+        const o = parseSmsOtpFromString(text);
+        if (o) setInputValueAndNotify(el, o);
+      },
+      () => {},
+    );
+  }, []);
+
+  useEffect(() => {
+    if (codeCooldown <= 0) return;
+    const id = setTimeout(() => setCodeCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [codeCooldown]);
 
   async function signInWithOAuth(provider: OAuthProvider) {
     setOauthPending(provider);
@@ -41,7 +121,80 @@ export function LoginForm({ className }: LoginFormProps) {
     }
   }
 
-  async function onCredentialsSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSendCode() {
+    setPhoneError(null);
+    const el = document.getElementById("login-phone") as HTMLInputElement | null;
+    const raw = el?.value?.trim() ?? "";
+    const digits = raw.replace(/\D/g, "");
+    if (!isValidLocalForCountry(countryCode, digits)) {
+      setPhoneError(t("invalidPhone"));
+      return;
+    }
+    setSendingCode(true);
+    try {
+      const res = await fetch("/api/auth/sms/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ countryCode, phone: digits }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      if (!res.ok) {
+        setPhoneError(data.message ?? t("loginFailed"));
+        return;
+      }
+      setCodeCooldown(60);
+      requestAnimationFrame(() => {
+        const el = document.getElementById("login-sms-code") as HTMLInputElement | null;
+        el?.focus();
+        tryFillCodeFromClipboard();
+      });
+    } catch {
+      setPhoneError(t("loginFailed"));
+    } finally {
+      setSendingCode(false);
+    }
+  }
+
+  async function onPhoneSubmit(e: SubmitEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setPhoneError(null);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const cc = String(fd.get("countryCode") ?? "").trim();
+    const phone = String(fd.get("phone") ?? "").replace(/\D/g, "");
+    const code = String(fd.get("code") ?? "").trim();
+    if (
+      !isSupportedCountryCode(cc) ||
+      !isValidLocalForCountry(cc, phone) ||
+      !code
+    ) {
+      setPhoneError(t("fillPhoneCode"));
+      return;
+    }
+    setPhoneLoginPending(true);
+    try {
+      const res = await signIn("phone-otp", {
+        countryCode: cc,
+        phone,
+        code,
+        redirect: false,
+      });
+      if (res?.error) {
+        setPhoneError(t("phoneOrCodeError"));
+        return;
+      }
+      if (res?.ok) {
+        router.replace("/dashboard");
+        router.refresh();
+        return;
+      }
+      setPhoneError(t("loginFailed"));
+    } finally {
+      setPhoneLoginPending(false);
+    }
+  }
+
+  async function onCredentialsSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     const form = e.currentTarget;
@@ -83,40 +236,169 @@ export function LoginForm({ className }: LoginFormProps) {
             {t("loginSubtitle")}
           </p>
         </div>
-        <form className="flex flex-col gap-4" onSubmit={onCredentialsSubmit}>
-          <Field>
-            <FieldLabel htmlFor="login-email">{t("email")}</FieldLabel>
-            <Input
-              id="login-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              required
-              disabled={busy}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="login-password">{t("password")}</FieldLabel>
-            <PasswordInput
-              id="login-password"
-              name="password"
-              autoComplete="current-password"
-              required
-              disabled={busy}
-            />
-          </Field>
-          {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
-          <Field>
-            <Button type="submit" className="w-full" disabled={busy}>
-              {pending ? t("loggingIn") : t("loginButton")}
-            </Button>
-          </Field>
-        </form>
+        <Tabs
+          defaultValue="phone"
+          className="w-full gap-4"
+          onValueChange={() => {
+            setError(null);
+            setPhoneError(null);
+          }}
+        >
+          <TabsList
+            className="w-full min-w-0 grid h-auto min-h-8 grid-cols-2 gap-0.5 p-0.5 group-data-horizontal/tabs:h-auto group-data-horizontal/tabs:min-h-8 group-data-horizontal/tabs:items-stretch"
+          >
+            <TabsTrigger value="phone" className="min-w-0 flex-1 self-stretch px-2 py-1.5">
+              {t("phone")}
+            </TabsTrigger>
+            <TabsTrigger value="email" className="min-w-0 flex-1 self-stretch px-2 py-1.5">
+              {t("email")}
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="phone" className="mt-0">
+            <form className="flex flex-col gap-4" onSubmit={onPhoneSubmit}>
+              <input type="hidden" name="countryCode" value={countryCode} />
+              <Field>
+                <FieldLabel htmlFor="login-phone">{t("phone")}</FieldLabel>
+                <div className="flex min-w-0 gap-2">
+                  <Select
+                    value={countryCode}
+                    onValueChange={(v) => {
+                      if (typeof v === "string" && isSupportedCountryCode(v)) {
+                        setCountryCode(v);
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      id="login-country-code"
+                      size="default"
+                      className="h-9 w-18 shrink-0 font-mono text-sm sm:w-20"
+                      aria-label={
+                        isSupportedCountryCode(countryCode)
+                          ? t(`phoneCountry.${countryCode}`)
+                          : t(`phoneCountry.${DEFAULT_PHONE_COUNTRY_CODE}`)
+                      }
+                    >
+                      <SelectValue>
+                        {(val: string | null) => `+${val ?? DEFAULT_PHONE_COUNTRY_CODE}`}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent
+                      alignItemWithTrigger={false}
+                      className="min-w-[min(100vw-2rem,20rem)] max-w-[min(100vw-2rem,20rem)]"
+                    >
+                      <SelectGroup>
+                        {PHONE_COUNTRY_CALLING_CODES.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {t(`phoneCountry.${c.code}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="login-phone"
+                    name="phone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    placeholder={t("phonePlaceholder")}
+                    maxLength={15}
+                    disabled={busy}
+                    className="min-w-0 flex-1"
+                  />
+                </div>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="login-sms-code">{t("verificationCode")}</FieldLabel>
+                <div className="flex min-w-0 gap-2">
+                  <Input
+                    id="login-sms-code"
+                    name="code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder={t("codePlaceholder")}
+                    maxLength={8}
+                    disabled={busy}
+                    className="min-w-0 flex-1"
+                    onPaste={(e: ClipboardEvent<HTMLInputElement>) => {
+                      const text = e.clipboardData.getData("text/plain");
+                      const o = parseSmsOtpFromString(text);
+                      if (o) {
+                        e.preventDefault();
+                        setInputValueAndNotify(e.currentTarget, o);
+                      }
+                    }}
+                    onFocus={() => {
+                      tryFillCodeFromClipboard();
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-9 shrink-0"
+                    disabled={busy || codeCooldown > 0}
+                    onClick={() => void onSendCode()}
+                  >
+                    {sendingCode ? (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                    ) : codeCooldown > 0 ? (
+                      t("resendIn", { seconds: codeCooldown })
+                    ) : (
+                      t("sendCode")
+                    )}
+                  </Button>
+                </div>
+              </Field>
+              {phoneError ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {phoneError}
+                </p>
+              ) : null}
+              <Field>
+                <Button type="submit" className="w-full" disabled={busy}>
+                  {phoneLoginPending ? t("phoneLoginPending") : t("phoneLogin")}
+                </Button>
+              </Field>
+            </form>
+          </TabsContent>
+          <TabsContent value="email" className="mt-0">
+            <form className="flex flex-col gap-4" onSubmit={onCredentialsSubmit}>
+              <Field>
+                <FieldLabel htmlFor="login-email">{t("email")}</FieldLabel>
+                <Input
+                  id="login-email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder={t("emailPlaceholder")}
+                  required
+                  disabled={busy}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="login-password">{t("password")}</FieldLabel>
+                <PasswordInput
+                  id="login-password"
+                  name="password"
+                  autoComplete="current-password"
+                  required
+                  disabled={busy}
+                />
+              </Field>
+              {error ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <Field>
+                <Button type="submit" className="w-full" disabled={busy}>
+                  {pending ? t("loggingIn") : t("loginButton")}
+                </Button>
+              </Field>
+            </form>
+          </TabsContent>
+        </Tabs>
         <FieldSeparator>{t("or")}</FieldSeparator>
         <Field className="gap-3">
           <Button
