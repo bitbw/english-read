@@ -114,7 +114,6 @@
     "themeModeHint": "Switch between light / dark / system",
     "about": "About",
     "aboutVersion": "English Read v1.0",
-    "aboutDescription": "English reading tool built with Next.js 14 + Vercel",
     "aboutAlgo": "Vocabulary review uses Ebbinghaus spaced repetition algorithm",
     "github": "GitHub Repository",
     "githubHint": "Welcome to report issues and contribute code",

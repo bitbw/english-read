@@ -391,7 +391,6 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>{t("aboutVersion")}</p>
-          <p>{t("aboutDescription")}</p>
           <p>{t("aboutAlgo")}</p>
           <p>
             <a
