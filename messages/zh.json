@@ -114,7 +114,6 @@
     "themeModeHint": "切换浅色 / 深色 / 跟随系统",
     "about": "关于",
     "aboutVersion": "English Read v1.0",
-    "aboutDescription": "基于 Next.js 14 + Vercel 构建的英语阅读工具",
     "aboutAlgo": "词汇复习采用艾宾浩斯遗忘曲线算法",
     "github": "GitHub 开源仓库",
     "githubHint": "欢迎反馈问题与贡献代码",
