@@ -272,16 +272,17 @@ vercel --prod     # 生产部署
 
 1. **环境变量** — 在 Vercel → **Settings** → **Environment Variables** 中配置与 `.env.local` 对应的项；将 **`AUTH_URL`** 设为生产站点根地址（例如 `https://你的域名.vercel.app`），不要使用 `http://localhost:3000`。
 2. **OAuth** — 在 Google Cloud Console 与 GitHub OAuth 中确认生产回调 URL（见 §2）。
-3. **可选业务能力** — 按需从 [`.env.example`](./.env.example) 同步：
+3. **可选业务能力** — 变量名与说明见 [`.env.example`](./.env.example)。**获取方式**如下：
 
-   | 变量 | 用途 |
-   |------|------|
-   | `AI_GATEWAY_API_KEY` | Vercel AI Gateway；复习相似词干扰项（`/api/review/similar-words`） |
-   | `GOOGLE_TRANSLATE_API_KEY` | `/api/dictionary` 机翻回退 |
-   | `NEXT_PUBLIC_POSTHOG_KEY`、`NEXT_PUBLIC_POSTHOG_HOST` | PostHog 埋点 |
-   | `ALIBABA_CLOUD_*`、`ALIYUN_SMS_*` | 阿里云短信验证码登录 |
+   | 变量 | 用途 | 获取方式 |
+   |------|------|----------|
+   | `AI_GATEWAY_API_KEY` | 复习相似词干扰项（`/api/review/similar-words`） | [Vercel 控制台](https://vercel.com/dashboard) → **AI** → **AI Gateway** → API 密钥 · [AI Gateway 文档](https://vercel.com/docs/ai-gateway) |
+   | `GOOGLE_TRANSLATE_API_KEY` | `/api/dictionary` 机翻回退 | [Google Cloud Console](https://console.cloud.google.com/) → 启用 [Cloud Translation API](https://console.cloud.google.com/apis/library/translate.googleapis.com) → **API 与服务** → **凭据** → 创建 API 密钥 |
+   | `NEXT_PUBLIC_POSTHOG_KEY`、`NEXT_PUBLIC_POSTHOG_HOST` | PostHog 客户端埋点 | [PostHog](https://app.posthog.com/) → **项目设置** → **Project API Key**；`HOST` 为分区采集地址（见 [分区说明](https://posthog.com/docs/api#capture-api)，如 `https://us.i.posthog.com`） |
+   | `ALIBABA_CLOUD_ACCESS_KEY_ID`、`ALIBABA_CLOUD_ACCESS_KEY_SECRET`、`ALIYUN_SMS_SIGN_NAME`、`ALIYUN_SMS_TEMPLATE_CODE` 等 | 阿里云短信 OTP（融合认证 DYPNS）登录 | AccessKey：[RAM 访问控制](https://ram.console.aliyun.com/manage/ak)；签名与模板：[号码认证控制台](https://dypns.console.aliyun.com/)；RAM 需 `dypns:SendSmsVerifyCode`、`CheckSmsVerifyCode`；仓库内说明见 [`docs/阿里云/`](./docs/阿里云/) |
+   | `SENTRY_AUTH_TOKEN` | 构建时上传 **source map**（堆栈可读） | [Sentry](https://sentry.io) → 组织 → **Settings** → **Developer Settings** → **Auth Tokens** · [Next.js Source Maps](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#step-4-add-readable-stack-traces-with-source-maps-optional) |
 
-4. **Sentry** — 生产环境（`NODE_ENV === "production"`）已在代码中启用上报。若要在构建时**上传 source map** 以获得可读堆栈，在 Vercel 中配置 **`SENTRY_AUTH_TOKEN`**（见 [Sentry Next.js 文档](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#step-4-add-readable-stack-traces-with-source-maps-optional)），该项为可选。
+   **Sentry 运行时** — DSN 已写在代码中，生产环境（`NODE_ENV === "production"`）会自动上报。**`SENTRY_AUTH_TOKEN`** 仅在需要在 Vercel 构建阶段上传 source map 时配置。
 
 ### 8. 数据库表结构一览
 

@@ -264,16 +264,17 @@ vercel --prod     # production
 
 1. **Environment variables** — Mirror `.env.local` in Vercel → **Settings** → **Environment Variables**. Set **`AUTH_URL`** to your production site origin (e.g. `https://your-domain.vercel.app`), not `http://localhost:3000`.
 2. **OAuth** — Add production redirect URIs in Google Cloud Console and GitHub OAuth App settings (see §2).
-3. **Optional product features** — Copy from [`.env.example`](./.env.example) as needed:
+3. **Optional product features** — Names and comments match [`.env.example`](./.env.example). Where to obtain:
 
-   | Variables | Purpose |
-   |-----------|---------|
-   | `AI_GATEWAY_API_KEY` | Vercel AI Gateway — similar-word distractors in review (`/api/review/similar-words`) |
-   | `GOOGLE_TRANSLATE_API_KEY` | Machine translation fallback for `/api/dictionary` |
-   | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | PostHog analytics |
-   | `ALIBABA_CLOUD_*`, `ALIYUN_SMS_*` | Aliyun SMS OTP login |
+   | Variables | Purpose | Where to obtain |
+   |-----------|---------|-----------------|
+   | `AI_GATEWAY_API_KEY` | Similar-word distractors in review (`/api/review/similar-words`) | [Vercel Dashboard](https://vercel.com/dashboard) → **AI** → **AI Gateway** → API keys · [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) |
+   | `GOOGLE_TRANSLATE_API_KEY` | Machine translation fallback for `/api/dictionary` | [Google Cloud Console](https://console.cloud.google.com/) → enable [Cloud Translation API](https://console.cloud.google.com/apis/library/translate.googleapis.com) → **APIs & Services** → **Credentials** → Create API key |
+   | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | PostHog client analytics | [PostHog](https://app.posthog.com/) → **Project settings** → **Project API Key**; host = your region’s ingestion URL ([regions](https://posthog.com/docs/api#capture-api), e.g. `https://us.i.posthog.com`) |
+   | `ALIBABA_CLOUD_ACCESS_KEY_ID`, `ALIBABA_CLOUD_ACCESS_KEY_SECRET`, `ALIYUN_SMS_SIGN_NAME`, `ALIYUN_SMS_TEMPLATE_CODE`, … | Aliyun SMS OTP (DYPNS) login | AccessKey: [RAM](https://ram.console.aliyun.com/manage/ak); SMS / phone verification: [号码认证控制台](https://dypns.console.aliyun.com/) (sign & template); RAM needs `dypns:SendSmsVerifyCode` / `CheckSmsVerifyCode`; notes in [`docs/阿里云/`](./docs/阿里云/) |
+   | `SENTRY_AUTH_TOKEN` | Upload **source maps** during `next build` (clearer stacks) | [sentry.io](https://sentry.io) → your organization → **Settings** → **Developer Settings** → **Auth Tokens** · [Next.js source maps](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#step-4-add-readable-stack-traces-with-source-maps-optional) |
 
-4. **Sentry** — Error reporting is configured in code for **production** (`NODE_ENV === "production"`). To upload **source maps** during `next build`, add a Sentry **auth token** as **`SENTRY_AUTH_TOKEN`** in Vercel (see [Sentry docs](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#step-4-add-readable-stack-traces-with-source-maps-optional)) — optional but improves stack traces.
+   **Sentry runtime** — DSN is embedded; errors are reported when `NODE_ENV === "production"`. **`SENTRY_AUTH_TOKEN`** is only required if you want source maps uploaded on Vercel builds.
 
 ### 8. Database tables (overview)
 
