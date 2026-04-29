@@ -11,6 +11,10 @@ import { clientFetch } from "@/lib/client-fetch";
 import { readerDebugLog } from "@/lib/reader-debug";
 import type { NavItem } from "epubjs";
 import { useTranslations } from "next-intl";
+import {
+  type ReaderColorSchemeId,
+  readColorSchemeFromStorage,
+} from "@/lib/reader-color-scheme";
 
 function EpubReaderLoading() {
   const t = useTranslations("reader");
@@ -49,6 +53,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const t = useTranslations("reader");
   const controlsRef = useRef<ReaderControls | null>(null);
   const [fontSize, setFontSize] = useState(20);
+  const [colorScheme, setColorScheme] = useState<ReaderColorSchemeId>(readColorSchemeFromStorage());
   const [chapterName, setChapterName] = useState("");
   /** 全书进度 0–100（spine 索引 + 章内 page/total） */
   const [bookPercent, setBookPercent] = useState<number | null>(null);
@@ -247,6 +252,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             blobUrl={blobUrl}
             initialCfi={effectiveCfi}
             fontSize={fontSize}
+            colorScheme={colorScheme}
             onReady={(controls) => { controlsRef.current = controls; }}
             onTocReady={(items) => setToc(items)}
             onProgress={(_, bookPct, name, chapPct) => {

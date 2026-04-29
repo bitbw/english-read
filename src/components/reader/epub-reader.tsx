@@ -15,6 +15,11 @@ import { readerDebugLog } from "@/lib/reader-debug";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { applyReaderSkinToContents } from "@/components/reader/reader-skin-css";
+import {
+  type ReaderColorSchemeId,
+  DEFAULT_COLOR_SCHEME,
+  readColorSchemeFromStorage,
+} from "@/lib/reader-color-scheme";
 
 interface SelectionInfo {
   word: string;
@@ -34,6 +39,7 @@ interface EpubReaderProps {
   blobUrl: string;
   initialCfi?: string | null;
   fontSize: number;
+  colorScheme?: ReaderColorSchemeId;
   /** bookPct：0–100，`(spineIndex + page/total) / spine.length`；chapterPct：当前章内分页进度。 */
   onProgress?: (
     cfi: string,
@@ -200,6 +206,7 @@ export function EpubReader({
   blobUrl,
   initialCfi,
   fontSize,
+  colorScheme: colorSchemeProp,
   onProgress,
   onReady,
   onTocReady,
@@ -208,6 +215,11 @@ export function EpubReader({
   const { resolvedTheme } = useTheme();
   const resolvedThemeRef = useRef(resolvedTheme);
   resolvedThemeRef.current = resolvedTheme;
+  const colorSchemeRef = useRef<ReaderColorSchemeId>(DEFAULT_COLOR_SCHEME);
+  // 同步外部传入的 colorScheme 到 ref（供 content hook 和主题切换 effect 使用）
+  if (colorSchemeProp && colorSchemeProp !== colorSchemeRef.current) {
+    colorSchemeRef.current = colorSchemeProp;
+  }
   const viewerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
@@ -446,7 +458,7 @@ export function EpubReader({
       });
 
       rendition.hooks.content.register((contents: Contents) => {
-        applyReaderSkinToContents(contents, resolvedThemeRef.current === "dark");
+        applyReaderSkinToContents(contents, resolvedThemeRef.current === "dark", colorSchemeRef.current);
       });
 
       rendition.themes.fontSize(`${fontSize}px`);
@@ -486,11 +498,24 @@ export function EpubReader({
     const rendition = renditionRef.current;
     if (!rendition) return;
     const isDark = resolvedTheme === "dark";
+    const scheme = colorSchemeRef.current;
     const contentsList = rendition.getContents() as unknown as Contents[];
     for (const c of contentsList) {
-      applyReaderSkinToContents(c, isDark);
+      applyReaderSkinToContents(c, isDark, scheme);
     }
   }, [resolvedTheme]);
+
+  /** 颜色方案变更时同步 iframe 内阅读皮肤。 */
+  useEffect(() => {
+    if (!colorSchemeProp) return;
+    const rendition = renditionRef.current;
+    if (!rendition) return;
+    const isDark = resolvedTheme === "dark";
+    const contentsList = rendition.getContents() as unknown as Contents[];
+    for (const c of contentsList) {
+      applyReaderSkinToContents(c, isDark, colorSchemeProp);
+    }
+  }, [colorSchemeProp, resolvedTheme]);
 
   /** 左右方向键翻页（与 iframe 内滚动不冲突时由窗口捕获）。 */
   useEffect(() => {

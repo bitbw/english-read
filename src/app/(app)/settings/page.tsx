@@ -28,6 +28,11 @@ import { ExternalLink, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import {
+  type ReaderColorSchemeId,
+  readColorSchemeFromStorage,
+} from "@/lib/reader-color-scheme";
+import { ReaderColorSchemeSelector } from "@/components/settings/reader-color-scheme-selector";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -41,6 +46,7 @@ export default function SettingsPage() {
   const [savingName, setSavingName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [removingAvatar, setRemovingAvatar] = useState(false);
+  const [colorScheme, setColorScheme] = useState<ReaderColorSchemeId>(readColorSchemeFromStorage());
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -370,6 +376,16 @@ export default function SettingsPage() {
             </p>
           </div>
           <ThemeToggle />
+        </CardContent>
+      </Card>
+
+      {/* 阅读颜色模式 */}
+      <Card>
+        <CardContent className="pt-6">
+          <ReaderColorSchemeSelector
+            value={colorScheme}
+            onChange={setColorScheme}
+          />
         </CardContent>
       </Card>
 

@@ -131,7 +131,9 @@
     "toggleTheme": "Toggle theme",
     "light": "Light",
     "dark": "Dark",
-    "system": "System"
+    "system": "System",
+    "readerColorScheme": "Reader Color Mode",
+    "readerColorSchemeHint": "Choose the color style for EPUB book content (applies to both dark and light themes)"
   },
   "landing": {
     "login": "Sign In",

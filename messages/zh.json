@@ -131,7 +131,9 @@
     "toggleTheme": "切换主题",
     "light": "浅色",
     "dark": "深色",
-    "system": "跟随系统"
+    "system": "跟随系统",
+    "readerColorScheme": "阅读颜色模式",
+    "readerColorSchemeHint": "选择阅读时 EPUB 书籍内容的配色风格（同时适用于暗色和亮色主题）"
   },
   "landing": {
     "login": "登录",
