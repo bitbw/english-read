@@ -69,7 +69,12 @@
     "dueReview": "Due",
     "reviewNow": "Ready to review",
     "nextReview": "Next review: {time}",
-    "viewModeAriaLabel": "View mode"
+    "viewModeAriaLabel": "View mode",
+    "export": "Export",
+    "exportCsv": "Download CSV",
+    "exportJson": "Download JSON",
+    "exportSuccess": "Download started",
+    "exportTooMany": "Too many words to export at once. Narrow your filter or search and try again."
   },
   "settings": {
     "title": "Settings",
