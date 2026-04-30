@@ -40,7 +40,7 @@ a {
   color: ${DARK_LINK} !important;
 }
 ::selection {
-  background: oklch(0.269 0 0) !important;
+  background: oklch(0.34 0 0) !important;
   color: ${fg} !important;
 }
 `.trim();

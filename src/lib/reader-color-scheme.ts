@@ -21,8 +21,8 @@ export const DEFAULT_COLOR_SCHEME: ReaderColorSchemeId = "a";
 
 export const READER_COLOR_SCHEMES: Record<ReaderColorSchemeId, ReaderColorScheme> = {
   a: {
-    // 极简（默认：深灰+柔白，类 Kindle）
-    dark: { bg: "oklch(0.18 0 0)", fg: "oklch(0.85 0 0)" },
+    // 极简（默认：炭灰底 + 浅灰字，低对比夜间阅读，接近常见阅读 App 夜间模式）
+    dark: { bg: "oklch(0.23 0 0)", fg: "oklch(0.71 0 0)" },
     light: { bg: "oklch(1 0 0)", fg: "oklch(0.145 0 0)" },
   },
   b: {
@@ -44,8 +44,8 @@ const SCHEME_LABELS: Record<
   a: {
     zh: "极简",
     en: "Minimal",
-    descriptionZh: "深灰背景 + 柔白文字，类 Kindle 阅读体验",
-    descriptionEn: "Dark gray background + soft white text, Kindle-like",
+    descriptionZh: "炭灰背景 + 浅灰文字，夜间对比柔和、久读不累",
+    descriptionEn: "Charcoal gray + light gray text, softer contrast for night reading",
   },
   b: {
     zh: "暖色护眼",
