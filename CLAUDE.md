@@ -4,15 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
+This repo documents **npm** (see `package-lock.json` and README).
+
 ```bash
-yarn dev          # Start development server
-yarn build        # Production build (also runs ESLint)
-yarn lint         # Run ESLint only
+npm run dev       # Start development server
+npm run build     # Production build (also runs ESLint)
+npm run lint      # Run ESLint only
 npx tsc --noEmit  # TypeScript type check only
 
 # Database migrations
 npx drizzle-kit generate   # Generate migration files from schema changes
-npx drizzle-kit migrate    # Apply migrations to the database
+npm run db:migrate         # Apply migrations (drizzle-kit migrate)
 npx drizzle-kit studio     # Open Drizzle Studio (DB browser)
 ```
 
@@ -39,7 +41,7 @@ BLOB_READ_WRITE_TOKEN=     # Vercel Blob
 - `read/[bookId]/` — full-screen reader, uses `-m-6` to escape the layout's `p-6` padding; height is `calc(100vh - 3.5rem)` to fill below the topbar
 
 ### Authentication
-`middleware.ts` guards all routes under `/dashboard`, `/library`, `/read`, `/vocabulary`, `/settings`. Auth is NextAuth v5 using GitHub + Google OAuth with Drizzle adapter persisting sessions to Postgres. The `auth()` helper works in both Server Components and API routes.
+`middleware.ts` guards all routes under `/dashboard`, `/library`, `/read`, `/vocabulary`, `/settings`. Auth is NextAuth v5 (GitHub, Google, email/password, phone OTP) with **JWT** session strategy (`session.strategy: "jwt"`). The Drizzle adapter still uses the `sessions` table for adapter/OAuth data; the live session is JWT-based. The `auth()` helper works in both Server Components and API routes.
 
 ### Database
 Drizzle ORM over Neon serverless PostgreSQL (`src/lib/db/`). Schema in `schema.ts` — Auth.js tables (`users`, `accounts`, `sessions`, `verificationTokens`) plus app tables (`books`, `vocabulary`, `reviewLogs`). Import `db` from `@/lib/db`.
