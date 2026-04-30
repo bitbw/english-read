@@ -7,15 +7,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, LayoutGrid, Plus, Search, Table2, Calendar } from "lucide-react";
+import {
+  GraduationCap,
+  LayoutGrid,
+  Plus,
+  Search,
+  Table2,
+  Calendar,
+  Download,
+  ChevronDown,
+} from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { clientFetch } from "@/lib/client-fetch";
+import { clientFetch, errorMessageFromApiBody } from "@/lib/client-fetch";
 import { toastConfirmAction } from "@/lib/toast-confirm";
 import { ManualAddVocabularyDialog } from "@/components/vocabulary/manual-add-vocabulary-dialog";
 import { useTranslations } from "next-intl";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type FilterType = "all" | "pending" | "mastered";
 
@@ -34,6 +49,18 @@ interface VocabWord {
 const VOCAB_VIEW_STORAGE_KEY = "english-read-vocabulary-view";
 const PAGE_SIZE = 10;
 
+function filenameFromContentDisposition(header: string | null): string | null {
+  if (!header) return null;
+  const m = /filename\*=UTF-8''([^;\s]+)|filename="([^"]+)"/i.exec(header);
+  const raw = m?.[1] ?? m?.[2];
+  if (!raw) return null;
+  try {
+    return decodeURIComponent(raw.replace(/\+/g, " "));
+  } catch {
+    return raw;
+  }
+}
+
 type VocabViewMode = "card" | "table";
 
 export default function VocabularyPage() {
@@ -50,6 +77,7 @@ export default function VocabularyPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [listTick, setListTick] = useState(0);
   const [viewMode, setViewMode] = useState<VocabViewMode>("card");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     try {
@@ -126,6 +154,48 @@ export default function VocabularyPage() {
     void fetchDueCount();
   }, []);
 
+  async function handleExport(format: "csv" | "json") {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("format", format);
+      params.set("filter", filter);
+      if (search.trim()) params.set("search", search.trim());
+      const res = await clientFetch(`/api/vocabulary/export?${params.toString()}`, {
+        showErrorToast: false,
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        if (res.status === 400 && body?.error === "Too many rows") {
+          toast.error(t("exportTooMany"));
+        } else {
+          toast.error(errorMessageFromApiBody(body, res.status));
+        }
+        return;
+      }
+      const blob = await res.blob();
+      const name =
+        filenameFromContentDisposition(res.headers.get("Content-Disposition")) ??
+        (format === "json" ? "vocabulary.json" : "vocabulary.csv");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(t("exportSuccess"));
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function handleManualAdded() {
     setPage(1);
     setListTick((prev) => prev + 1);
@@ -170,6 +240,33 @@ export default function VocabularyPage() {
           </p>
         </div>
         <div className="flex w-full flex-row flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              disabled={exporting || total === 0}
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial data-disabled:pointer-events-none data-disabled:opacity-50"
+              )}
+            >
+              <Download className="h-4 w-4 shrink-0" />
+              <span className="truncate">{t("export")}</span>
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+              <DropdownMenuItem
+                disabled={exporting || total === 0}
+                onClick={() => void handleExport("csv")}
+              >
+                {t("exportCsv")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={exporting || total === 0}
+                onClick={() => void handleExport("json")}
+              >
+                {t("exportJson")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             type="button"
             variant="outline"

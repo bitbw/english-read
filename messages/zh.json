@@ -69,7 +69,12 @@
     "dueReview": "待复习",
     "reviewNow": "现在可以复习",
     "nextReview": "下次复习：{time}",
-    "viewModeAriaLabel": "展示形式"
+    "viewModeAriaLabel": "展示形式",
+    "export": "导出",
+    "exportCsv": "下载 CSV",
+    "exportJson": "下载 JSON",
+    "exportSuccess": "已开始下载",
+    "exportTooMany": "当前结果超过单次导出上限，请缩小筛选或搜索范围后再试。"
   },
   "settings": {
     "title": "设置",
