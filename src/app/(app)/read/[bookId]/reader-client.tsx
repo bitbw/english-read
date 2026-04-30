@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { ArrowLeft, ChevronLeft, ChevronRight, List } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, List, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRef, useState, useEffect, Fragment } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -15,6 +15,7 @@ import {
   type ReaderColorSchemeId,
   readColorSchemeFromStorage,
 } from "@/lib/reader-color-scheme";
+import { ReaderColorSchemeSelector } from "@/components/settings/reader-color-scheme-selector";
 
 function EpubReaderLoading() {
   const t = useTranslations("reader");
@@ -64,6 +65,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   /** 与服务端 `initialCfi` 对齐；阅读位置仅通过服务端 PUT 持久化。 */
   const [effectiveCfi, setEffectiveCfi] = useState<string | null>(null);
   const [cfiReady, setCfiReady] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     setBookPercent(null);
@@ -198,25 +200,53 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <h1 className="text-sm font-medium truncate flex-1 min-w-0">{title}</h1>
-        {/* 字号调节 */}
-        <div className="flex items-center gap-0.5 shrink-0">
-          <button
-            onClick={() => changeFontSize(-2)}
-            className="h-7 w-8 flex items-center justify-center rounded hover:bg-accent text-xs font-bold text-muted-foreground"
+        {/* 阅读设置（字号 + 颜色模式） */}
+        <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <SheetTrigger
+            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 shrink-0")}
           >
-            A-
-          </button>
-          <span className="text-xs text-muted-foreground w-7 text-center tabular-nums">
-            {fontSize}
-          </span>
-          <button
-            onClick={() => changeFontSize(2)}
-            className="h-7 w-8 flex items-center justify-center rounded hover:bg-accent font-bold text-muted-foreground"
-            style={{ fontSize: "15px" }}
+            <Settings className="h-4 w-4" />
+          </SheetTrigger>
+          <SheetContent
+            side="right"
+            showCloseButton={false}
+            className="w-[min(100%,20rem)] sm:max-w-sm p-0 flex flex-col gap-0"
           >
-            A+
-          </button>
-        </div>
+            <div className="flex items-center gap-2 px-4 py-4 border-b border-border shrink-0">
+              <Settings className="h-5 w-5 text-primary" />
+              <span className="font-semibold text-base">{t("readerSettings")}</span>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-6">
+              {/* 字号调节 */}
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{t("fontSize")}</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => changeFontSize(-2)}
+                    className="h-8 w-9 flex items-center justify-center rounded-md border border-border hover:bg-accent text-xs font-bold text-muted-foreground"
+                  >
+                    A-
+                  </button>
+                  <span className="text-sm text-muted-foreground w-8 text-center tabular-nums font-medium">
+                    {fontSize}
+                  </span>
+                  <button
+                    onClick={() => changeFontSize(2)}
+                    className="h-8 w-9 flex items-center justify-center rounded-md border border-border hover:bg-accent font-bold text-muted-foreground"
+                    style={{ fontSize: "15px" }}
+                  >
+                    A+
+                  </button>
+                </div>
+              </div>
+              {/* 阅读颜色模式 */}
+              <ReaderColorSchemeSelector
+                value={colorScheme}
+                onChange={setColorScheme}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
         {/* 章节目录：与顶栏移动端一致的左侧抽屉 */}
         <Sheet open={tocOpen} onOpenChange={setTocOpen}>
           <SheetTrigger

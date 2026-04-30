@@ -434,7 +434,9 @@
     "bookProgress": "Book",
     "chapterProgress": "Chapter",
     "loadingBook": "Loading book…",
-    "chapterDefault": "Chapter {n}"
+    "chapterDefault": "Chapter {n}",
+    "readerSettings": "Reader Settings",
+    "fontSize": "Font Size"
   },
   "upload": {
     "invalidFormat": "Please upload an .epub file",
