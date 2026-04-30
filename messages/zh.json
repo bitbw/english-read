@@ -131,7 +131,9 @@
     "toggleTheme": "切换主题",
     "light": "浅色",
     "dark": "深色",
-    "system": "跟随系统"
+    "system": "跟随系统",
+    "readerColorScheme": "阅读颜色模式",
+    "readerColorSchemeHint": "选择阅读时 EPUB 书籍内容的配色风格（同时适用于暗色和亮色主题）"
   },
   "landing": {
     "login": "登录",
@@ -432,7 +434,9 @@
     "bookProgress": "全书",
     "chapterProgress": "本章",
     "loadingBook": "加载书籍中…",
-    "chapterDefault": "第 {n} 章"
+    "chapterDefault": "第 {n} 章",
+    "readerSettings": "阅读设置",
+    "fontSize": "字号"
   },
   "upload": {
     "invalidFormat": "请上传 .epub 格式的文件",

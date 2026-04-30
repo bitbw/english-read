@@ -15,7 +15,7 @@ English Read is a Next.js 15 full-stack web application combining an online EPUB
 - **EPUB Reader** — paginated reading, font size control, reading progress auto-saved
 - **Personal Library & Public Library** — upload to your shelf; browse and add books from a shared public catalog
 - **Vocabulary** — collect unknown words from the reader; optional review plan view
-- **Spaced Repetition Review** — Ebbinghaus intervals: 1d → 2d → 4d → 7d → 15d → 30d → mastered; distractor options may use AI when configured
+- **Spaced Repetition Review** — Ebbinghaus intervals: 1d → 2d → 4d → 7d → 15d → 30d → mastered; **phrase** (multi-word) review distractors can use Vercel AI Gateway when configured; single-word paths may not need it
 - **Dictionary & Translation** — English definitions (Free Dictionary API) + Chinese translation (MyMemory); optional Google Cloud Translation fallback; cached 24 h
 - **Authentication** — GitHub and Google OAuth; email/password; phone OTP (Aliyun SMS) via NextAuth v5 with JWT sessions
 - **Internationalization** — English / Chinese UI (next-intl, cookie-based, URL unchanged)
@@ -41,8 +41,8 @@ English Read is a Next.js 15 full-stack web application combining an online EPUB
 
 ### Prerequisites
 
-- Node.js 18+
-- npm (this repo ships `package-lock.json`)
+- Node.js 18+ (**Node 20 LTS** recommended for local dev and production)
+- **npm** — this repo ships `package-lock.json`; npm is the documented package manager (yarn/pnpm work only if you align lockfiles yourself)
 
 ### Installation
 
@@ -70,7 +70,7 @@ BLOB_READ_WRITE_TOKEN=     # Vercel Blob
 
 Generate `AUTH_SECRET` with `npx auth secret`.
 
-**Optional** integrations (SMS login, AI review distractors, translation fallback, analytics) are documented in [`.env.example`](./.env.example).
+**Optional** integrations (SMS login, AI Gateway for phrase review distractors, translation fallback, analytics) are documented in [`.env.example`](./.env.example).
 
 ### Database Setup
 
@@ -112,10 +112,12 @@ src/
 │   ├── reader/
 │   └── ui/
 ├── lib/
-│   ├── db/
-│   ├── srs.ts
-│   ├── blob.ts
-│   └── auth.ts
+│   ├── db/                      # Drizzle schema, migrations, db client
+│   ├── srs.ts                   # Spaced repetition intervals
+│   ├── blob.ts                  # Vercel Blob uploads
+│   ├── auth.ts                  # NextAuth config
+│   ├── review-quiz.ts           # Review / distractor logic (example)
+│   └── …                        # reading-time, phone-auth, dictionary helpers, etc.
 ├── i18n/
 └── middleware.ts
 messages/
@@ -123,11 +125,13 @@ messages/
 └── zh.json
 ```
 
+The `src/lib/` listing above is **not exhaustive** — browse the folder for the full set of helpers (e.g. `reading-time.ts`, `phone-auth.ts`, `aliyun-dypns.ts`).
+
 ## Architecture Notes
 
 ### Authentication
 
-`middleware.ts` protects `/dashboard`, `/library`, `/read`, `/vocabulary`, and `/settings`. Sessions use **JWT** (`session.strategy: "jwt"`). Providers include GitHub, Google, email/password (hashed with bcrypt), and phone OTP (requires Aliyun env vars). Logged-in users hitting `/login` or `/signup` are redirected to `/dashboard`.
+`middleware.ts` protects `/dashboard`, `/library`, `/read`, `/vocabulary`, and `/settings`. The app session is **JWT** (`session.strategy: "jwt"`); the `sessions` table remains for the Drizzle adapter / OAuth linking, not as the primary per-request session store. Providers include GitHub, Google, email/password (hashed with bcrypt), and phone OTP (requires Aliyun env vars). Logged-in users hitting `/login` or `/signup` are redirected to `/dashboard`.
 
 ### EPUB Reader
 
@@ -264,16 +268,17 @@ vercel --prod     # production
 
 1. **Environment variables** — Mirror `.env.local` in Vercel → **Settings** → **Environment Variables**. Set **`AUTH_URL`** to your production site origin (e.g. `https://your-domain.vercel.app`), not `http://localhost:3000`.
 2. **OAuth** — Add production redirect URIs in Google Cloud Console and GitHub OAuth App settings (see §2).
-3. **Optional product features** — Copy from [`.env.example`](./.env.example) as needed:
+3. **Optional product features** — Names and comments match [`.env.example`](./.env.example). Where to obtain:
 
-   | Variables | Purpose |
-   |-----------|---------|
-   | `AI_GATEWAY_API_KEY` | Vercel AI Gateway — similar-word distractors in review (`/api/review/similar-words`) |
-   | `GOOGLE_TRANSLATE_API_KEY` | Machine translation fallback for `/api/dictionary` |
-   | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | PostHog analytics |
-   | `ALIBABA_CLOUD_*`, `ALIYUN_SMS_*` | Aliyun SMS OTP login |
+   | Variables | Purpose | Where to obtain |
+   |-----------|---------|-----------------|
+   | `AI_GATEWAY_API_KEY` | **Phrase** (multi-word) review distractors via `GET /api/review/similar-words` (required for that branch; single-word review may use other sources) | [Vercel Dashboard](https://vercel.com/dashboard) → **AI** → **AI Gateway** → API keys · [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) |
+   | `GOOGLE_TRANSLATE_API_KEY` | Machine translation fallback for `/api/dictionary` | [Google Cloud Console](https://console.cloud.google.com/) → enable [Cloud Translation API](https://console.cloud.google.com/apis/library/translate.googleapis.com) → **APIs & Services** → **Credentials** → Create API key |
+   | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | PostHog client analytics | [PostHog](https://app.posthog.com/) → **Project settings** → **Project API Key**; host = your region’s ingestion URL ([regions](https://posthog.com/docs/api#capture-api), e.g. `https://us.i.posthog.com`) |
+   | `ALIBABA_CLOUD_ACCESS_KEY_ID`, `ALIBABA_CLOUD_ACCESS_KEY_SECRET`, `ALIYUN_SMS_SIGN_NAME`, `ALIYUN_SMS_TEMPLATE_CODE`, … | Aliyun SMS OTP (DYPNS) login | AccessKey: [RAM](https://ram.console.aliyun.com/manage/ak); SMS / phone verification: [号码认证控制台](https://dypns.console.aliyun.com/) (sign & template); RAM needs `dypns:SendSmsVerifyCode` / `CheckSmsVerifyCode`; notes in [`docs/阿里云/`](./docs/阿里云/) |
+   | `SENTRY_AUTH_TOKEN` | Upload **source maps** during `next build` (clearer stacks) | [sentry.io](https://sentry.io) → your organization → **Settings** → **Developer Settings** → **Auth Tokens** · [Next.js source maps](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#step-4-add-readable-stack-traces-with-source-maps-optional) |
 
-4. **Sentry** — Error reporting is configured in code for **production** (`NODE_ENV === "production"`). To upload **source maps** during `next build`, add a Sentry **auth token** as **`SENTRY_AUTH_TOKEN`** in Vercel (see [Sentry docs](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#step-4-add-readable-stack-traces-with-source-maps-optional)) — optional but improves stack traces.
+   **Sentry runtime** — DSN is embedded; errors are reported when `NODE_ENV === "production"`. **`SENTRY_AUTH_TOKEN`** is only required if you want source maps uploaded on Vercel builds.
 
 ### 8. Database tables (overview)
 
@@ -281,7 +286,7 @@ vercel --prod     # production
 |-------|---------|
 | `users` | User profiles (Auth.js); email, phone, password hash |
 | `accounts` | OAuth provider links (Auth.js) |
-| `sessions` | Session records used by the Auth.js adapter |
+| `sessions` | Auth.js Drizzle adapter table; app uses **JWT** for the live session, not DB-backed sessions per request |
 | `verification_tokens` | Email verification tokens (Auth.js) |
 | `public_library_books` | Shared catalog entries |
 | `books` | Personal shelf; EPUB blob URL and reading progress |

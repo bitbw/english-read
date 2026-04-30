@@ -15,7 +15,7 @@ English Read 是一款基于 Next.js 15 的全栈 Web 应用，将在线 EPUB �
 - **EPUB 阅读器** — 分页阅读，字号调节，自动保存阅读进度
 - **个人书架与公共书库** — 本地上传；浏览共享书目并加入个人书架
 - **生词本** — 阅读中收藏生词；支持复习计划视图
-- **间隔重复复习** — 艾宾浩斯间隔：1天 → 2天 → 4天 → 7天 → 15天 → 30天 → 已掌握；配置 AI 网关后可为干扰项生成相似词
+- **间隔重复复习** — 艾宾浩斯间隔：1天 → 2天 → 4天 → 7天 → 15天 → 30天 → 已掌握；**短语**（多词）复习的干扰项可在配置 Vercel AI Gateway 后生成；单词路径不一定需要该 Key
 - **词典与翻译** — 英文释义（Free Dictionary API）+ 中文翻译（MyMemory）；可选用 Google Cloud Translation 作为机翻回退；缓存 24 小时
 - **身份验证** — NextAuth v5：GitHub / Google OAuth、邮箱密码、手机短信验证码（阿里云）；统一 **JWT** 会话
 - **国际化** — 中英文 UI（next-intl，Cookie，URL 不变）
@@ -41,8 +41,8 @@ English Read 是一款基于 Next.js 15 的全栈 Web 应用，将在线 EPUB �
 
 ### 前置要求
 
-- Node.js 18+
-- npm（仓库内含 `package-lock.json`）
+- Node.js 18+（本地与生产环境**推荐 Node 20 LTS**）
+- **npm** — 仓库内含 `package-lock.json`，文档以 npm 为准；若使用 yarn/pnpm，请自行维护对应 lockfile
 
 ### 安装依赖
 
@@ -70,7 +70,7 @@ BLOB_READ_WRITE_TOKEN=     # Vercel Blob
 
 使用 `npx auth secret` 生成 `AUTH_SECRET`。
 
-短信登录、复习 AI 干扰项、翻译回退、埋点等**可选**变量见仓库根目录 [`.env.example`](./.env.example)。
+短信登录、AI Gateway（短语复习干扰项）、翻译回退、埋点等**可选**变量见仓库根目录 [`.env.example`](./.env.example)。
 
 ### 数据库初始化
 
@@ -112,10 +112,12 @@ src/
 │   ├── reader/
 │   └── ui/
 ├── lib/
-│   ├── db/
-│   ├── srs.ts
-│   ├── blob.ts
-│   └── auth.ts
+│   ├── db/                      # Drizzle Schema、迁移、数据库客户端
+│   ├── srs.ts                   # 间隔重复间隔计算
+│   ├── blob.ts                  # Vercel Blob 上传
+│   ├── auth.ts                  # NextAuth 配置
+│   ├── review-quiz.ts           # 复习 / 干扰项逻辑（示例）
+│   └── …                        # reading-time、phone-auth、词典相关等
 ├── i18n/
 └── middleware.ts
 messages/
@@ -123,11 +125,13 @@ messages/
 └── zh.json
 ```
 
+以上 `src/lib/` 目录为**节选**，完整模块请直接查看该目录（如 `reading-time.ts`、`phone-auth.ts`、`aliyun-dypns.ts`）。
+
 ## 架构说明
 
 ### 身份验证
 
-`middleware.ts` 保护 `/dashboard`、`/library`、`/read`、`/vocabulary`、`/settings`。会话策略为 **JWT**。支持 GitHub、Google、邮箱密码（bcrypt）、手机短信验证码（需阿里云环境变量）。已登录用户访问 `/login` 或 `/signup` 会重定向到 `/dashboard`。
+`middleware.ts` 保护 `/dashboard`、`/library`、`/read`、`/vocabulary`、`/settings`。应用会话为 **JWT**（`session.strategy: "jwt"`）；`sessions` 表仍供 Drizzle 适配器 / OAuth 关联使用，**并非**按请求读写的主要会话存储。支持 GitHub、Google、邮箱密码（bcrypt）、手机短信验证码（需阿里云环境变量）。已登录用户访问 `/login` 或 `/signup` 会重定向到 `/dashboard`。
 
 ### EPUB 阅读器
 
@@ -272,16 +276,17 @@ vercel --prod     # 生产部署
 
 1. **环境变量** — 在 Vercel → **Settings** → **Environment Variables** 中配置与 `.env.local` 对应的项；将 **`AUTH_URL`** 设为生产站点根地址（例如 `https://你的域名.vercel.app`），不要使用 `http://localhost:3000`。
 2. **OAuth** — 在 Google Cloud Console 与 GitHub OAuth 中确认生产回调 URL（见 §2）。
-3. **可选业务能力** — 按需从 [`.env.example`](./.env.example) 同步：
+3. **可选业务能力** — 变量名与说明见 [`.env.example`](./.env.example)。**获取方式**如下：
 
-   | 变量 | 用途 |
-   |------|------|
-   | `AI_GATEWAY_API_KEY` | Vercel AI Gateway；复习相似词干扰项（`/api/review/similar-words`） |
-   | `GOOGLE_TRANSLATE_API_KEY` | `/api/dictionary` 机翻回退 |
-   | `NEXT_PUBLIC_POSTHOG_KEY`、`NEXT_PUBLIC_POSTHOG_HOST` | PostHog 埋点 |
-   | `ALIBABA_CLOUD_*`、`ALIYUN_SMS_*` | 阿里云短信验证码登录 |
+   | 变量 | 用途 | 获取方式 |
+   |------|------|----------|
+   | `AI_GATEWAY_API_KEY` | **短语**（多词）复习干扰项：`GET /api/review/similar-words` 对应分支（该场景必需；单词复习可走其他数据源） | [Vercel 控制台](https://vercel.com/dashboard) → **AI** → **AI Gateway** → API 密钥 · [AI Gateway 文档](https://vercel.com/docs/ai-gateway) |
+   | `GOOGLE_TRANSLATE_API_KEY` | `/api/dictionary` 机翻回退 | [Google Cloud Console](https://console.cloud.google.com/) → 启用 [Cloud Translation API](https://console.cloud.google.com/apis/library/translate.googleapis.com) → **API 与服务** → **凭据** → 创建 API 密钥 |
+   | `NEXT_PUBLIC_POSTHOG_KEY`、`NEXT_PUBLIC_POSTHOG_HOST` | PostHog 客户端埋点 | [PostHog](https://app.posthog.com/) → **项目设置** → **Project API Key**；`HOST` 为分区采集地址（见 [分区说明](https://posthog.com/docs/api#capture-api)，如 `https://us.i.posthog.com`） |
+   | `ALIBABA_CLOUD_ACCESS_KEY_ID`、`ALIBABA_CLOUD_ACCESS_KEY_SECRET`、`ALIYUN_SMS_SIGN_NAME`、`ALIYUN_SMS_TEMPLATE_CODE` 等 | 阿里云短信 OTP（融合认证 DYPNS）登录 | AccessKey：[RAM 访问控制](https://ram.console.aliyun.com/manage/ak)；签名与模板：[号码认证控制台](https://dypns.console.aliyun.com/)；RAM 需 `dypns:SendSmsVerifyCode`、`CheckSmsVerifyCode`；仓库内说明见 [`docs/阿里云/`](./docs/阿里云/) |
+   | `SENTRY_AUTH_TOKEN` | 构建时上传 **source map**（堆栈可读） | [Sentry](https://sentry.io) → 组织 → **Settings** → **Developer Settings** → **Auth Tokens** · [Next.js Source Maps](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#step-4-add-readable-stack-traces-with-source-maps-optional) |
 
-4. **Sentry** — 生产环境（`NODE_ENV === "production"`）已在代码中启用上报。若要在构建时**上传 source map** 以获得可读堆栈，在 Vercel 中配置 **`SENTRY_AUTH_TOKEN`**（见 [Sentry Next.js 文档](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#step-4-add-readable-stack-traces-with-source-maps-optional)），该项为可选。
+   **Sentry 运行时** — DSN 已写在代码中，生产环境（`NODE_ENV === "production"`）会自动上报。**`SENTRY_AUTH_TOKEN`** 仅在需要在 Vercel 构建阶段上传 source map 时配置。
 
 ### 8. 数据库表结构一览
 
@@ -289,7 +294,7 @@ vercel --prod     # 生产部署
 |------|------|
 | `users` | 用户基本信息（Auth.js）；邮箱、手机号、密码哈希等 |
 | `accounts` | OAuth 账户绑定（Auth.js） |
-| `sessions` | Auth.js 适配器使用的会话记录 |
+| `sessions` | Auth.js Drizzle 适配器表；线上会话以 **JWT** 为主，非按请求读写的 DB 会话 |
 | `verification_tokens` | 邮箱验证（Auth.js） |
 | `public_library_books` | 公共书库书目 |
 | `books` | 个人书架；EPUB Blob 地址与阅读进度 |
