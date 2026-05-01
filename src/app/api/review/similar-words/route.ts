@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import {
   glossDedupKey,
   looksLikeChinese,
+  normalizeWordKey,
   pickDistractorEnglishWords,
 } from "@/lib/review-distractor-pick";
 import { fetchYoudaoExplain } from "@/lib/youdao-suggest";
@@ -95,7 +96,11 @@ export async function GET(req: Request) {
         output: Output.object({ schema: phraseDistractorsSchema }),
         prompt: phraseDistractorPrompt(word),
       });
-      return NextResponse.json({ distractors: result.output.distractors });
+      const targetKey = normalizeWordKey(word);
+      const filtered = result.output.distractors.filter(
+        (d) => normalizeWordKey(d.word.trim()) !== targetKey
+      );
+      return NextResponse.json({ distractors: filtered });
     } catch (e) {
       const message = e instanceof Error ? e.message : "LLM generation failed";
       return NextResponse.json({ error: message }, { status: 502 });
@@ -171,5 +176,8 @@ export async function GET(req: Request) {
     distractors.push({ word: w.trim(), explainZh: zh });
   }
 
-  return NextResponse.json({ distractors });
+  const targetKey = normalizeWordKey(word);
+  return NextResponse.json({
+    distractors: distractors.filter((d) => normalizeWordKey(d.word) !== targetKey),
+  });
 }
