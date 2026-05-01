@@ -447,12 +447,15 @@ export async function buildMeaningQuizEnriched(args: {
   const usedZh = new Set<string>([glossDedupKey(correctZh)]);
   let genericIdx = 0;
 
+  const targetEnKey = normalizeWordKey(currentWord);
+
   if (distractorPreload?.length) {
     for (const { word, zh } of distractorPreload) {
       if (rows.length >= 4) break;
       const en = word.trim();
       const tzh = zh.trim();
-      if (!en || !tzh || !looksLikeChinese(tzh) || usedZh.has(glossDedupKey(tzh))) continue;
+      if (!en || normalizeWordKey(en) === targetEnKey) continue;
+      if (!tzh || !looksLikeChinese(tzh) || usedZh.has(glossDedupKey(tzh))) continue;
       usedZh.add(glossDedupKey(tzh));
       const k = en.toLowerCase();
       if (!glossCache.has(k)) glossCache.set(k, tzh);
