@@ -40,10 +40,12 @@ function phraseDistractorPrompt(phrase: string): string {
 Target English phrase (must NOT appear verbatim as any "word" field, case-insensitive):
 ${quoted}
 
+Hard rule — wrong answers only: every "word" must be a **different** English phrase from the target. Users must never see the correct phrase repeated among the three distractors (no copy-paste of the target, no same phrase with different punctuation or spacing only).
+
 Return exactly 3 different English phrases that could be confused with the target in a multiple-choice test:
 - similar spelling and/or similar pronunciation (including plausible mis-hearings or typos as multi-word phrases),
 - natural English (realistic collocations or common phrases when possible),
-- each phrase distinct from the others and from the target.
+- each phrase distinct from the others and from the target (three unique wrong answers).
 
 For each item, "explainZh" must be a concise Chinese dictionary-style gloss, like:
 "n. …; …" or "adj. …" or "v. …; …" (use Chinese explanations; you may prefix part-of-speech abbreviations as in learner dictionaries).
