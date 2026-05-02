@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import {
   glossDedupKey,
   looksLikeChinese,
+  normalizeWordKey,
   pickDistractorEnglishWords,
 } from "@/lib/review-distractor-pick";
 import { fetchYoudaoExplain } from "@/lib/youdao-suggest";
@@ -36,13 +37,16 @@ function phraseDistractorPrompt(phrase: string): string {
   const quoted = JSON.stringify(phrase);
   return `You are helping build English vocabulary quiz wrong answers.
 
-Target English phrase (must NOT appear verbatim as any "word" field, case-insensitive):
+Target English phrase:
 ${quoted}
 
-Return exactly 3 different English phrases that could be confused with the target in a multiple-choice test:
-- similar spelling and/or similar pronunciation (including plausible mis-hearings or typos as multi-word phrases),
-- natural English (realistic collocations or common phrases when possible),
-- each phrase distinct from the others and from the target.
+Hard rules for the three distractors:
+1) None of the three "word" strings may be **exactly** the same phrase as the target (case-insensitive; trivial punctuation/spacing-only variants count as the same). Everything else is allowed: phrases may reuse individual words from the target — only avoid returning the **whole** phrase unchanged.
+2) Each "explainZh" gloss must **not** be too close in meaning to the target phrase's correct sense; wrong answers should read clearly different in Chinese so the learner can tell them apart from the right gloss.
+
+Return exactly 3 English phrases for wrong answers:
+- plausible confusions (similar sound, spelling, or wording), natural collocations when possible,
+- the three phrases distinct from **each other** (no duplicate distractors).
 
 For each item, "explainZh" must be a concise Chinese dictionary-style gloss, like:
 "n. …; …" or "adj. …" or "v. …; …" (use Chinese explanations; you may prefix part-of-speech abbreviations as in learner dictionaries).
@@ -95,7 +99,11 @@ export async function GET(req: Request) {
         output: Output.object({ schema: phraseDistractorsSchema }),
         prompt: phraseDistractorPrompt(word),
       });
-      return NextResponse.json({ distractors: result.output.distractors });
+      const targetKey = normalizeWordKey(word);
+      const filtered = result.output.distractors.filter(
+        (d) => normalizeWordKey(d.word.trim()) !== targetKey
+      );
+      return NextResponse.json({ distractors: filtered });
     } catch (e) {
       const message = e instanceof Error ? e.message : "LLM generation failed";
       return NextResponse.json({ error: message }, { status: 502 });
@@ -171,5 +179,8 @@ export async function GET(req: Request) {
     distractors.push({ word: w.trim(), explainZh: zh });
   }
 
-  return NextResponse.json({ distractors });
+  const targetKey = normalizeWordKey(word);
+  return NextResponse.json({
+    distractors: distractors.filter((d) => normalizeWordKey(d.word) !== targetKey),
+  });
 }

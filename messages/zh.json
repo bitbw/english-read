@@ -69,7 +69,12 @@
     "dueReview": "待复习",
     "reviewNow": "现在可以复习",
     "nextReview": "下次复习：{time}",
-    "viewModeAriaLabel": "展示形式"
+    "viewModeAriaLabel": "展示形式",
+    "export": "导出",
+    "exportCsv": "下载 CSV",
+    "exportJson": "下载 JSON",
+    "exportSuccess": "已开始下载",
+    "exportTooMany": "当前结果超过单次导出上限，请缩小筛选或搜索范围后再试。"
   },
   "settings": {
     "title": "设置",
@@ -289,6 +294,14 @@
     "metaDateAdded": "入库时间",
     "metaFileSize": "文件大小",
     "metaUploader": "上传者",
+    "deletePublicFromStore": "从公共书库移除",
+    "deletePublicConfirmTitle": "从公共书库移除「{title}」？",
+    "deletePublicConfirmDesc": "所有人将无法再浏览此书；已从书架加入的副本会一并移除。从该书保存的生词仍保留在生词本，但与书本的关联会被清空。",
+    "deletePublicConfirmShort": "将对所有人下架，并清除各用户书架中的该书副本。",
+    "deletePublicConfirmButton": "移除",
+    "deletePublicSuccess": "已从公共书库移除",
+    "deletePublicRemovedShelf": "已从公共书库移除（已清理 {count} 个书架副本）",
+    "deletePublicFailed": "移除失败，请稍后重试",
     "readingTier": {
       "1k": "入门 1K",
       "2k": "初级 2K",

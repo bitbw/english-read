@@ -12,6 +12,7 @@ import {
   Layers,
   Library,
   Loader2,
+  Trash2,
   User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
 import type { ReadingTierId } from "@/lib/reading-tiers";
+import { toastConfirmAction } from "@/lib/toast-confirm";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 
@@ -36,6 +38,8 @@ export type PublicBookDetailPayload = {
   uploaderName: string | null;
   /** 已在个人书架中时的 `books.id` */
   shelfBookId: string | null;
+  /** 当前用户是否为公共条目上传者（可删除公共书库记录） */
+  canDeletePublic: boolean;
 };
 
 function formatFileSize(bytes: number | null) {
@@ -72,6 +76,7 @@ function MetaRow({
 export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload }) {
   const router = useRouter();
   const [starting, setStarting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const t = useTranslations("library");
 
   async function startReading() {
@@ -101,6 +106,36 @@ export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload
     } finally {
       setStarting(false);
     }
+  }
+
+  async function deleteFromPublicLibrary() {
+    setDeleting(true);
+    try {
+      const res = await clientFetch(`/api/library/public/${book.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error(t("deletePublicFailed"));
+        return;
+      }
+      const data = (await res.json()) as { removedShelfCopies?: number };
+      const n = data.removedShelfCopies ?? 0;
+      toast.success(n > 0 ? t("deletePublicRemovedShelf", { count: n }) : t("deletePublicSuccess"));
+      router.replace("/library/store");
+    } catch (e) {
+      if (e instanceof Error && e.message !== CLIENT_FETCH_NETWORK_ERROR) {
+        toast.error(e.message);
+      }
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function confirmDeletePublic() {
+    toastConfirmAction({
+      message: t("deletePublicConfirmTitle", { title: book.title }),
+      description: t("deletePublicConfirmDesc"),
+      confirmLabel: t("deletePublicConfirmButton"),
+      onConfirm: () => void deleteFromPublicLibrary(),
+    });
   }
 
   const sizeLabel = formatFileSize(book.fileSize);
@@ -206,6 +241,24 @@ export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload
               <Library className="h-4 w-4 mr-2 opacity-80" />
               {t("myShelf")}
             </Link>
+            {book.canDeletePublic && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto min-w-[8rem] border-destructive/40 text-destructive hover:bg-destructive/10"
+                disabled={deleting}
+                onClick={() => confirmDeletePublic()}
+              >
+                {deleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {t("deletePublicFromStore")}
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </CardFooter>
       </Card>
