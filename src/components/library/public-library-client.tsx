@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BookOpen, Loader2, Search } from "lucide-react";
+import { BookOpen, Loader2, Search, Trash2 } from "lucide-react";
 import { clientFetch } from "@/lib/client-fetch";
 import { READING_TIERS, type ReadingTierId } from "@/lib/reading-tiers";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+import { toastConfirmAction } from "@/lib/toast-confirm";
 
 type PublicItem = {
   id: string;
@@ -20,10 +23,13 @@ type PublicItem = {
   fileSize: number | null;
   createdAt: string;
   uploaderName: string | null;
+  uploadedBy: string;
 };
 
 export function PublicLibraryClient() {
   const t = useTranslations("library");
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id ?? null;
   const [tier, setTier] = useState<ReadingTierId | "all">("all");
   const [q, setQ] = useState("");
   const [items, setItems] = useState<PublicItem[]>([]);
@@ -51,6 +57,25 @@ export function PublicLibraryClient() {
   useEffect(() => {
     void loadList();
   }, [loadList]);
+
+  function confirmDeletePublicBook(item: PublicItem) {
+    toastConfirmAction({
+      message: t("deletePublicConfirmTitle", { title: item.title }),
+      description: t("deletePublicConfirmShort"),
+      confirmLabel: t("deletePublicConfirmButton"),
+      onConfirm: async () => {
+        const res = await clientFetch(`/api/library/public/${item.id}`, { method: "DELETE" });
+        if (!res.ok) {
+          toast.error(t("deletePublicFailed"));
+          return;
+        }
+        const data = (await res.json()) as { removedShelfCopies?: number };
+        const n = data.removedShelfCopies ?? 0;
+        toast.success(n > 0 ? t("deletePublicRemovedShelf", { count: n }) : t("deletePublicSuccess"));
+        void loadList();
+      },
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -111,36 +136,58 @@ export function PublicLibraryClient() {
         </Card>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
-          {items.map((item) => (
-            <Link key={item.id} href={`/library/store/${item.id}`} className="block group min-w-0">
-              <Card className="overflow-hidden py-0 h-full transition-colors hover:border-primary/40 hover:bg-muted/30">
-                <CardContent className="p-2.5 sm:p-4">
-                  <div className="w-full aspect-[2/3] rounded-md overflow-hidden mb-2 sm:mb-3 bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
-                    {item.coverUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.coverUrl} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <BookOpen className="h-8 w-8 sm:h-12 sm:w-12 text-primary/40" />
-                    )}
-                  </div>
-                  <p
-                    className="font-medium text-xs sm:text-sm line-clamp-1 leading-tight min-h-[1.25em] min-w-0 group-hover:text-primary"
-                    title={item.title}
+          {items.map((item) => {
+            const canDelete = !!currentUserId && item.uploadedBy === currentUserId;
+            return (
+              <div key={item.id} className="relative group min-w-0">
+                <Link href={`/library/store/${item.id}`} className="block min-w-0">
+                  <Card className="overflow-hidden py-0 h-full transition-colors hover:border-primary/40 hover:bg-muted/30">
+                    <CardContent className="p-2.5 sm:p-4">
+                      <div className="w-full aspect-[2/3] rounded-md overflow-hidden mb-2 sm:mb-3 bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
+                        {item.coverUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.coverUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <BookOpen className="h-8 w-8 sm:h-12 sm:w-12 text-primary/40" />
+                        )}
+                      </div>
+                      <p
+                        className="font-medium text-xs sm:text-sm line-clamp-1 leading-tight min-h-[1.25em] min-w-0 group-hover:text-primary"
+                        title={item.title}
+                      >
+                        {item.title}
+                      </p>
+                      {item.author && (
+                        <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1 mt-0.5">{item.author}</p>
+                      )}
+                      <p className="text-[11px] sm:text-xs text-primary mt-1">{t(`readingTier.${item.tier}`)}</p>
+                      {item.uploaderName && (
+                        <p className="text-[10px] text-muted-foreground mt-1 truncate">{t("uploadedBy", { name: item.uploaderName })}</p>
+                      )}
+                      <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-2">{t("clickForDetail")}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+                {canDelete && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="absolute top-2 right-2 z-10 h-8 w-8 rounded-full border border-border/80 bg-background/90 shadow-sm text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    title={t("deletePublicFromStore")}
+                    aria-label={t("deletePublicFromStore")}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      confirmDeletePublicBook(item);
+                    }}
                   >
-                    {item.title}
-                  </p>
-                  {item.author && (
-                    <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1 mt-0.5">{item.author}</p>
-                  )}
-                  <p className="text-[11px] sm:text-xs text-primary mt-1">{t(`readingTier.${item.tier}`)}</p>
-                  {item.uploaderName && (
-                    <p className="text-[10px] text-muted-foreground mt-1 truncate">{t("uploadedBy", { name: item.uploaderName })}</p>
-                  )}
-                  <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-2">{t("clickForDetail")}</p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
