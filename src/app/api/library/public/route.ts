@@ -47,6 +47,7 @@ export async function GET(req: Request) {
         fileSize: publicLibraryBooks.fileSize,
         createdAt: publicLibraryBooks.createdAt,
         uploaderName: users.name,
+        uploadedBy: publicLibraryBooks.uploadedBy,
       })
       .from(publicLibraryBooks)
       .leftJoin(users, eq(publicLibraryBooks.uploadedBy, users.id))

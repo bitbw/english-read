@@ -33,6 +33,7 @@ export default async function PublicBookDetailPage({ params }: PageProps) {
         fileSize: publicLibraryBooks.fileSize,
         createdAt: publicLibraryBooks.createdAt,
         uploaderName: users.name,
+        uploadedBy: publicLibraryBooks.uploadedBy,
       })
       .from(publicLibraryBooks)
       .leftJoin(users, eq(publicLibraryBooks.uploadedBy, users.id))
@@ -58,6 +59,7 @@ export default async function PublicBookDetailPage({ params }: PageProps) {
     createdAtLabel: format(row.createdAt, "yyyy-MM-dd HH:mm", { locale: zhCN }),
     uploaderName: row.uploaderName,
     shelfBookId: shelf?.id ?? null,
+    canDeletePublic: row.uploadedBy === userId,
   };
 
   return <PublicBookDetailClient book={payload} />;
