@@ -6,6 +6,15 @@ import { $OpenApiUtil } from "@alicloud/openapi-core";
 
 let cached: DypnsClient | null | undefined;
 
+/** 阿里云 OpenAPI：超时为毫秒。跨境/冷启动易触发 ConnectTimeout，默认放宽；可用环境变量覆盖 */
+const DEFAULT_DYPNS_CONNECT_TIMEOUT_MS = 30_000;
+const DEFAULT_DYPNS_READ_TIMEOUT_MS = 60_000;
+
+function parseTimeoutMs(raw: string | undefined, fallback: number): number {
+  const n = raw?.trim() ? Number.parseInt(raw, 10) : NaN;
+  return Number.isFinite(n) && n >= 1000 ? n : fallback;
+}
+
 function getDypnsClient(): DypnsClient | null {
   if (cached === undefined) {
     const accessKeyId = process.env.ALIBABA_CLOUD_ACCESS_KEY_ID;
@@ -13,11 +22,21 @@ function getDypnsClient(): DypnsClient | null {
     if (!accessKeyId || !accessKeySecret) {
       cached = null;
     } else {
+      const connectTimeout = parseTimeoutMs(
+        process.env.ALIYUN_DYPNS_CONNECT_TIMEOUT_MS,
+        DEFAULT_DYPNS_CONNECT_TIMEOUT_MS
+      );
+      const readTimeout = parseTimeoutMs(
+        process.env.ALIYUN_DYPNS_READ_TIMEOUT_MS,
+        DEFAULT_DYPNS_READ_TIMEOUT_MS
+      );
       cached = new DypnsClient(
         new $OpenApiUtil.Config({
           accessKeyId,
           accessKeySecret,
           endpoint: "dypnsapi.aliyuncs.com",
+          connectTimeout,
+          readTimeout,
         }),
       );
     }
