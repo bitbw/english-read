@@ -4,7 +4,12 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  experimental: {
+    /** Enables `"use cache"` without full Cache Components (stable Next 15.5). */
+    useCache: true,
+  },
+};
 
 export default withSentryConfig(withNextIntl(nextConfig), {
   // For all available options, see:
