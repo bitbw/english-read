@@ -6,7 +6,7 @@ import {
 } from "@/lib/review-distractor-pick";
 import { fetchYoudaoExplain } from "@/lib/youdao-suggest";
 import { unstable_cacheLife } from "next/cache";
-import { generateText, Output } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 
 const PHRASE_LLM_MODEL = "zai/glm-4.7-flash" as const;
@@ -44,7 +44,40 @@ Return exactly 3 English phrases for wrong answers:
 For each item, "explainZh" must be a concise Chinese dictionary-style gloss, like:
 "n. …; …" or "adj. …" or "v. …; …" (use Chinese explanations; you may prefix part-of-speech abbreviations as in learner dictionaries).
 
-Output must strictly follow the JSON schema (3 items in "distractors").`;
+Output must strictly follow the JSON schema (3 items in "distractors").
+
+CRITICAL: Emit exactly one JSON object, then stop. Never append a second JSON object, never repeat the same payload, and do not add any text before or after the JSON.`;
+}
+
+/** Handles models that concatenate two JSON objects; `JSON.parse` on the full string would fail. */
+function sliceFirstJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (inString) {
+      if (c === "\\") escape = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') {
+      inString = true;
+      continue;
+    }
+    if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
 }
 
 function lettersKey(w: string): string {
@@ -83,6 +116,12 @@ export async function getCachedSimilarWordDistractors(
   "use cache";
   unstable_cacheLife("days");
 
+  // 仅在实际执行函数体时出现；命中 "use cache" 时不会进到这一行（可与 route 里每次请求的日志对比）
+  console.log("[BOWEN_LOG] similar-words use-cache: MISS 执行完整计算", {
+    canonicalWord,
+    phrase: isMultiWordPhrase(canonicalWord),
+  });
+
   const word = canonicalWord;
 
   if (isMultiWordPhrase(word)) {
@@ -91,11 +130,18 @@ export async function getCachedSimilarWordDistractors(
     }
     const result = await generateText({
       model: PHRASE_LLM_MODEL,
-      output: Output.object({ schema: phraseDistractorsSchema }),
       prompt: phraseDistractorPrompt(word),
     });
+    const jsonSlice = sliceFirstJsonObject(result.text.trim());
+    if (!jsonSlice) {
+      throw new Error("Phrase distractors: model returned no JSON object");
+    }
+    const parsed = phraseDistractorsSchema.safeParse(JSON.parse(jsonSlice));
+    if (!parsed.success) {
+      throw new Error(`Phrase distractors: invalid shape — ${parsed.error.message}`);
+    }
     const targetKey = normalizeWordKey(word);
-    const filtered = result.output.distractors.filter(
+    const filtered = parsed.data.distractors.filter(
       (d) => normalizeWordKey(d.word.trim()) !== targetKey
     );
     return { distractors: filtered };

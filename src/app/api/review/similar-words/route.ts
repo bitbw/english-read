@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 /**
  * GET /api/review/similar-words?word=xxx
  * - 单词：Datamuse 近拼写 + 有道中文释义，最多 3 个干扰项。
- * - 短语（含空格的多词）：Vercel AI Gateway + `zai/glm-4.7-flash`，`generateText` + `Output.object` 生成 3 条。
+ * - 短语（含空格的多词）：Vercel AI Gateway + `zai/glm-4.7-flash`，`generateText` 生成 JSON，经 Zod 校验。
  * - 计算结果由 `getCachedSimilarWordDistractors` 内 `"use cache"` 缓存（需 `experimental.useCache`，见 next.config.mjs）。
  */
 
@@ -33,6 +33,8 @@ export async function GET(req: Request) {
   }
 
   const canonical = canonicalSimilarWordsQuery(word);
+  // 每次带鉴权的请求都会打；若连续两次相同 canonical 只有本行、没有 compute 里的 MISS，说明走了 use cache 命中
+  console.log("[BOWEN_LOG] similar-words route: request", { word, canonical });
 
   if (isMultiWordPhrase(word)) {
     try {
