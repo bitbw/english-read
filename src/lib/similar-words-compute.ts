@@ -5,8 +5,12 @@ import {
   pickDistractorEnglishWords,
 } from "@/lib/review-distractor-pick";
 import { fetchYoudaoExplain } from "@/lib/youdao-suggest";
+import { unstable_cache } from "next/cache";
 import { generateText, Output } from "ai";
 import { z } from "zod";
+
+/** 服务端按词条缓存干扰项；秒，与 Datamuse fetch 的 3600 量级对齐并控制有道调用频率 */
+const SIMILAR_WORDS_CACHE_REVALIDATE_SEC = 86400;
 
 const PHRASE_LLM_MODEL = "deepseek/deepseek-v4-flash" as const;
 
@@ -72,22 +76,22 @@ export function canonicalSimilarWordsQuery(word: string): string {
   return word.trim().replace(/\s+/g, " ");
 }
 
-/**
- * Similar-word distractors for review quiz. Auth must stay in the Route Handler.
- * （`"use cache"` + `unstable_cacheLife` 已暂时关闭，每次请求都会完整计算。）
- */
-export async function getCachedSimilarWordDistractors(
-  canonicalWord: string
-): Promise<{ distractors: SimilarWordDistractor[] }> {
-  // "use cache";
-  // unstable_cacheLife("days");
-
-  // 仅在实际执行函数体时出现；命中 "use cache" 时不会进到这一行（可与 route 里每次请求的日志对比）
-  console.log("[BOWEN_LOG] similar-words use-cache: MISS 执行完整计算", {
+function logSimilarWordsCacheMiss(canonicalWord: string): void {
+  const enabled =
+    process.env.SIMILAR_WORDS_CACHE_LOG === "1" || process.env.NODE_ENV !== "production";
+  if (!enabled) return;
+  console.log("[similar-words] cache MISS (computing)", {
     canonicalWord,
     phrase: isMultiWordPhrase(canonicalWord),
   });
+}
 
+/**
+ * 实际计算（不经 unstable_cache）。鉴权必须在 Route Handler，本模块只做按词条可共享的结果缓存。
+ */
+async function computeSimilarWordDistractors(
+  canonicalWord: string
+): Promise<{ distractors: SimilarWordDistractor[] }> {
   const word = canonicalWord;
 
   if (isMultiWordPhrase(word)) {
@@ -104,7 +108,7 @@ export async function getCachedSimilarWordDistractors(
     if (logPhraseLlm) {
       const logMax = 16_000;
       const t = result.text;
-      console.log("[BOWEN_LOG] phrase distractors LLM raw text", {
+      console.log("[similar-words] phrase LLM raw text", {
         canonicalWord: word,
         textLength: t.length,
         text: t.length > logMax ? `${t.slice(0, logMax)}\n...[truncated]` : t,
@@ -190,4 +194,22 @@ export async function getCachedSimilarWordDistractors(
   return {
     distractors: distractors.filter((d) => normalizeWordKey(d.word) !== targetKey),
   };
+}
+
+/**
+ * 干扰项列表：按 `canonicalWord` 走 Next `unstable_cache`（跨请求共享，与登录用户无关）。
+ * - **MISS**：只会打印 `[similar-words] cache MISS (computing)`（见 `logSimilarWordsCacheMiss`，生产环境默认关闭）。
+ * - **HIT**：不会进入上述日志；可在 Route 开启 `SIMILAR_WORDS_CACHE_LOG=1` 或开发环境看 `elapsedMs` 辅助判断。
+ */
+export async function getCachedSimilarWordDistractors(
+  canonicalWord: string
+): Promise<{ distractors: SimilarWordDistractor[] }> {
+  return unstable_cache(
+    async () => {
+      logSimilarWordsCacheMiss(canonicalWord);
+      return computeSimilarWordDistractors(canonicalWord);
+    },
+    ["similar-word-distractors", canonicalWord],
+    { revalidate: SIMILAR_WORDS_CACHE_REVALIDATE_SEC, tags: ["similar-words"] }
+  )();
 }
