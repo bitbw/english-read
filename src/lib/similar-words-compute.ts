@@ -5,11 +5,10 @@ import {
   pickDistractorEnglishWords,
 } from "@/lib/review-distractor-pick";
 import { fetchYoudaoExplain } from "@/lib/youdao-suggest";
-import { unstable_cacheLife } from "next/cache";
-import { generateText } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod";
 
-const PHRASE_LLM_MODEL = "zai/glm-4.7-flash" as const;
+const PHRASE_LLM_MODEL = "deepseek/deepseek-v4-flash" as const;
 
 const phraseDistractorsSchema = z.object({
   distractors: z
@@ -44,40 +43,7 @@ Return exactly 3 English phrases for wrong answers:
 For each item, "explainZh" must be a concise Chinese dictionary-style gloss, like:
 "n. …; …" or "adj. …" or "v. …; …" (use Chinese explanations; you may prefix part-of-speech abbreviations as in learner dictionaries).
 
-Output must strictly follow the JSON schema (3 items in "distractors").
-
-CRITICAL: Emit exactly one JSON object, then stop. Never append a second JSON object, never repeat the same payload, and do not add any text before or after the JSON.`;
-}
-
-/** Handles models that concatenate two JSON objects; `JSON.parse` on the full string would fail. */
-function sliceFirstJsonObject(text: string): string | null {
-  const start = text.indexOf("{");
-  if (start < 0) return null;
-  let depth = 0;
-  let inString = false;
-  let escape = false;
-  for (let i = start; i < text.length; i++) {
-    const c = text[i];
-    if (escape) {
-      escape = false;
-      continue;
-    }
-    if (inString) {
-      if (c === "\\") escape = true;
-      else if (c === '"') inString = false;
-      continue;
-    }
-    if (c === '"') {
-      inString = true;
-      continue;
-    }
-    if (c === "{") depth++;
-    else if (c === "}") {
-      depth--;
-      if (depth === 0) return text.slice(start, i + 1);
-    }
-  }
-  return null;
+Output must strictly follow the JSON schema (3 items in "distractors").`;
 }
 
 function lettersKey(w: string): string {
@@ -107,14 +73,14 @@ export function canonicalSimilarWordsQuery(word: string): string {
 }
 
 /**
- * Cached similar-word distractors for review quiz. Auth must stay in the Route Handler.
- * TTL aligned with Youdao fetch (~24h revalidate via `days` profile).
+ * Similar-word distractors for review quiz. Auth must stay in the Route Handler.
+ * （`"use cache"` + `unstable_cacheLife` 已暂时关闭，每次请求都会完整计算。）
  */
 export async function getCachedSimilarWordDistractors(
   canonicalWord: string
 ): Promise<{ distractors: SimilarWordDistractor[] }> {
-  "use cache";
-  unstable_cacheLife("days");
+  // "use cache";
+  // unstable_cacheLife("days");
 
   // 仅在实际执行函数体时出现；命中 "use cache" 时不会进到这一行（可与 route 里每次请求的日志对比）
   console.log("[BOWEN_LOG] similar-words use-cache: MISS 执行完整计算", {
@@ -130,18 +96,22 @@ export async function getCachedSimilarWordDistractors(
     }
     const result = await generateText({
       model: PHRASE_LLM_MODEL,
+      output: Output.object({ schema: phraseDistractorsSchema }),
       prompt: phraseDistractorPrompt(word),
     });
-    const jsonSlice = sliceFirstJsonObject(result.text.trim());
-    if (!jsonSlice) {
-      throw new Error("Phrase distractors: model returned no JSON object");
-    }
-    const parsed = phraseDistractorsSchema.safeParse(JSON.parse(jsonSlice));
-    if (!parsed.success) {
-      throw new Error(`Phrase distractors: invalid shape — ${parsed.error.message}`);
+    const logPhraseLlm =
+      process.env.SIMILAR_WORDS_LLM_LOG === "1" || process.env.NODE_ENV === "development";
+    if (logPhraseLlm) {
+      const logMax = 16_000;
+      const t = result.text;
+      console.log("[BOWEN_LOG] phrase distractors LLM raw text", {
+        canonicalWord: word,
+        textLength: t.length,
+        text: t.length > logMax ? `${t.slice(0, logMax)}\n...[truncated]` : t,
+      });
     }
     const targetKey = normalizeWordKey(word);
-    const filtered = parsed.data.distractors.filter(
+    const filtered = result.output.distractors.filter(
       (d) => normalizeWordKey(d.word.trim()) !== targetKey
     );
     return { distractors: filtered };

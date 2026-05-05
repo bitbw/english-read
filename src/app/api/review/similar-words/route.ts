@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 /**
  * GET /api/review/similar-words?word=xxx
  * - 单词：Datamuse 近拼写 + 有道中文释义，最多 3 个干扰项。
- * - 短语（含空格的多词）：Vercel AI Gateway + `zai/glm-4.7-flash`，`generateText` 生成 JSON，经 Zod 校验。
+ * - 短语（含空格的多词）：Vercel AI Gateway + `deepseek/deepseek-v4-flash`，`generateText` + `Output.object`（Zod schema）。
  * - 计算结果由 `getCachedSimilarWordDistractors` 内 `"use cache"` 缓存（需 `experimental.useCache`，见 next.config.mjs）。
  */
 
