@@ -100,6 +100,7 @@ export async function GET(req: Request) {
 
   if (!translation) {
     /*
+     google 翻译效果更好，先使用 google 翻译
     try {
       const res = await fetch(
         `https://api.mymemory.translated.net/get?q=${encodeURIComponent(trimmed)}&langpair=en|zh`,
