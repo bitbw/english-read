@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import ePub, {
   type Book,
   type Contents,
@@ -111,6 +117,26 @@ export function EpubReader({
   const currentPctRef = useRef<number>(0);
   const navTocRef = useRef<NavItem[]>([]);
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
+  /** 供 epub 事件回调读取：弹窗是否打开（避免闭包读到旧的 selection）。 */
+  const selectionOpenRef = useRef(false);
+  selectionOpenRef.current = selection !== null;
+
+  /** 关闭查词弹窗并清除各 iframe 内选区高亮。 */
+  const dismissWordPopup = useCallback(() => {
+    setSelection(null);
+    const list = renditionRef.current?.getContents() as unknown as
+      | Contents[]
+      | undefined;
+    if (!list) return;
+    for (const c of list) {
+      try {
+        c.window.getSelection()?.removeAllRanges();
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
   /** 拉取 blobUrl、解析 EPUB、首屏 display 完成前 */
   const [bookLoading, setBookLoading] = useState(true);
 
@@ -163,6 +189,17 @@ export function EpubReader({
         const win = contents.window as Window;
         const swipeAt = swipeNavAtByWin.get(win);
         if (swipeAt !== undefined && Date.now() - swipeAt < 900) {
+          return;
+        }
+        // 弹窗已开时：本次划词/点选只关闭弹窗，不换新词（需再操作一次才查词）
+        if (selectionOpenRef.current) {
+          try {
+            win.getSelection()?.removeAllRanges();
+          } catch {
+            /* ignore */
+          }
+          dismissWordPopup();
+          lastSelectedAt = Date.now();
           return;
         }
         lastSelectedAt = Date.now();
@@ -246,7 +283,7 @@ export function EpubReader({
       const rendition = book.renderTo(viewerRef.current, {
         width: w,
         height: h,
-        flow: "paginated",
+        flow: "auto",
         spread: "auto",
       });
       renditionRef.current = rendition;
@@ -312,7 +349,7 @@ export function EpubReader({
       rendition.on("click", () => {
         if (!mounted) return;
         if (Date.now() - lastSelectedAt < 300) return;
-        setSelection(null);
+        dismissWordPopup();
       });
 
       rendition.hooks.content.register((contents: Contents) => {
@@ -348,7 +385,7 @@ export function EpubReader({
       bookRef.current?.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blobUrl, initialCfi, bookId]);
+  }, [blobUrl, initialCfi, bookId, dismissWordPopup]);
 
   /** 字号仅变时改主题，不重跑整段 initReader。 */
   useEffect(() => {
@@ -405,17 +442,29 @@ export function EpubReader({
           <p className="text-sm text-muted-foreground">{t("loadingBook")}</p>
         </div>
       ) : null}
-      {selection && (
-        <WordPopup
-          word={selection.word}
-          context={selection.context}
-          contextCfi={selection.cfi}
-          bookId={bookId}
-          anchorRect={selection.anchorRect}
-          onClose={() => setSelection(null)}
-          onSaved={() => setSelection(null)}
-        />
-      )}
+      {selection ? (
+        <>
+          {/* 点击/触摸正文与顶栏等弹窗外的区域：仅关闭弹窗，不穿透到 epub 触发新查词 */}
+          <div
+            role="presentation"
+            aria-hidden
+            className="fixed inset-0 z-90 touch-none"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              dismissWordPopup();
+            }}
+          />
+          <WordPopup
+            word={selection.word}
+            context={selection.context}
+            contextCfi={selection.cfi}
+            bookId={bookId}
+            anchorRect={selection.anchorRect}
+            onClose={dismissWordPopup}
+            onSaved={dismissWordPopup}
+          />
+        </>
+      ) : null}
     </div>
   );
 }
