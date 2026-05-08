@@ -121,9 +121,11 @@ export function EpubReader({
   const selectionOpenRef = useRef(false);
   selectionOpenRef.current = selection !== null;
 
-  /** 关闭查词弹窗并清除各 iframe 内选区高亮。 */
+  /** 关闭查词弹窗；仅在原先确有弹窗时清除 iframe 选区（避免 click 抢在防抖前清空划词）。 */
   const dismissWordPopup = useCallback(() => {
+    const hadOpenPopup = selectionOpenRef.current;
     setSelection(null);
+    if (!hadOpenPopup) return;
     const list = renditionRef.current?.getContents() as unknown as
       | Contents[]
       | undefined;
@@ -345,9 +347,10 @@ export function EpubReader({
 
       rendition.on("selected", handleSelected);
 
-      // 点击空白关闭弹层；划词后短时间内忽略 click，避免立刻关掉弹层
+      // 仅当弹窗已打开时点正文才关闭（与原先 setSelection(null) 一致）；无弹窗时勿跑 dismiss，以免 removeAllRanges 抢在 selected 防抖之前清空选区
       rendition.on("click", () => {
         if (!mounted) return;
+        if (!selectionOpenRef.current) return;
         if (Date.now() - lastSelectedAt < 300) return;
         dismissWordPopup();
       });
