@@ -27,8 +27,10 @@ import {
 import {
   chapterDisplayName,
   chapterPctFromDisplayed,
+  estimateTotalChars,
   excerptSentenceForVocabulary,
-  wholeBookPctFromSpine,
+  getLocationsCharInterval,
+  wholeBookPctFromLocations,
 } from "@/components/reader/epub-reader-location";
 import {
   paragraphSnippetFromSelection,
@@ -60,10 +62,13 @@ interface EpubReaderProps {
   initialCfi?: string | null;
   fontSize: number;
   colorScheme?: ReaderColorSchemeId;
-  /** bookPct：0–100，`(spineIndex + page/total) / spine.length`；chapterPct：当前章内分页进度。 */
+  /**
+   * bookPct：`locations.generate` 完成前为 `null`（不展示/不落库百分比）；就绪后为 0–100。
+   * chapterPct：当前章内分页进度。
+   */
   onProgress?: (
     cfi: string,
-    bookPct: number,
+    bookPct: number | null,
     chapterName: string,
     chapterPct: number
   ) => void;
@@ -157,31 +162,50 @@ export function EpubReader({
     const swipeNavAtByWin = new WeakMap<Window, number>();
     const touchSwipeAttached = new WeakSet<Window>();
 
-    /** 锚点变化：进度 UI、服务端 PUT（整段防抖，见 RELOCATED_DEBOUNCE_MS）。 */
+    /** `locations.generate` 完成后置 true，全书进度仅此时才计算、展示与写入 readingProgress */
+    let locationsReady = false;
+
+    /** 锚点变化：正文 CFI / 章节 UI 实时更新；全书百分比与服务端 `readingProgress` 仅在看 locationsReady 之后（整段防抖）。 */
     const debouncedRelocated = debounce((location: Location) => {
       if (!mounted) return;
       const book = bookRef.current;
       if (!book) return;
 
       const cfi = location.start.cfi;
-      const bookPct = wholeBookPctFromSpine(book, location);
+
+      const locTotal = (
+        book.locations as typeof book.locations & { total?: number }
+      ).total;
+
+      const bookPct =
+        locationsReady &&
+        typeof locTotal === "number" &&
+        locTotal > 0
+          ? wholeBookPctFromLocations(book, location)
+          : null;
+
       const chapterName = chapterDisplayName(location, navTocRef.current, (n) =>
         t("chapterDefault", { n })
       );
       const chapterPct = chapterPctFromDisplayed(location.start.displayed);
 
       currentCfiRef.current = cfi;
-      currentPctRef.current = bookPct;
+      if (bookPct !== null) {
+        currentPctRef.current = bookPct;
+      }
 
       onProgress?.(cfi, bookPct, chapterName, chapterPct);
       readerDebugLog("relocated", {
         cfi,
         bookPct,
+        locationsReady,
+        locTotal:
+          locationsReady ? locTotal : undefined,
         chapterName,
         chapterPct,
       });
 
-      persistProgressToServer();
+      persistProgressToServer(bookPct);
     }, RELOCATED_DEBOUNCE_MS);
 
     /** 划词结束：计算锚点矩形与摘录上下文，打开查词弹层（防抖见 SELECTED_DEBOUNCE_MS）。 */
@@ -238,13 +262,16 @@ export function EpubReader({
       debouncedSelected(cfiRange, contents);
     }
 
-    /** 使用 ref 中当前锚点与进度上报（供 relocated 与卸载清理调用）。 */
-    function persistProgressToServer() {
+    /**
+     * 上报阅读进度：`readingProgress` 仅在已有基于 locations 的 bookPct 时附带（否则会误用旧值）。
+     * locations 未就绪时只更新 `currentCfi`，避免用不准的百分比覆盖服务端。
+     */
+    function persistProgressToServer(bookPct: number | null) {
       if (!currentCfiRef.current) return;
       saveReadingProgressToServer(
         bookId,
         currentCfiRef.current,
-        currentPctRef.current
+        bookPct !== null ? bookPct : undefined
       );
     }
 
@@ -370,6 +397,31 @@ export function EpubReader({
       if (!mounted) return;
       setBookLoading(false);
       window.addEventListener("resize", onWindowResize);
+
+      const totalChars = estimateTotalChars(book);
+      const charInterval = getLocationsCharInterval(totalChars);
+      readerDebugLog("locations-generation-start", { charInterval, totalChars });
+      const locationsStartTime = performance.now();
+
+      book.locations
+        .generate(charInterval)
+        .then(() => {
+          const elapsed = performance.now() - locationsStartTime;
+          readerDebugLog("locations-generated", {
+            elapsedMs: elapsed.toFixed(0),
+            total:
+              (book.locations as typeof book.locations & { total?: number })
+                .total ?? 0,
+          });
+          if (!mounted) return;
+          locationsReady = true;
+          rendition.reportLocation();
+        })
+        .catch((err) => {
+          readerDebugLog("locations-generation-failed", {
+            error: String(err),
+          });
+        });
     }
 
     initReader().catch((err) => {
@@ -383,7 +435,13 @@ export function EpubReader({
       debouncedRelocated.cancel();
       debouncedSelected.cancel();
       window.removeEventListener("resize", onWindowResize);
-      persistProgressToServer();
+      if (currentCfiRef.current) {
+        saveReadingProgressToServer(
+          bookId,
+          currentCfiRef.current,
+          locationsReady ? currentPctRef.current : undefined
+        );
+      }
       renditionRef.current?.destroy();
       bookRef.current?.destroy();
     };

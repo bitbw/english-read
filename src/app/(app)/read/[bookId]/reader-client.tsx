@@ -56,7 +56,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const [fontSize, setFontSize] = useState(20);
   const [colorScheme, setColorScheme] = useState<ReaderColorSchemeId>(readColorSchemeFromStorage());
   const [chapterName, setChapterName] = useState("");
-  /** 全书进度 0–100（spine 索引 + 章内 page/total） */
+  /** 全书进度 0–100（epub locations 生成后才由阅读器填入） */
   const [bookPercent, setBookPercent] = useState<number | null>(null);
   /** 当前章内分页进度 0–100（`displayed.page/total`）；无分页信息时为 null */
   const [chapterPercent, setChapterPercent] = useState<number | null>(null);
@@ -286,7 +286,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             onReady={(controls) => { controlsRef.current = controls; }}
             onTocReady={(items) => setToc(items)}
             onProgress={(_, bookPct, name, chapPct) => {
-              setBookPercent(bookPct);
+              if (bookPct !== null) setBookPercent(bookPct);
               setChapterName(name ?? "");
               setChapterPercent(chapPct);
             }}
