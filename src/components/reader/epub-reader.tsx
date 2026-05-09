@@ -79,6 +79,9 @@ interface EpubReaderProps {
 const RELOCATED_DEBOUNCE_MS = 300;
 const SELECTED_DEBOUNCE_MS = 200;
 
+/** 超过此长度的单次划选不弹查词窗（防止误选整章/超大段落）；以下为正常长段落 */
+const MAX_SELECTION_TEXT_CHARS = 16_000;
+
 /** 横向滑动超过此距离（px）且以水平为主时触发翻页（略大以减少误触）。 */
 const SWIPE_PAGE_MIN_PX = 112;
 /** 滑动时允许的最大纵向偏移（px），超过则视为滚动而非翻页。 */
@@ -242,7 +245,8 @@ export function EpubReader({
         const sel = win.getSelection();
         if (!sel) return;
         const text = sel.toString().trim();
-        if (!text || text.length > 200) return;
+        // 空选区不弹窗；超长划选（误选整章等）不弹窗，与常量 MAX_SELECTION_TEXT_CHARS 对齐
+        if (!text || text.length > MAX_SELECTION_TEXT_CHARS) return;
         const iframe = win.frameElement as HTMLIFrameElement | null;
         if (!iframe) return;
         const anchorRect = wordPopupAnchorFromIframeSelection(sel, iframe);

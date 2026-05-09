@@ -41,6 +41,9 @@ interface WordPopupProps {
   onSaved: () => void;
 }
 
+/** GET `/api/dictionary?word=` 过长会逼近 URL 上限；查询用截断前缀，标题仍展示完整划选 */
+const MAX_DICTIONARY_QUERY_CHARS = 3000;
+
 const VIEW_MARGIN = 8;
 /** 与选区之间的最小间隙（像素），保证弹窗与选区不相交 */
 const ANCHOR_GAP = 8;
@@ -146,7 +149,7 @@ export function WordPopup({
   // 是否已在生词本（与 POST 的 normalizedWord 规则一致）
   useEffect(() => {
     let cancelled = false;
-    const key = word.trim().toLowerCase();
+    const key = word.trim().toLowerCase().slice(0, MAX_DICTIONARY_QUERY_CHARS);
     async function fetchLookup() {
       setLookupLoading(true);
       setExistingEntryId(null);
@@ -187,9 +190,13 @@ export function WordPopup({
       setAudioUs("");
       setSaved(false);
       try {
-        const res = await clientFetch(`/api/dictionary?word=${encodeURIComponent(word)}`, {
-          showErrorToast: false,
-        });
+        const dictQuery = word.trim().slice(0, MAX_DICTIONARY_QUERY_CHARS);
+        const res = await clientFetch(
+          `/api/dictionary?word=${encodeURIComponent(dictQuery)}`,
+          {
+            showErrorToast: false,
+          },
+        );
         if (!res.ok) return;
         const data = await res.json();
         if (cancelled) return;
