@@ -83,8 +83,20 @@ const SELECTED_DEBOUNCE_MS = 200;
 const SWIPE_PAGE_MIN_PX = 112;
 /** 滑动时允许的最大纵向偏移（px），超过则视为滚动而非翻页。 */
 const SWIPE_MAX_VERTICAL_PX = 96;
-/** 从 touchstart 到选区出现超过此时长视为长按选词：不打开查词弹层（在防抖前判定，不含防抖延迟）。 */
-const LONG_PRESS_NO_POPUP_MS = 450;
+
+/** 移动端非横滑 touchend 后再读一次选区；部分 WebKit（尤其 iframe）下 `selectionchange` 滞后或未冒泡到位。 */
+const TOUCH_SELECTION_PING_MS = 320;
+
+/** 通过 `unknown` 断言调用 epubjs Contents 未在 .d.ts 中公开的 `triggerSelectedEvent` */
+function triggerContentsSelectedEvent(
+  contents: Contents,
+  selection: Selection | null
+): void {
+  const c = contents as unknown as {
+    triggerSelectedEvent?: (s: Selection | null) => void;
+  };
+  c.triggerSelectedEvent?.(selection);
+}
 
 /**
  * 阅读器外壳样式。勿对宿主设 `-webkit-touch-callout: none`：在 iOS/WebKit 上会抑制长按呼出的
@@ -156,8 +168,6 @@ export function EpubReader({
     let mounted = true;
     /** 最近一次划词完成时间，用于区分「点击关闭弹层」与「划词后误触 click」。 */
     let lastSelectedAt = 0;
-    /** iframe 内最近一次 touchstart 时间（用于长按不弹窗，仅触摸）。 */
-    const touchStartedAtByWin = new WeakMap<Window, number>();
     /** 最近一次滑动翻页时间，避免翻页手势仍打开查词层。 */
     const swipeNavAtByWin = new WeakMap<Window, number>();
     const touchSwipeAttached = new WeakSet<Window>();
@@ -250,16 +260,18 @@ export function EpubReader({
     );
 
     /**
-     * 在防抖前判定长按：仅跳过查词弹层（系统长按选词菜单场景）。
+     * 触屏：非横滑 touchend 后轮询 iframe 选区并向 epubjs 补发 selected。
+     * 与 selectionchange 去重：`debouncedSelected` 防抖；空选区时 triggerSelectedEvent 不向 rendition emit。
      */
-    function handleSelected(cfiRange: string, contents: Contents) {
-      if (!mounted) return;
-      const win = contents.window as Window;
-      const t0 = touchStartedAtByWin.get(win);
-      if (t0 !== undefined && Date.now() - t0 >= LONG_PRESS_NO_POPUP_MS) {
+    function scheduleTouchSelectionReplay(contents: Contents) {
+      if (typeof navigator === "undefined" || navigator.maxTouchPoints <= 0) {
         return;
       }
-      debouncedSelected(cfiRange, contents);
+      const win = contents.window as Window;
+      window.setTimeout(() => {
+        if (!mounted) return;
+        triggerContentsSelectedEvent(contents, win.getSelection());
+      }, TOUCH_SELECTION_PING_MS);
     }
 
     /**
@@ -342,7 +354,6 @@ export function EpubReader({
             if (!e.touches[0]) return;
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
-            touchStartedAtByWin.set(win, Date.now());
           },
           { passive: true }
         );
@@ -357,7 +368,10 @@ export function EpubReader({
               Math.abs(dx) >= SWIPE_PAGE_MIN_PX &&
               Math.abs(dy) <= SWIPE_MAX_VERTICAL_PX &&
               Math.abs(dx) > Math.abs(dy);
-            if (!isHorizontalSwipe) return;
+            if (!isHorizontalSwipe) {
+              scheduleTouchSelectionReplay(contents);
+              return;
+            }
             swipeNavAtByWin.set(win, Date.now());
             try {
               win.getSelection()?.removeAllRanges();
@@ -372,7 +386,7 @@ export function EpubReader({
         );
       });
 
-      rendition.on("selected", handleSelected);
+      rendition.on("selected", debouncedSelected);
 
       // 仅当弹窗已打开时点正文才关闭（与原先 setSelection(null) 一致）；无弹窗时勿跑 dismiss，以免 removeAllRanges 抢在 selected 防抖之前清空选区
       rendition.on("click", () => {
