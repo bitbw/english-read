@@ -158,7 +158,7 @@ export const books = pgTable(
 );
 
 // ─────────────────────────────────────────────
-// Reading daily time（每日阅读时长，秒）
+// Reading daily time（每日阅读时长秒数 + 估算阅读词数）
 // ─────────────────────────────────────────────
 
 export const readingDailyTime = pgTable(
@@ -169,6 +169,8 @@ export const readingDailyTime = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     day: date("day", { mode: "string" }).notNull(),
     seconds: integer("seconds").default(0).notNull(),
+    /** 当日累计估算阅读词数（基于 epubjs locations，见阅读器内 char 步长换算） */
+    words: integer("words").default(0).notNull(),
     updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
   },
   (t) => ({

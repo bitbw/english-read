@@ -9,9 +9,11 @@ import { z } from "zod";
 
 const postSchema = z.object({
   seconds: z.number().int().min(1).max(120),
+  /** 本会话区间内估算新增词数（仅 epubjs locations 生成后可统计） */
+  words: z.number().int().min(0).max(50_000).optional(),
 });
 
-// POST /api/reading/time — 累加当日（学习时区自然日）阅读秒数
+// POST /api/reading/time — 累加当日（学习时区自然日）阅读秒数与估算阅读词数（locations 就绪后上报）
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -26,19 +28,24 @@ export async function POST(req: Request) {
 
   const timeZone = await resolveTimeZone(session.user.id, req);
   const day = calendarDayKey(timeZone);
-  const add = parsed.data.seconds;
+  const addSeconds = parsed.data.seconds;
+  const addWords = parsed.data.words ?? 0;
 
   await db
     .insert(readingDailyTime)
     .values({
       userId: session.user.id,
       day,
-      seconds: add,
+      seconds: addSeconds,
+      words: addWords,
     })
     .onConflictDoUpdate({
       target: [readingDailyTime.userId, readingDailyTime.day],
       set: {
-        seconds: sql`${readingDailyTime.seconds} + ${add}`,
+        seconds: sql`${readingDailyTime.seconds} + ${addSeconds}`,
+        ...(addWords > 0
+          ? { words: sql`${readingDailyTime.words} + ${addWords}` }
+          : {}),
         updatedAt: new Date(),
       },
     });
@@ -63,7 +70,11 @@ export async function GET(req: Request) {
   const end = keys[keys.length - 1]!;
 
   const rows = await db
-    .select({ day: readingDailyTime.day, seconds: readingDailyTime.seconds })
+    .select({
+      day: readingDailyTime.day,
+      seconds: readingDailyTime.seconds,
+      words: readingDailyTime.words,
+    })
     .from(readingDailyTime)
     .where(
       and(
@@ -73,12 +84,16 @@ export async function GET(req: Request) {
       )
     );
 
-  const map = new Map(rows.map((r) => [r.day, r.seconds]));
+  const map = new Map(rows.map((r) => [r.day, { seconds: r.seconds, words: r.words }]));
 
-  const series = keys.map((day) => ({
-    day,
-    seconds: map.get(day) ?? 0,
-  }));
+  const series = keys.map((day) => {
+    const v = map.get(day);
+    return {
+      day,
+      seconds: v?.seconds ?? 0,
+      words: v?.words ?? 0,
+    };
+  });
 
   return NextResponse.json({ days: numDays, series });
 }

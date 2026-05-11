@@ -5,8 +5,9 @@ import { cn } from "@/lib/utils";
 import { clientFetch } from "@/lib/client-fetch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "next-intl";
+import { readingSpeedTierFromWpm } from "@/lib/reading-speed-tier";
 
-type SeriesPoint = { day: string; seconds: number };
+type SeriesPoint = { day: string; seconds: number; words?: number };
 
 function formatDayLabel(isoDay: string) {
   const m = parseInt(isoDay.slice(5, 7), 10);
@@ -23,6 +24,7 @@ function formatBarMinutes(seconds: number) {
 
 export function DailyStudyChart() {
   const t = useTranslations("chart");
+  const tTier = useTranslations("readingSpeedTier");
   const [series, setSeries] = useState<SeriesPoint[] | null>(null);
   const [narrow, setNarrow] = useState(false);
 
@@ -67,15 +69,57 @@ export function DailyStudyChart() {
   const totalToday = series.length > 0 ? series[series.length - 1]!.seconds : 0;
   const todayMin = Math.round(totalToday / 60);
 
+  const todayPoint = series.length > 0 ? series[series.length - 1]! : null;
+  const todayWpm =
+    todayPoint && todayPoint.seconds >= 45
+      ? Math.round(((todayPoint.words ?? 0) / todayPoint.seconds) * 60)
+      : null;
+
+  const totalWordsWindow = series.reduce((a, s) => a + (s.words ?? 0), 0);
+  const totalSecondsWindow = series.reduce((a, s) => a + s.seconds, 0);
+  const periodAvgWpm =
+    totalSecondsWindow >= 300
+      ? Math.round((totalWordsWindow / totalSecondsWindow) * 60)
+      : null;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
         <p className="text-sm text-muted-foreground">
           {t("lastNDays", { count: displaySeries.length })}
         </p>
-        <p className="text-sm tabular-nums text-muted-foreground">
-          {t("todayMinutes", { min: todayMin })}
-        </p>
+        <div className="flex flex-col items-end gap-0.5 sm:items-end">
+          <p className="text-sm tabular-nums text-muted-foreground">
+            {t("todayMinutes", { min: todayMin })}
+          </p>
+          {todayWpm !== null || periodAvgWpm !== null ? (
+            <p className="text-[11px] sm:text-xs text-muted-foreground tabular-nums text-right max-w-[24rem] leading-snug">
+              {todayWpm !== null ? (
+                <span className="inline-block">
+                  {t("todayWpm", { wpm: todayWpm })}{" "}
+                  <span className="text-muted-foreground/80">
+                    ({tTier(readingSpeedTierFromWpm(todayWpm))})
+                  </span>
+                </span>
+              ) : null}
+              {todayWpm !== null && periodAvgWpm !== null ? (
+                <span className="text-muted-foreground/70"> · </span>
+              ) : null}
+              {periodAvgWpm !== null ? (
+                <span className="inline-block">
+                  {t("periodAvgWpm", { days: series.length, wpm: periodAvgWpm })}{" "}
+                  <span className="text-muted-foreground/80">
+                    ({tTier(readingSpeedTierFromWpm(periodAvgWpm))})
+                  </span>
+                </span>
+              ) : null}
+            </p>
+          ) : (
+            <p className="text-[11px] sm:text-xs text-muted-foreground/90 text-right max-w-[18rem] leading-snug">
+              {t("wpmDataPending")}
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col gap-1">

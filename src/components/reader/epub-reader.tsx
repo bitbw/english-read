@@ -42,6 +42,7 @@ import {
   viewerPixelDimensions,
 } from "@/components/reader/epub-rendition-tools";
 import { saveReadingProgressToServer } from "@/lib/reader-progress-save";
+import { wordsFromLocationIndexDelta } from "@/lib/reader-word-estimate";
 
 interface SelectionInfo {
   word: string;
@@ -74,6 +75,13 @@ interface EpubReaderProps {
   ) => void;
   onReady?: (controls: ReaderControls) => void;
   onTocReady?: (toc: NavItem[]) => void;
+  /**
+   * 仅在 `locations.generate` 完成后，根据 location 索引单调前进估算新增英语词数后回调。
+   * 与 epubjs `locations.break`（本次 generate 的 char 间隔）一致换算。
+   */
+  onWordsDelta?: (estimatedWords: number) => void;
+  /** 全书 `locations.generate` 成功并就绪后调用一次（与字数统计启用时机一致） */
+  onLocationsReady?: () => void;
 }
 
 const RELOCATED_DEBOUNCE_MS = 300;
@@ -120,6 +128,8 @@ export function EpubReader({
   onProgress,
   onReady,
   onTocReady,
+  onWordsDelta,
+  onLocationsReady,
 }: EpubReaderProps) {
   const t = useTranslations("reader");
   const { resolvedTheme } = useTheme();
@@ -178,6 +188,12 @@ export function EpubReader({
     /** `locations.generate` 完成后置 true，全书进度仅此时才计算、展示与写入 readingProgress */
     let locationsReady = false;
 
+    /**
+     * 字数统计：`generate` resolve 后以当前 CFI 初始化，仅当单调前进 idx 时才累加；
+     * 在 generate 完成前绝不能累计（否则索引与全书 locations 不一致）。
+     */
+    let maxLocIdxForWords = -1;
+
     /** 锚点变化：正文 CFI / 章节 UI 实时更新；全书百分比与服务端 `readingProgress` 仅在看 locationsReady 之后（整段防抖）。 */
     const debouncedRelocated = debounce((location: Location) => {
       if (!mounted) return;
@@ -217,6 +233,35 @@ export function EpubReader({
         chapterName,
         chapterPct,
       });
+
+      if (locationsReady && onWordsDelta && maxLocIdxForWords >= 0) {
+        const locs = book.locations as Book["locations"] & {
+          locationFromCfi(c: string): unknown;
+          break?: number;
+        };
+        const idxUnknown = locs.locationFromCfi(cfi);
+        const idx =
+          typeof idxUnknown === "number" ? idxUnknown : Number(idxUnknown);
+        if (
+          Number.isFinite(idx) &&
+          idx >= 0 &&
+          idx > maxLocIdxForWords &&
+          typeof locTotal === "number" &&
+          locTotal > 0
+        ) {
+          const charStep =
+            typeof locs.break === "number" && locs.break > 0 ? locs.break : 800;
+          const cappedIdx = Math.min(idx, locTotal);
+          const add = wordsFromLocationIndexDelta(
+            cappedIdx - maxLocIdxForWords,
+            charStep
+          );
+          if (add > 0) {
+            onWordsDelta(add);
+          }
+          maxLocIdxForWords = cappedIdx;
+        }
+      }
 
       persistProgressToServer(bookPct);
     }, RELOCATED_DEBOUNCE_MS);
@@ -425,14 +470,35 @@ export function EpubReader({
         .generate(charInterval)
         .then(() => {
           const elapsed = performance.now() - locationsStartTime;
+          const locsMeta = book.locations as typeof book.locations & {
+            total?: number;
+            locationFromCfi(c: string): unknown;
+          };
+          const locTotalSnapshot = locsMeta.total ?? 0;
           readerDebugLog("locations-generated", {
             elapsedMs: elapsed.toFixed(0),
-            total:
-              (book.locations as typeof book.locations & { total?: number })
-                .total ?? 0,
+            total: locTotalSnapshot,
+            charInterval,
           });
           if (!mounted) return;
+          const startIdxUnknown = locsMeta.locationFromCfi(
+            currentCfiRef.current
+          );
+          const startIdx =
+            typeof startIdxUnknown === "number"
+              ? startIdxUnknown
+              : Number(startIdxUnknown);
+          if (
+            Number.isFinite(startIdx) &&
+            startIdx >= 0 &&
+            locTotalSnapshot > 0
+          ) {
+            maxLocIdxForWords = Math.min(Math.floor(startIdx), locTotalSnapshot);
+          } else {
+            maxLocIdxForWords = 0;
+          }
           locationsReady = true;
+          onLocationsReady?.();
           rendition.reportLocation();
         })
         .catch((err) => {
