@@ -50,6 +50,13 @@
       "when": 1777011884125,
       "tag": "0006_user_phone",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777641600000,
+      "tag": "0007_reading_daily_words",
+      "breakpoints": true
     }
   ]
 }

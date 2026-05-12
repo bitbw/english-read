@@ -222,7 +222,17 @@
     "lastNDays": "近 {count} 天（按学习时区日历）",
     "todayMinutes": "今天约 {min} 分钟",
     "lessThanOneMin": "不足 1 分钟",
-    "minutes": "{min} 分钟"
+    "minutes": "{min} 分钟",
+    "todayWpm": "今日约 {wpm} 词/分钟",
+    "periodAvgWpm": "{days} 天均约 {wpm} 词/分钟",
+    "wpmDataPending": "阅读速度需在全书位置索引完成后估算，多读一会儿再查看"
+  },
+  "readingSpeedTier": {
+    "leisurely": "轻松细读档",
+    "developing": "稳步提升档",
+    "steady": "中等节奏档",
+    "fluent": "流利档",
+    "rapid": "高速档"
   },
   "plan": {
     "title": "复习计划",
@@ -449,7 +459,10 @@
     "loadingBook": "加载书籍中…",
     "chapterDefault": "第 {n} 章",
     "readerSettings": "阅读设置",
-    "fontSize": "字号"
+    "fontSize": "字号",
+    "readingSpeedLine": "本场约 {session} · 今日约 {today} 词/分钟",
+    "readingSpeedWarmup": "正在生成全书阅读位置，随后显示估算速度…",
+    "readingSpeedTierLine": "速度级别 · 本场：{sessionTier} · 今日：{todayTier}"
   },
   "upload": {
     "invalidFormat": "请上传 .epub 格式的文件",

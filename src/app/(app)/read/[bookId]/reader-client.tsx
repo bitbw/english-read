@@ -5,7 +5,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { ArrowLeft, ChevronLeft, ChevronRight, List, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRef, useState, useEffect, Fragment } from "react";
+import { useRef, useState, useEffect, useCallback, Fragment } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { clientFetch } from "@/lib/client-fetch";
 import { readerDebugLog } from "@/lib/reader-debug";
@@ -16,6 +16,7 @@ import {
   readColorSchemeFromStorage,
 } from "@/lib/reader-color-scheme";
 import { ReaderColorSchemeSelector } from "@/components/settings/reader-color-scheme-selector";
+import { readingSpeedTierFromWpm } from "@/lib/reading-speed-tier";
 
 function EpubReaderLoading() {
   const t = useTranslations("reader");
@@ -52,11 +53,12 @@ interface ReaderClientProps {
 
 export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClientProps) {
   const t = useTranslations("reader");
+  const tTier = useTranslations("readingSpeedTier");
   const controlsRef = useRef<ReaderControls | null>(null);
   const [fontSize, setFontSize] = useState(20);
   const [colorScheme, setColorScheme] = useState<ReaderColorSchemeId>(readColorSchemeFromStorage());
   const [chapterName, setChapterName] = useState("");
-  /** 全书进度 0–100（spine 索引 + 章内 page/total） */
+  /** 全书进度 0–100（epub locations 生成后才由阅读器填入） */
   const [bookPercent, setBookPercent] = useState<number | null>(null);
   /** 当前章内分页进度 0–100（`displayed.page/total`）；无分页信息时为 null */
   const [chapterPercent, setChapterPercent] = useState<number | null>(null);
@@ -67,10 +69,58 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const [cfiReady, setCfiReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  /** 待上报的估算阅读量（仅在 epubjs locations.generate 完成后由阅读器填入） */
+  const pendingWordsRef = useRef(0);
+  const sessionWordsRef = useRef(0);
+  const sessionSecondsRef = useRef(0);
+  const wordsSinkRef = useRef<(n: number) => void>(() => {});
+
+  const [readingSpeedSummary, setReadingSpeedSummary] = useState<{
+    sessionWpm: number | null;
+    todayWpm: number | null;
+  }>({ sessionWpm: null, todayWpm: null });
+  /** 与 epubjs locations.generate 成功对应；未完成前顶栏显示「正在索引」 */
+  const [locationsIndexed, setLocationsIndexed] = useState(false);
+
+  const refreshTodayWpm = useCallback(async () => {
+    try {
+      const r = await clientFetch("/api/reading/time?days=14", {
+        showErrorToast: false,
+      });
+      if (!r.ok) return;
+      const data = (await r.json()) as {
+        series?: { day: string; seconds: number; words: number }[];
+      };
+      const series = data.series ?? [];
+      if (series.length === 0) return;
+      const last = series[series.length - 1]!;
+      const sec = last.seconds;
+      const w = last.words ?? 0;
+      const todayWpm =
+        sec >= 45 ? Math.round((w / Math.max(sec, 0.001)) * 60) : null;
+      setReadingSpeedSummary((prev) => ({ ...prev, todayWpm }));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const bumpSessionSpeedUi = useCallback(() => {
+    const sec = sessionSecondsRef.current;
+    const words = sessionWordsRef.current;
+    const sessionWpm =
+      sec >= 20 ? Math.round((words / Math.max(sec, 0.001)) * 60) : null;
+    setReadingSpeedSummary((prev) => ({ ...prev, sessionWpm }));
+  }, []);
+
   useEffect(() => {
     setBookPercent(null);
     setChapterPercent(null);
     setChapterName("");
+    pendingWordsRef.current = 0;
+    sessionWordsRef.current = 0;
+    sessionSecondsRef.current = 0;
+    setReadingSpeedSummary((s) => ({ ...s, sessionWpm: null }));
+    setLocationsIndexed(false);
   }, [bookId]);
 
   useEffect(() => {
@@ -97,24 +147,58 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     });
   }, [cfiReady, effectiveCfi, fontSize]);
 
+  useEffect(() => {
+    void refreshTodayWpm();
+    const onVis = () => {
+      if (document.visibilityState === "visible") void refreshTodayWpm();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const t = window.setInterval(() => {
+      void refreshTodayWpm();
+    }, 90_000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.clearInterval(t);
+    };
+  }, [refreshTodayWpm]);
+
+  wordsSinkRef.current = (estimatedWords: number) => {
+    const n = Math.round(estimatedWords);
+    if (n < 1) return;
+    const capped = Math.min(8000, n);
+    pendingWordsRef.current += capped;
+    sessionWordsRef.current += capped;
+    bumpSessionSpeedUi();
+  };
+
   // 阅读页前台活跃时长 → 上报累加（与仪表盘一致，按学习时区自然日聚合）
   useEffect(() => {
     if (!cfiReady) return;
 
     let lastMark = Date.now();
 
-    function postSeconds(seconds: number) {
+    function postStudyBatch(seconds: number) {
       const n = Math.round(seconds);
       if (n < 1) return;
       const capped = Math.min(120, n);
-      const body = JSON.stringify({ seconds: capped });
+      sessionSecondsRef.current += capped;
+      bumpSessionSpeedUi();
+
+      const w = pendingWordsRef.current;
+      pendingWordsRef.current = 0;
+      const body =
+        w > 0 ? JSON.stringify({ seconds: capped, words: w }) : JSON.stringify({ seconds: capped });
       void clientFetch("/api/reading/time", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body,
         keepalive: true,
         showErrorToast: false,
-      }).catch(() => {});
+      })
+        .then(() => {
+          void refreshTodayWpm();
+        })
+        .catch(() => {});
     }
 
     function flushVisible() {
@@ -124,7 +208,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
       }
       const elapsed = (Date.now() - lastMark) / 1000;
       lastMark = Date.now();
-      postSeconds(Math.min(elapsed, 120));
+      postStudyBatch(Math.min(elapsed, 120));
     }
 
     const interval = setInterval(flushVisible, 30_000);
@@ -135,7 +219,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
       } else {
         const elapsed = (Date.now() - lastMark) / 1000;
         lastMark = Date.now();
-        postSeconds(Math.min(elapsed, 120));
+        postStudyBatch(Math.min(elapsed, 120));
       }
     };
 
@@ -143,7 +227,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
       if (document.visibilityState !== "visible") return;
       const elapsed = (Date.now() - lastMark) / 1000;
       lastMark = Date.now();
-      postSeconds(Math.min(elapsed, 120));
+      postStudyBatch(Math.min(elapsed, 120));
     };
 
     document.addEventListener("visibilitychange", onVisibility);
@@ -155,10 +239,10 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
       window.removeEventListener("pagehide", onPageHide);
       if (document.visibilityState === "visible") {
         const elapsed = (Date.now() - lastMark) / 1000;
-        postSeconds(Math.min(elapsed, 120));
+        postStudyBatch(Math.min(elapsed, 120));
       }
     };
-  }, [cfiReady]);
+  }, [cfiReady, bumpSessionSpeedUi, refreshTodayWpm]);
 
   function changeFontSize(delta: number) {
     setFontSize((prev) => {
@@ -199,7 +283,44 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h1 className="text-sm font-medium truncate flex-1 min-w-0">{title}</h1>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-sm font-medium truncate">{title}</h1>
+          {!locationsIndexed ? (
+            <p className="text-[11px] text-muted-foreground truncate tabular-nums leading-snug mt-0.5">
+              <span>{t("readingSpeedWarmup")}</span>
+            </p>
+          ) : (
+            <>
+              <p className="text-[11px] text-muted-foreground truncate tabular-nums leading-snug mt-0.5">
+                {t("readingSpeedLine", {
+                  session:
+                    readingSpeedSummary.sessionWpm !== null
+                      ? String(readingSpeedSummary.sessionWpm)
+                      : "—",
+                  today:
+                    readingSpeedSummary.todayWpm !== null
+                      ? String(readingSpeedSummary.todayWpm)
+                      : "—",
+                })}
+              </p>
+              {(readingSpeedSummary.sessionWpm !== null ||
+                readingSpeedSummary.todayWpm !== null) && (
+                <p className="text-[11px] text-muted-foreground/85 truncate tabular-nums leading-snug mt-0.5">
+                  {t("readingSpeedTierLine", {
+                    sessionTier:
+                      readingSpeedSummary.sessionWpm !== null
+                        ? tTier(readingSpeedTierFromWpm(readingSpeedSummary.sessionWpm))
+                        : "—",
+                    todayTier:
+                      readingSpeedSummary.todayWpm !== null
+                        ? tTier(readingSpeedTierFromWpm(readingSpeedSummary.todayWpm))
+                        : "—",
+                  })}
+                </p>
+              )}
+            </>
+          )}
+        </div>
         {/* 阅读设置（字号 + 颜色模式） */}
         <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
           <SheetTrigger
@@ -286,9 +407,15 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             onReady={(controls) => { controlsRef.current = controls; }}
             onTocReady={(items) => setToc(items)}
             onProgress={(_, bookPct, name, chapPct) => {
-              setBookPercent(bookPct);
+              if (bookPct !== null) setBookPercent(bookPct);
               setChapterName(name ?? "");
               setChapterPercent(chapPct);
+            }}
+            onLocationsReady={() => {
+              setLocationsIndexed(true);
+            }}
+            onWordsDelta={(w) => {
+              wordsSinkRef.current(w);
             }}
           />
         )}

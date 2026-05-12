@@ -222,7 +222,17 @@
     "lastNDays": "Last {count} days (learning timezone)",
     "todayMinutes": "Today ~{min} min",
     "lessThanOneMin": "< 1 min",
-    "minutes": "{min} min"
+    "minutes": "{min} min",
+    "todayWpm": "Today ~{wpm} wpm",
+    "periodAvgWpm": "~{wpm} wpm avg ({days} days)",
+    "wpmDataPending": "Speed appears after the book is indexed and you read a bit more"
+  },
+  "readingSpeedTier": {
+    "leisurely": "Leisurely pace",
+    "developing": "Building speed",
+    "steady": "Moderate pace",
+    "fluent": "Fluent pace",
+    "rapid": "Rapid pace"
   },
   "plan": {
     "title": "Review Plan",
@@ -449,7 +459,10 @@
     "loadingBook": "Loading book…",
     "chapterDefault": "Chapter {n}",
     "readerSettings": "Reader Settings",
-    "fontSize": "Font Size"
+    "fontSize": "Font Size",
+    "readingSpeedLine": "Session ~{session} · today ~{today} wpm (approx.)",
+    "readingSpeedWarmup": "Indexing book positions… speed shows shortly.",
+    "readingSpeedTierLine": "Level · session: {sessionTier} · today: {todayTier}"
   },
   "upload": {
     "invalidFormat": "Please upload an .epub file",

@@ -41,13 +41,53 @@ export function spineLength(book: Book): number {
   return (book.spine as Book["spine"] & { length: number }).length;
 }
 
-/** 全书进度 0–100：`(index + page/total) / spine.length` */
+/** 全书进度 0–100：按 spine 索引估算（快，但章长度不均时偏差大） */
 export function wholeBookPctFromSpine(book: Book, location: Location): number {
   const n = spineLength(book);
   const { index } = location.start;
   const { page, total } = location.start.displayed;
   const p = (index + page / total) / n;
   return Math.min(100, Math.max(0, p * 100));
+}
+
+/**
+ * 全书进度 0–100：按 epubjs `locations` 索引（须先 `generate`）。
+ * 无法匹配时返回 `null`，调用方不应回退到 spine（spine 在章长度不均时偏差大）。
+ */
+export function wholeBookPctFromLocations(
+  book: Book,
+  location: Location
+): number | null {
+  const cfi = location.start.cfi;
+  const locs = book.locations as Book["locations"] & { total: number };
+  /** epubjs 类型误标为 `Location`，运行时为 `number` 索引 */
+  const locationIndex = locs.locationFromCfi(cfi) as unknown as number;
+
+  if (locationIndex < 0) return null;
+
+  const total = locs.total;
+  if (total <= 0) return null;
+
+  return Math.min(100, Math.max(0, (locationIndex / total) * 100));
+}
+
+/** 粗略估计总字符数（用于选择 `locations.generate` 的 char 间隔） */
+export function estimateTotalChars(book: Book): number {
+  return spineLength(book) * 10000;
+}
+
+/** 按估计篇幅选择 `generate(chars)` 的间隔，大书略疏、小书略密 */
+export function getLocationsCharInterval(totalChars: number): number {
+  if (totalChars > 1_000_000) {
+    return 6400;
+  }
+  if (totalChars > 500_000) {
+    return 3200;
+  }
+  if (totalChars > 100_000) {
+    return 1600;
+  }
+  return 800;
 }
 
 /** 当前 spine 片段内分页进度 0–100（见 `DisplayedLocation.displayed`） */
