@@ -33,7 +33,9 @@ import {
   wholeBookPctFromLocations,
 } from "@/components/reader/epub-reader-location";
 import {
+  paragraphSnippetFromRange,
   paragraphSnippetFromSelection,
+  wordPopupAnchorFromIframeRange,
   wordPopupAnchorFromIframeSelection,
 } from "@/components/reader/epub-reader-selection";
 import {
@@ -85,7 +87,8 @@ interface EpubReaderProps {
 }
 
 const RELOCATED_DEBOUNCE_MS = 300;
-const SELECTED_DEBOUNCE_MS = 200;
+/** 划词防抖：曾用 getSelection 延迟读区，移动端松手后原生选区常被系统清掉；正文现优先进 CFI→Range。 */
+const SELECTED_DEBOUNCE_MS = 120;
 
 /** 超过此长度的单次划选不弹查词窗（防止误选整章/超大段落）；以下为正常长段落 */
 const MAX_SELECTION_TEXT_CHARS = 16_000;
@@ -287,16 +290,55 @@ export function EpubReader({
           return;
         }
         lastSelectedAt = Date.now();
-        const sel = win.getSelection();
-        if (!sel) return;
-        const text = sel.toString().trim();
-        // 空选区不弹窗；超长划选（误选整章等）不弹窗，与常量 MAX_SELECTION_TEXT_CHARS 对齐
-        if (!text || text.length > MAX_SELECTION_TEXT_CHARS) return;
+
+        /** 防抖后再读：`getSelection()` 在移动端常被系统清空；epubjs 已传入稳定的 `cfiRange`。 */
+        let domRange: Range | null = null;
+        let text = "";
+        try {
+          const r = contents.range(cfiRange);
+          if (!r.collapsed) {
+            domRange = r;
+            text = r.toString().trim();
+          }
+        } catch {
+          /* CFI→Range 失败则回退到 live Selection */
+        }
+
+        let liveSel: Selection | null = null;
+        if (!text) {
+          liveSel = win.getSelection();
+          if (!liveSel?.rangeCount) return;
+          const r = liveSel.getRangeAt(0);
+          if (r.collapsed) return;
+          domRange = r.cloneRange();
+          text = liveSel.toString().trim();
+        }
+
+        if (
+          !text ||
+          text.length > MAX_SELECTION_TEXT_CHARS ||
+          !domRange ||
+          domRange.collapsed
+        ) {
+          return;
+        }
+
         const iframe = win.frameElement as HTMLIFrameElement | null;
         if (!iframe) return;
-        const anchorRect = wordPopupAnchorFromIframeSelection(sel, iframe);
+
+        const selForRects = liveSel ?? win.getSelection();
+        const anchorRect =
+          wordPopupAnchorFromIframeRange(domRange, iframe) ??
+          (selForRects?.rangeCount
+            ? wordPopupAnchorFromIframeSelection(selForRects, iframe)
+            : null);
         if (!anchorRect) return;
-        const raw = paragraphSnippetFromSelection(sel);
+
+        const raw =
+          paragraphSnippetFromRange(domRange) ||
+          (selForRects?.rangeCount
+            ? paragraphSnippetFromSelection(selForRects)
+            : "");
         const context = excerptSentenceForVocabulary(raw, text);
         readerDebugLog("selected", {
           cfiRange,
