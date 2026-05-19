@@ -460,9 +460,9 @@
     "chapterDefault": "Chapter {n}",
     "readerSettings": "Reader Settings",
     "fontSize": "Font Size",
-    "readingSpeedLine": "Session ~{session} · today ~{today} wpm (approx.)",
+    "readingSpeedMobileLine": "{sessionTier} · ~{words} words (session)",
     "readingSpeedWarmup": "Indexing book positions… speed shows shortly.",
-    "readingSpeedTierLine": "Level · session: {sessionTier} · today: {todayTier}"
+    "readingSpeedWideLine": "Session {sessionTier} ~{session} · today {todayTier} ~{today} wpm (approx.)"
   },
   "upload": {
     "invalidFormat": "Please upload an .epub file",

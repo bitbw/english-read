@@ -78,7 +78,8 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const [readingSpeedSummary, setReadingSpeedSummary] = useState<{
     sessionWpm: number | null;
     todayWpm: number | null;
-  }>({ sessionWpm: null, todayWpm: null });
+    sessionWords: number;
+  }>({ sessionWpm: null, todayWpm: null, sessionWords: 0 });
   /** 与 epubjs locations.generate 成功对应；未完成前顶栏显示「正在索引」 */
   const [locationsIndexed, setLocationsIndexed] = useState(false);
 
@@ -109,7 +110,11 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     const words = sessionWordsRef.current;
     const sessionWpm =
       sec >= 20 ? Math.round((words / Math.max(sec, 0.001)) * 60) : null;
-    setReadingSpeedSummary((prev) => ({ ...prev, sessionWpm }));
+    setReadingSpeedSummary((prev) => ({
+      ...prev,
+      sessionWpm,
+      sessionWords: words,
+    }));
   }, []);
 
   useEffect(() => {
@@ -119,7 +124,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     pendingWordsRef.current = 0;
     sessionWordsRef.current = 0;
     sessionSecondsRef.current = 0;
-    setReadingSpeedSummary((s) => ({ ...s, sessionWpm: null }));
+    setReadingSpeedSummary((s) => ({ ...s, sessionWpm: null, sessionWords: 0 }));
     setLocationsIndexed(false);
   }, [bookId]);
 
@@ -291,11 +296,28 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             </p>
           ) : (
             <>
-              <p className="text-[11px] text-muted-foreground truncate tabular-nums leading-snug mt-0.5">
-                {t("readingSpeedLine", {
+              <p className="text-[11px] text-muted-foreground truncate tabular-nums leading-snug mt-0.5 sm:hidden">
+                {t("readingSpeedMobileLine", {
+                  sessionTier:
+                    readingSpeedSummary.sessionWpm !== null
+                      ? tTier(readingSpeedTierFromWpm(readingSpeedSummary.sessionWpm))
+                      : "—",
+                  words: String(readingSpeedSummary.sessionWords),
+                })}
+              </p>
+              <p className="text-[11px] text-muted-foreground truncate tabular-nums leading-snug mt-0.5 hidden sm:block">
+                {t("readingSpeedWideLine", {
+                  sessionTier:
+                    readingSpeedSummary.sessionWpm !== null
+                      ? tTier(readingSpeedTierFromWpm(readingSpeedSummary.sessionWpm))
+                      : "—",
                   session:
                     readingSpeedSummary.sessionWpm !== null
                       ? String(readingSpeedSummary.sessionWpm)
+                      : "—",
+                  todayTier:
+                    readingSpeedSummary.todayWpm !== null
+                      ? tTier(readingSpeedTierFromWpm(readingSpeedSummary.todayWpm))
                       : "—",
                   today:
                     readingSpeedSummary.todayWpm !== null
@@ -303,21 +325,6 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
                       : "—",
                 })}
               </p>
-              {(readingSpeedSummary.sessionWpm !== null ||
-                readingSpeedSummary.todayWpm !== null) && (
-                <p className="text-[11px] text-muted-foreground/85 truncate tabular-nums leading-snug mt-0.5">
-                  {t("readingSpeedTierLine", {
-                    sessionTier:
-                      readingSpeedSummary.sessionWpm !== null
-                        ? tTier(readingSpeedTierFromWpm(readingSpeedSummary.sessionWpm))
-                        : "—",
-                    todayTier:
-                      readingSpeedSummary.todayWpm !== null
-                        ? tTier(readingSpeedTierFromWpm(readingSpeedSummary.todayWpm))
-                        : "—",
-                  })}
-                </p>
-              )}
             </>
           )}
         </div>

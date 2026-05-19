@@ -460,9 +460,9 @@
     "chapterDefault": "第 {n} 章",
     "readerSettings": "阅读设置",
     "fontSize": "字号",
-    "readingSpeedLine": "本场约 {session} · 今日约 {today} 词/分钟",
+    "readingSpeedMobileLine": "{sessionTier} · 本场阅读约 {words} 字",
     "readingSpeedWarmup": "正在生成全书阅读位置，随后显示估算速度…",
-    "readingSpeedTierLine": "速度级别 · 本场：{sessionTier} · 今日：{todayTier}"
+    "readingSpeedWideLine": "本场 {sessionTier} ~{session} · 今日 {todayTier} ~{today} 词/分钟"
   },
   "upload": {
     "invalidFormat": "请上传 .epub 格式的文件",
