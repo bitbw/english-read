@@ -275,17 +275,6 @@ export function EpubReader({
         if (swipeAt !== undefined && Date.now() - swipeAt < 900) {
           return;
         }
-        // 弹窗已开时：本次划词/点选只关闭弹窗，不换新词（需再操作一次才查词）
-        if (selectionOpenRef.current) {
-          try {
-            win.getSelection()?.removeAllRanges();
-          } catch {
-            /* ignore */
-          }
-          dismissWordPopup();
-          lastSelectedAt = Date.now();
-          return;
-        }
         lastSelectedAt = Date.now();
         const sel = win.getSelection();
         if (!sel) return;
@@ -422,10 +411,11 @@ export function EpubReader({
               return;
             }
             swipeNavAtByWin.set(win, Date.now());
+            // 翻页前清除 iframe 内文字选区，避免划词高亮残留到下一页
             try {
               win.getSelection()?.removeAllRanges();
             } catch {
-              /* ignore */
+              /* 个别环境下 getSelection 可能不可用，忽略即可 */
             }
             if (dx < 0) rendition.next();
             else rendition.prev();
@@ -437,7 +427,7 @@ export function EpubReader({
 
       rendition.on("selected", debouncedSelected);
 
-      // 仅当弹窗已打开时点正文才关闭（与原先 setSelection(null) 一致）；无弹窗时勿跑 dismiss，以免 removeAllRanges 抢在 selected 防抖之前清空选区
+      // 弹窗已开时：点正文（非划词）关闭；划词走 selected → setSelection 替换弹窗。无弹窗时不 dismiss，避免抢在 selected 防抖前清空选区。
       rendition.on("click", () => {
         if (!mounted) return;
         if (!selectionOpenRef.current) return;
@@ -571,11 +561,25 @@ export function EpubReader({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  /** 查词弹窗打开时 Esc 关闭（与遮罩、正文点击一致）。 */
+  useEffect(() => {
+    if (!selection) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") dismissWordPopup();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selection, dismissWordPopup]);
+
   return (
     <div className="relative h-full w-full min-h-0 bg-background">
       <div
         ref={viewerRef}
-        className="h-full w-full min-h-0 overflow-hidden bg-background [overflow-anchor:none]"
+        className={
+          selection
+            ? "relative z-96 h-full w-full min-h-0 overflow-hidden bg-background [overflow-anchor:none]"
+            : "h-full w-full min-h-0 overflow-hidden bg-background [overflow-anchor:none]"
+        }
         style={VIEWER_HOST_STYLE}
       />
       {bookLoading ? (
@@ -589,15 +593,15 @@ export function EpubReader({
       ) : null}
       {selection ? (
         <>
-          {/* 点击/触摸正文与顶栏等弹窗外的区域：仅关闭弹窗，不穿透到 epub 触发新查词 */}
+          {/*
+           * 全屏透明遮罩（z-95）：点顶栏/底栏等阅读区外 UI 关闭弹窗。
+           * 正文容器 z-96 在遮罩之上，划词/划段不被遮罩拦截；新划词直接替换弹窗内容。
+           */}
           <div
             role="presentation"
             aria-hidden
-            className="fixed inset-0 z-90 touch-none"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              dismissWordPopup();
-            }}
+            className="fixed inset-0 z-95 cursor-default bg-transparent"
+            onClick={dismissWordPopup}
           />
           <WordPopup
             word={selection.word}
