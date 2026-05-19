@@ -44,8 +44,8 @@ Return exactly 3 English phrases for wrong answers:
 - plausible confusions (similar sound, spelling, or wording), natural collocations when possible,
 - the three phrases distinct from **each other** (no duplicate distractors).
 
-For each item, "explainZh" must be a concise Chinese dictionary-style gloss, like:
-"n. …; …" or "adj. …" or "v. …; …" (use Chinese explanations; you may prefix part-of-speech abbreviations as in learner dictionaries).
+For each item, "explainZh" must be a short natural Chinese gloss (one sentence or multiple senses separated by ";" when needed).
+Do **not** prefix or label with English part-of-speech abbreviations (e.g. n., v., adj., adv., prep.).
 
 Output must strictly follow the JSON schema (3 items in "distractors").`;
 }
