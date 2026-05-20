@@ -55,7 +55,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const t = useTranslations("reader");
   const tTier = useTranslations("readingSpeedTier");
   const controlsRef = useRef<ReaderControls | null>(null);
-  const [fontSize, setFontSize] = useState(20);
+  const [fontSize, setFontSize] = useState(22);
   const [colorScheme, setColorScheme] = useState<ReaderColorSchemeId>(readColorSchemeFromStorage());
   const [chapterName, setChapterName] = useState("");
   /** 全书进度 0–100（epub locations 生成后才由阅读器填入） */
