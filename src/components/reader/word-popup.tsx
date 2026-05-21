@@ -51,7 +51,7 @@ const ANCHOR_GAP = 8;
 const TOP_MIN = 56;
 /** 窄屏留白（像素）：同时用于 (1) 弹窗距屏幕底边的上限；(2) 在基础间距上再加一层与选区间的空隙，给系统选中胶囊栏腾位置。
  * 若只增大 (1)，弹窗贴在选词上方时往往碰不到屏幕底边的钳制，改数值会像「没反应」。 */
-const MOBILE_SELECTION_UI_RESERVE_PX = 30;
+const MOBILE_SELECTION_UI_RESERVE_PX = 45;
 /** 与 Tailwind `md` 一致：小于此视口宽度时启用移动端底部留白 */
 const MOBILE_BOTTOM_RESERVE_BREAKPOINT_PX = 768;
 
