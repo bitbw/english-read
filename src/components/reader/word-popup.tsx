@@ -49,26 +49,34 @@ const VIEW_MARGIN = 8;
 const ANCHOR_GAP = 8;
 /** 顶栏约 3.5rem，弹窗不要钻进顶栏下沿 */
 const TOP_MIN = 56;
+/** 窄屏留白（像素）：同时用于 (1) 弹窗距屏幕底边的上限；(2) 在基础间距上再加一层与选区间的空隙，给系统选中胶囊栏腾位置。
+ * 若只增大 (1)，弹窗贴在选词上方时往往碰不到屏幕底边的钳制，改数值会像「没反应」。 */
+const MOBILE_SELECTION_UI_RESERVE_PX = 45;
+/** 与 Tailwind `md` 一致：小于此视口宽度时启用移动端底部留白 */
+const MOBILE_BOTTOM_RESERVE_BREAKPOINT_PX = 768;
 
 function popupBounds(left: number, top: number, w: number, h: number) {
   return { left, top, right: left + w, bottom: top + h };
 }
 
-/** 弹窗矩形与选区至少相隔 ANCHOR_GAP（不相交且不贴死） */
+/** 弹窗矩形与选区间至少相隔 gapPx（不相交且不贴死） */
 function noOverlapWithAnchor(
   p: { left: number; top: number; right: number; bottom: number },
   anchor: WordPopupAnchorRect,
+  gapPx: number,
 ): boolean {
   return (
-    p.right <= anchor.left - ANCHOR_GAP ||
-    p.left >= anchor.right + ANCHOR_GAP ||
-    p.bottom <= anchor.top - ANCHOR_GAP ||
-    p.top >= anchor.bottom + ANCHOR_GAP
+    p.right <= anchor.left - gapPx ||
+    p.left >= anchor.right + gapPx ||
+    p.bottom <= anchor.top - gapPx ||
+    p.top >= anchor.bottom + gapPx
   );
 }
 
 /**
  * 优先放在选区「右上」外侧：先右侧+上方，再右侧+下方、左侧+上/下；均保证与选区不重叠。
+ * viewportBottomReservePx：距屏幕底边的额外留白。
+ * anchorChromeBoostPx：在 ANCHOR_GAP 之上再加的间距（移动端给原生选中工具栏留空）。
  */
 function computePopupPosition(
   anchor: WordPopupAnchorRect,
@@ -76,19 +84,23 @@ function computePopupPosition(
   popupH: number,
   vw: number,
   vh: number,
+  viewportBottomReservePx: number,
+  anchorChromeBoostPx: number,
 ): { top: number; left: number } {
+  const bottomClamp = VIEW_MARGIN + viewportBottomReservePx;
+  const sep = ANCHOR_GAP + anchorChromeBoostPx;
   const candidates: Array<{ left: number; top: number }> = [
-    { left: anchor.right + ANCHOR_GAP, top: anchor.top - ANCHOR_GAP - popupH },
-    { left: anchor.right + ANCHOR_GAP, top: anchor.bottom + ANCHOR_GAP },
-    { left: anchor.left - ANCHOR_GAP - popupW, top: anchor.top - ANCHOR_GAP - popupH },
-    { left: anchor.left - ANCHOR_GAP - popupW, top: anchor.bottom + ANCHOR_GAP },
+    { left: anchor.right + sep, top: anchor.top - sep - popupH },
+    { left: anchor.right + sep, top: anchor.bottom + sep },
+    { left: anchor.left - sep - popupW, top: anchor.top - sep - popupH },
+    { left: anchor.left - sep - popupW, top: anchor.bottom + sep },
   ];
 
   for (const c of candidates) {
     const left = Math.min(Math.max(VIEW_MARGIN, c.left), vw - popupW - VIEW_MARGIN);
-    const top = Math.min(Math.max(TOP_MIN, c.top), vh - popupH - VIEW_MARGIN);
+    const top = Math.min(Math.max(TOP_MIN, c.top), vh - popupH - bottomClamp);
     const p = popupBounds(left, top, popupW, popupH);
-    if (noOverlapWithAnchor(p, anchor)) {
+    if (noOverlapWithAnchor(p, anchor, sep)) {
       return { left, top };
     }
   }
@@ -96,17 +108,17 @@ function computePopupPosition(
   const cx = (anchor.left + anchor.right) / 2;
   const cy = (anchor.top + anchor.bottom) / 2;
   let left = cx < vw / 2 ? vw - popupW - VIEW_MARGIN : VIEW_MARGIN;
-  let top = cy < vh / 2 ? vh - popupH - VIEW_MARGIN : TOP_MIN;
+  let top = cy < vh / 2 ? vh - popupH - bottomClamp : TOP_MIN;
   left = Math.min(Math.max(VIEW_MARGIN, left), vw - popupW - VIEW_MARGIN);
-  top = Math.min(Math.max(TOP_MIN, top), vh - popupH - VIEW_MARGIN);
+  top = Math.min(Math.max(TOP_MIN, top), vh - popupH - bottomClamp);
   let p = popupBounds(left, top, popupW, popupH);
-  if (!noOverlapWithAnchor(p, anchor)) {
-    top = Math.min(Math.max(TOP_MIN, anchor.bottom + ANCHOR_GAP), vh - popupH - VIEW_MARGIN);
+  if (!noOverlapWithAnchor(p, anchor, sep)) {
+    top = Math.min(Math.max(TOP_MIN, anchor.bottom + sep), vh - popupH - bottomClamp);
     left = Math.min(Math.max(VIEW_MARGIN, left), vw - popupW - VIEW_MARGIN);
     p = popupBounds(left, top, popupW, popupH);
   }
-  if (!noOverlapWithAnchor(p, anchor)) {
-    top = Math.min(Math.max(TOP_MIN, anchor.top - ANCHOR_GAP - popupH), vh - popupH - VIEW_MARGIN);
+  if (!noOverlapWithAnchor(p, anchor, sep)) {
+    top = Math.min(Math.max(TOP_MIN, anchor.top - sep - popupH), vh - popupH - bottomClamp);
     left = Math.min(Math.max(VIEW_MARGIN, left), vw - popupW - VIEW_MARGIN);
   }
   return { top, left };
@@ -224,7 +236,11 @@ export function WordPopup({
       const w = el.offsetWidth;
       const h = el.offsetHeight;
       if (w === 0 || h === 0) return;
-      setPosition(computePopupPosition(anchorRect, w, h, vw, vh));
+      const mobile = vw < MOBILE_BOTTOM_RESERVE_BREAKPOINT_PX;
+      const reservePx = mobile ? MOBILE_SELECTION_UI_RESERVE_PX : 0;
+      setPosition(
+        computePopupPosition(anchorRect, w, h, vw, vh, reservePx, reservePx),
+      );
     }
     measure();
     window.addEventListener("resize", measure);
