@@ -63,6 +63,7 @@ interface EpubReaderProps {
   initialCfi?: string | null;
   fontSize: number;
   colorScheme?: ReaderColorSchemeId;
+  autoPronunciation?: boolean;
   /**
    * bookPct：`locations.generate` 完成前为 `null`（不展示/不落库百分比）；就绪后为 0–100。
    * chapterPct：当前章内分页进度。
@@ -125,6 +126,7 @@ export function EpubReader({
   initialCfi,
   fontSize,
   colorScheme: colorSchemeProp,
+  autoPronunciation = true,
   onProgress,
   onReady,
   onTocReady,
@@ -609,6 +611,7 @@ export function EpubReader({
             contextCfi={selection.cfi}
             bookId={bookId}
             anchorRect={selection.anchorRect}
+            autoPronunciation={autoPronunciation}
             onClose={dismissWordPopup}
             onSaved={dismissWordPopup}
           />

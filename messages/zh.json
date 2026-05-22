@@ -460,6 +460,10 @@
     "chapterDefault": "第 {n} 章",
     "readerSettings": "阅读设置",
     "fontSize": "字号",
+    "autoPronunciation": "自动发音",
+    "autoPronunciationHint": "打开查词弹窗后自动播放读音",
+    "autoPronunciationOn": "关闭自动发音",
+    "autoPronunciationOff": "开启自动发音",
     "readingSpeedMobileLine": "{sessionTier} · 本场阅读约 {words} 字",
     "readingSpeedWarmup": "正在生成全书阅读位置，随后显示估算速度…",
     "readingSpeedWideLine": "本场 {sessionTier} ~{session} · 今日 {todayTier} ~{today} 词/分钟"

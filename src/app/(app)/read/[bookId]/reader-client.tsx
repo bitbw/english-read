@@ -16,6 +16,10 @@ import {
   readColorSchemeFromStorage,
 } from "@/lib/reader-color-scheme";
 import { ReaderSettingsSheet } from "@/components/reader/reader-settings-sheet";
+import {
+  readAutoPronunciationFromStorage,
+  writeAutoPronunciationToStorage,
+} from "@/lib/reader-auto-pronunciation";
 import { readingSpeedTierFromWpm } from "@/lib/reading-speed-tier";
 
 function EpubReaderLoading() {
@@ -57,6 +61,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const controlsRef = useRef<ReaderControls | null>(null);
   const [fontSize, setFontSize] = useState(22);
   const [colorScheme, setColorScheme] = useState<ReaderColorSchemeId>(readColorSchemeFromStorage());
+  const [autoPronunciation, setAutoPronunciation] = useState(readAutoPronunciationFromStorage);
   const [chapterName, setChapterName] = useState("");
   /** 全书进度 0–100（epub locations 生成后才由阅读器填入） */
   const [bookPercent, setBookPercent] = useState<number | null>(null);
@@ -257,6 +262,11 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     });
   }
 
+  function changeAutoPronunciation(enabled: boolean) {
+    setAutoPronunciation(enabled);
+    writeAutoPronunciationToStorage(enabled);
+  }
+
   function renderTocItems(items: NavItem[], depth = 0) {
     return items.map((item) => (
       <Fragment key={item.href + depth}>
@@ -335,6 +345,8 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
           onFontSizeDelta={changeFontSize}
           colorScheme={colorScheme}
           onColorSchemeChange={setColorScheme}
+          autoPronunciation={autoPronunciation}
+          onAutoPronunciationChange={changeAutoPronunciation}
         />
         {/* 章节目录：与顶栏移动端一致的左侧抽屉 */}
         <Sheet open={tocOpen} onOpenChange={setTocOpen}>
@@ -372,6 +384,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             initialCfi={effectiveCfi}
             fontSize={fontSize}
             colorScheme={colorScheme}
+            autoPronunciation={autoPronunciation}
             onReady={(controls) => { controlsRef.current = controls; }}
             onTocReady={(items) => setToc(items)}
             onProgress={(_, bookPct, name, chapPct) => {

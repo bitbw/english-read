@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings } from "lucide-react";
+import { Settings, Volume2, VolumeX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -15,6 +15,8 @@ export interface ReaderSettingsSheetProps {
   onFontSizeDelta: (delta: number) => void;
   colorScheme: ReaderColorSchemeId;
   onColorSchemeChange: (id: ReaderColorSchemeId) => void;
+  autoPronunciation: boolean;
+  onAutoPronunciationChange: (enabled: boolean) => void;
 }
 
 export function ReaderSettingsSheet({
@@ -24,6 +26,8 @@ export function ReaderSettingsSheet({
   onFontSizeDelta,
   colorScheme,
   onColorSchemeChange,
+  autoPronunciation,
+  onAutoPronunciationChange,
 }: ReaderSettingsSheetProps) {
   const t = useTranslations("reader");
 
@@ -71,6 +75,39 @@ export function ReaderSettingsSheet({
             value={colorScheme}
             onChange={onColorSchemeChange}
           />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{t("autoPronunciation")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t("autoPronunciationHint")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onAutoPronunciationChange(!autoPronunciation)}
+                className={cn(
+                  "shrink-0 flex h-9 w-9 items-center justify-center rounded-md border transition-colors",
+                  autoPronunciation
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:bg-accent",
+                )}
+                title={
+                  autoPronunciation ? t("autoPronunciationOn") : t("autoPronunciationOff")
+                }
+                aria-pressed={autoPronunciation}
+                aria-label={
+                  autoPronunciation ? t("autoPronunciationOn") : t("autoPronunciationOff")
+                }
+              >
+                {autoPronunciation ? (
+                  <Volume2 className="h-4 w-4" />
+                ) : (
+                  <VolumeX className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

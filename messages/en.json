@@ -460,6 +460,10 @@
     "chapterDefault": "Chapter {n}",
     "readerSettings": "Reader Settings",
     "fontSize": "Font Size",
+    "autoPronunciation": "Auto pronunciation",
+    "autoPronunciationHint": "Play pronunciation when the word popup opens",
+    "autoPronunciationOn": "Disable auto pronunciation",
+    "autoPronunciationOff": "Enable auto pronunciation",
     "readingSpeedMobileLine": "{sessionTier} · ~{words} words (session)",
     "readingSpeedWarmup": "Indexing book positions… speed shows shortly.",
     "readingSpeedWideLine": "Session {sessionTier} ~{session} · today {todayTier} ~{today} wpm (approx.)"
