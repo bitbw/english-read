@@ -16,6 +16,7 @@ import { EXTERNAL_EPUB_FIND_URL } from "@/lib/external-epub-find";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { useEpubCoverPreview } from "@/hooks/use-epub-cover-preview";
+import { MAX_EPUB_UPLOAD_BYTES } from "@/lib/epub-upload-limits";
 import { useTranslations } from "next-intl";
 
 export function EpubUpload() {
@@ -52,7 +53,11 @@ export function EpubUpload() {
     e.preventDefault();
     setDragging(false);
     const dropped = e.dataTransfer.files[0];
-    if (dropped?.name.endsWith(".epub")) {
+    if (dropped?.name.toLowerCase().endsWith(".epub")) {
+      if (dropped.size > MAX_EPUB_UPLOAD_BYTES) {
+        toast.error(t("fileTooLarge"));
+        return;
+      }
       setFile(dropped);
     } else {
       toast.error(t("invalidFormat"));
@@ -61,7 +66,12 @@ export function EpubUpload() {
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0];
-    if (selected?.name.endsWith(".epub")) {
+    if (selected?.name.toLowerCase().endsWith(".epub")) {
+      if (selected.size > MAX_EPUB_UPLOAD_BYTES) {
+        toast.error(t("fileTooLarge"));
+        e.target.value = "";
+        return;
+      }
       setFile(selected);
     } else {
       toast.error(t("invalidFormat"));
@@ -70,6 +80,10 @@ export function EpubUpload() {
 
   async function handleUpload() {
     if (!file) return;
+    if (file.size > MAX_EPUB_UPLOAD_BYTES) {
+      toast.error(t("fileTooLarge"));
+      return;
+    }
     setUploading(true);
 
     try {

@@ -1,8 +1,8 @@
 import { auth } from "@/lib/auth";
+import { MAX_EPUB_UPLOAD_BYTES } from "@/lib/epub-upload-limits";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 
-const MAX_BYTES = 50 * 1024 * 1024;
 const PUBLIC_PREFIX = "epubs/public/";
 
 /**
@@ -26,7 +26,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         }
         return {
           allowedContentTypes: ["application/epub+zip", "application/octet-stream"],
-          maximumSizeInBytes: MAX_BYTES,
+          maximumSizeInBytes: MAX_EPUB_UPLOAD_BYTES,
           addRandomSuffix: false,
         };
       },

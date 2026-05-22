@@ -15,9 +15,9 @@ import {
 } from "@/lib/extract-epub-cover";
 import { postCoverUpload } from "@/lib/post-cover-upload";
 import { useEpubCoverPreview } from "@/hooks/use-epub-cover-preview";
+import { MAX_EPUB_UPLOAD_BYTES } from "@/lib/epub-upload-limits";
 import { useTranslations } from "next-intl";
 
-const MAX_EPUB_BYTES = 50 * 1024 * 1024;
 const MULTIPART_THRESHOLD = 5 * 1024 * 1024;
 
 export function PublicLibraryUploadClient() {
@@ -56,6 +56,10 @@ export function PublicLibraryUploadClient() {
     setDragging(false);
     const dropped = e.dataTransfer.files[0];
     if (dropped?.name.toLowerCase().endsWith(".epub")) {
+      if (dropped.size > MAX_EPUB_UPLOAD_BYTES) {
+        toast.error(t("fileTooLarge"));
+        return;
+      }
       setEpubFile(dropped);
     } else {
       toast.error(t("invalidFormat"));
@@ -65,6 +69,11 @@ export function PublicLibraryUploadClient() {
   function handleEpubFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0];
     if (selected?.name.toLowerCase().endsWith(".epub")) {
+      if (selected.size > MAX_EPUB_UPLOAD_BYTES) {
+        toast.error(t("fileTooLarge"));
+        e.target.value = "";
+        return;
+      }
       setEpubFile(selected);
     } else if (selected) {
       toast.error(t("invalidFormat"));
@@ -81,7 +90,7 @@ export function PublicLibraryUploadClient() {
       toast.error(t("epubFormatRequired"));
       return;
     }
-    if (file.size > MAX_EPUB_BYTES) {
+    if (file.size > MAX_EPUB_UPLOAD_BYTES) {
       toast.error(t("fileTooLarge"));
       return;
     }

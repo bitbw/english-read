@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { books } from "@/lib/db/schema";
+import { MAX_EPUB_UPLOAD_BYTES } from "@/lib/epub-upload-limits";
 import { eq, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -11,7 +12,7 @@ const createBookSchema = z.object({
   coverUrl: z.string().url().optional(),
   blobUrl: z.string().url(),
   blobKey: z.string().min(1),
-  fileSize: z.number().optional(),
+  fileSize: z.number().int().nonnegative().max(MAX_EPUB_UPLOAD_BYTES).optional(),
 });
 
 // GET /api/books - 获取当前用户书库

@@ -2,13 +2,14 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { publicLibraryBooks } from "@/lib/db/schema";
 import { assignPublicReadingTier } from "@/lib/assign-public-tier";
+import { MAX_EPUB_UPLOAD_BYTES } from "@/lib/epub-upload-limits";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 const finalizeSchema = z.object({
   blobUrl: z.string().url(),
   blobKey: z.string().min(1),
-  fileSize: z.number().int().positive().max(50 * 1024 * 1024),
+  fileSize: z.number().int().positive().max(MAX_EPUB_UPLOAD_BYTES),
   title: z.string().min(1).max(2000),
   author: z.string().max(2000).optional(),
   coverUrl: z.string().url().optional(),
