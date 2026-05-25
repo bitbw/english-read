@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ReviewSession, type ReviewWord } from "@/components/review/review-session";
+import { ReviewSettingsSheet } from "@/components/review/review-settings-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookMarked, ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -14,6 +15,10 @@ import {
   filterOutClearedReviews,
   getReviewScopeDay,
 } from "@/lib/review-session-cache";
+import {
+  readReviewAutoPronunciationFromStorage,
+  writeReviewAutoPronunciationToStorage,
+} from "@/lib/review-auto-pronunciation";
 import { clientFetch } from "@/lib/client-fetch";
 import { useTranslations } from "next-intl";
 
@@ -48,6 +53,10 @@ export function ReviewPageClient() {
   const [pool, setPool] = useState<DistractorItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiPreview, setApiPreview] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [autoPronunciation, setAutoPronunciation] = useState(
+    readReviewAutoPronunciationFromStorage,
+  );
   const fetchUrl = useMemo(() => buildFetchUrl(date, preview), [date, preview]);
   const reviewScopeDay = useMemo(() => getReviewScopeDay(date), [date]);
 
@@ -83,6 +92,11 @@ export function ReviewPageClient() {
 
   const handleReviewComplete = useCallback(() => {}, []);
 
+  function changeAutoPronunciation(enabled: boolean) {
+    setAutoPronunciation(enabled);
+    writeReviewAutoPronunciationToStorage(enabled);
+  }
+
   const title = !date
     ? t("todayTitle")
     : preview
@@ -98,7 +112,15 @@ export function ReviewPageClient() {
         <Link href="/vocabulary/plan" className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h1 className="text-2xl font-bold">{title}</h1>
+        <h1 className="text-2xl font-bold flex-1 min-w-0 truncate">{title}</h1>
+        {showSession ? (
+          <ReviewSettingsSheet
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+            autoPronunciation={autoPronunciation}
+            onAutoPronunciationChange={changeAutoPronunciation}
+          />
+        ) : null}
       </div>
 
       {loading ? (
@@ -111,6 +133,7 @@ export function ReviewPageClient() {
           words={words}
           distractorPool={pool}
           reviewScopeDay={reviewScopeDay}
+          autoPronunciation={autoPronunciation}
           onComplete={handleReviewComplete}
         />
       ) : showPreviewList ? (

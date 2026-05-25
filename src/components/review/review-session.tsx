@@ -20,7 +20,6 @@ import {
   Loader2,
   Undo2,
   Volume2,
-  VolumeX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -47,8 +46,6 @@ import {
   stopPronunciationAudio,
 } from "@/lib/pronunciation-audio";
 import { useTranslations } from "next-intl";
-
-const REVIEW_AUTO_PLAY_PRONUNCIATION_KEY = "english-read-review-auto-play-pronunciation";
 
 /** 复习与手动添加生词一致：浏览器语音合成读英文 */
 function speakReviewWordTts(word: string): void {
@@ -79,6 +76,7 @@ interface ReviewSessionProps {
   distractorPool?: QuizWord[];
   /** 与复习页一致：URL `date` 或本地今日，用于本地缓存「本 scope 已过关」 */
   reviewScopeDay: string;
+  autoPronunciation?: boolean;
   onComplete: (results: { remembered: number; forgotten: number; requeued: number }) => void;
 }
 
@@ -289,6 +287,7 @@ export function ReviewSession({
   words,
   distractorPool = [],
   reviewScopeDay,
+  autoPronunciation = true,
   onComplete,
 }: ReviewSessionProps) {
   const t = useTranslations("review");
@@ -314,32 +313,9 @@ export function ReviewSession({
   const [meaningLoading, setMeaningLoading] = useState(false);
   const [meaningPhase, setMeaningPhase] = useState<"pick" | "revealed">("pick");
   const [pickMeta, setPickMeta] = useState<{ index: number; correct: boolean } | null>(null);
-  const [autoPlayPronunciation, setAutoPlayPronunciation] = useState(true);
   const glossCacheRef = useRef<Map<string, string>>(new Map());
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(REVIEW_AUTO_PLAY_PRONUNCIATION_KEY);
-      if (raw === "0") setAutoPlayPronunciation(false);
-      else if (raw === "1") setAutoPlayPronunciation(true);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const toggleAutoPlayPronunciation = useCallback(() => {
-    setAutoPlayPronunciation((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(REVIEW_AUTO_PLAY_PRONUNCIATION_KEY, next ? "1" : "0");
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  }, []);
 
   useEffect(() => {
     setQueue(words);
@@ -366,7 +342,7 @@ export function ReviewSession({
 
   /** 释义题与拼写题进入时自动播放（优先美音，无 mp3 时用语音合成）；切题或离开本步时停止 */
   useEffect(() => {
-    if (!autoPlayPronunciation || !current) return;
+    if (!autoPronunciation || !current) return;
     const url = preferredPronunciationUrl(current);
     const timer = window.setTimeout(() => {
       if (url) {
@@ -382,7 +358,7 @@ export function ReviewSession({
         window.speechSynthesis.cancel();
       }
     };
-  }, [autoPlayPronunciation, current, step]);
+  }, [autoPronunciation, current, step]);
 
   /** 同一词排在队首再次失败时需重新洗牌选项，与 `current` 引用是否变化无关 */
   const quizRegenKey = current ? (failVersions[current.id] ?? 0) : 0;
@@ -713,25 +689,6 @@ export function ReviewSession({
   const audioUsTrim = current.audioUs?.trim() ?? "";
   const audioUkTrim = current.audioUk?.trim() ?? "";
 
-  const autoPlayPronunciationToggle = (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      className="absolute top-2 right-2 z-10 size-9 shrink-0 text-muted-foreground hover:text-foreground"
-      onClick={toggleAutoPlayPronunciation}
-      title={autoPlayPronunciation ? t("autoPlayOn") : t("autoPlayOff")}
-      aria-pressed={autoPlayPronunciation}
-      aria-label={autoPlayPronunciation ? t("autoPlayOn") : t("autoPlayOff")}
-    >
-      {autoPlayPronunciation ? (
-        <Volume2 className="h-5 w-5" />
-      ) : (
-        <VolumeX className="h-5 w-5" />
-      )}
-    </Button>
-  );
-
   return (
     <div className="w-full py-6">
       <div className="flex flex-col items-center gap-6 max-w-lg mx-auto w-full">
@@ -752,8 +709,7 @@ export function ReviewSession({
         </Badge>
 
       {step === "meaning" && (
-        <Card className="relative w-full p-6 space-y-5">
-          {autoPlayPronunciationToggle}
+        <Card className="w-full p-6 space-y-5">
           <div className="text-center space-y-2">
             <h2 className="text-4xl font-bold tracking-tight">{current.word}</h2>
             <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
@@ -884,8 +840,7 @@ export function ReviewSession({
       )}
 
       {step === "spelling" && (
-        <Card className="relative w-full p-6 space-y-5">
-          {autoPlayPronunciationToggle}
+        <Card className="w-full p-6 space-y-5">
           <div className="rounded-lg border border-border bg-muted/30 px-3 py-3 text-center space-y-1">
             <p className="text-[11px] font-medium text-muted-foreground">{t("chineseMeaning")}</p>
             {spellGlossDisplay ? (

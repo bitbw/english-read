@@ -37,6 +37,7 @@ interface WordPopupProps {
   contextCfi: string;
   bookId: string;
   anchorRect: WordPopupAnchorRect;
+  autoPronunciation?: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -130,6 +131,7 @@ export function WordPopup({
   contextCfi,
   bookId,
   anchorRect,
+  autoPronunciation = true,
   onClose,
   onSaved,
 }: WordPopupProps) {
@@ -151,11 +153,18 @@ export function WordPopup({
   /** 多词为词组：无词典 mp3，仍可提供系统 TTS 朗读整段 */
   const isPhrase = word.trim().split(/\s+/).length > 1;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    setLoading(true);
+    setPhonetic("");
+    setDefinitions([]);
+    setTranslation("");
+    setAudioUk("");
+    setAudioUs("");
+    setSaved(false);
     stopPronunciationAudio();
-    return () => {
-      stopPronunciationAudio();
-    };
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
   }, [word]);
 
   // 是否已在生词本（与 POST 的 normalizedWord 规则一致）
@@ -194,13 +203,6 @@ export function WordPopup({
   useEffect(() => {
     let cancelled = false;
     async function fetchDefinition() {
-      setLoading(true);
-      setPhonetic("");
-      setDefinitions([]);
-      setTranslation("");
-      setAudioUk("");
-      setAudioUs("");
-      setSaved(false);
       try {
         const dictQuery = word.trim().slice(0, MAX_DICTIONARY_QUERY_CHARS);
         const res = await clientFetch(
@@ -271,6 +273,34 @@ export function WordPopup({
   function playPronunciationMp3(url: string) {
     playPronunciationMp3Url(url, speakTts);
   }
+
+  /** 查词完成后自动播放（优先美音，无 mp3 时用 TTS） */
+  useEffect(() => {
+    if (!autoPronunciation || loading) return;
+    const trimmedWord = word.trim();
+    const url = audioUs.trim() || audioUk.trim();
+    const speak = () => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(trimmedWord);
+      utterance.lang = "en-US";
+      window.speechSynthesis.speak(utterance);
+    };
+    const timer = window.setTimeout(() => {
+      if (url) {
+        playPronunciationMp3Url(url, speak);
+      } else {
+        speak();
+      }
+    }, 120);
+    return () => {
+      clearTimeout(timer);
+      stopPronunciationAudio();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [word, loading, audioUs, audioUk, autoPronunciation]);
 
   const hasSavableDefinition =
     definitions.length > 0 || translation.trim().length > 0;
