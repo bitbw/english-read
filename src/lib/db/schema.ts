@@ -180,6 +180,27 @@ export const readingDailyTime = pgTable(
 );
 
 // ─────────────────────────────────────────────
+// Review daily stats（每日复习时长 + 错误次数）
+// ─────────────────────────────────────────────
+
+export const reviewDailyStats = pgTable(
+  "review_daily_stats",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    day: date("day", { mode: "string" }).notNull(),
+    seconds: integer("seconds").default(0).notNull(),
+    errorCount: integer("error_count").default(0).notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.day] }),
+    userDayIdx: index("review_daily_stats_user_day_idx").on(t.userId, t.day),
+  })
+);
+
+// ─────────────────────────────────────────────
 // Vocabulary（生词本）
 // ─────────────────────────────────────────────
 
@@ -267,6 +288,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   vocabulary: many(vocabulary),
   reviewLogs: many(reviewLogs),
   readingDailyTime: many(readingDailyTime),
+  reviewDailyStats: many(reviewDailyStats),
 }));
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
@@ -307,4 +329,8 @@ export const reviewLogsRelations = relations(reviewLogs, ({ one }) => ({
 
 export const readingDailyTimeRelations = relations(readingDailyTime, ({ one }) => ({
   user: one(users, { fields: [readingDailyTime.userId], references: [users.id] }),
+}));
+
+export const reviewDailyStatsRelations = relations(reviewDailyStats, ({ one }) => ({
+  user: one(users, { fields: [reviewDailyStats.userId], references: [users.id] }),
 }));

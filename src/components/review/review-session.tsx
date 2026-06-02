@@ -47,7 +47,7 @@ import {
 } from "@/lib/pronunciation-audio";
 import { useTranslations } from "next-intl";
 
-/** 复习与手动添加生词一致：浏览器语音合成读英文 */
+/** 浏览器语音合成读英文 */
 function speakReviewWordTts(word: string): void {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   const w = word.trim();
@@ -56,6 +56,16 @@ function speakReviewWordTts(word: string): void {
   const utterance = new SpeechSynthesisUtterance(w);
   utterance.lang = "en-US";
   window.speechSynthesis.speak(utterance);
+}
+
+function postReviewStats(payload: { seconds?: number; errors?: number }) {
+  void clientFetch("/api/review/stats", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true,
+    showErrorToast: false,
+  }).catch(() => {});
 }
 
 export interface ReviewWord {
@@ -332,6 +342,59 @@ export function ReviewSession({
     }
   }, [words]);
 
+  // 复习页前台活跃时长 → 按学习时区自然日累加
+  useEffect(() => {
+    if (finished) return;
+
+    let lastMark = Date.now();
+
+    function flushVisible() {
+      if (document.visibilityState !== "visible") {
+        lastMark = Date.now();
+        return;
+      }
+      const elapsed = (Date.now() - lastMark) / 1000;
+      lastMark = Date.now();
+      const capped = Math.min(120, Math.round(elapsed));
+      if (capped >= 1) postReviewStats({ seconds: capped });
+    }
+
+    const interval = setInterval(flushVisible, 30_000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        lastMark = Date.now();
+      } else {
+        const elapsed = (Date.now() - lastMark) / 1000;
+        lastMark = Date.now();
+        const capped = Math.min(120, Math.round(elapsed));
+        if (capped >= 1) postReviewStats({ seconds: capped });
+      }
+    };
+
+    const onPageHide = () => {
+      if (document.visibilityState !== "visible") return;
+      const elapsed = (Date.now() - lastMark) / 1000;
+      lastMark = Date.now();
+      const capped = Math.min(120, Math.round(elapsed));
+      if (capped >= 1) postReviewStats({ seconds: capped });
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onPageHide);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
+      if (document.visibilityState === "visible") {
+        const elapsed = (Date.now() - lastMark) / 1000;
+        const capped = Math.min(120, Math.round(elapsed));
+        if (capped >= 1) postReviewStats({ seconds: capped });
+      }
+    };
+  }, [finished]);
+
   const current = queue[0];
 
   /** 布局里滚动的是 `main` 而非 window；拼写区较高时用户会滚到下方，切题后需回到顶部才能看到新词的标题 */
@@ -472,6 +535,7 @@ export function ReviewSession({
   }, []);
 
   const onMeaningWrong = useCallback(() => {
+    postReviewStats({ errors: 1 });
     toast.error(t("wrongMoved"));
     bumpFailForHead();
     if (queue.length <= 1) {
@@ -580,6 +644,7 @@ export function ReviewSession({
     const built =
       manual.length > 0 ? manual : spelling.usedIds.map((id) => spelling.labels[id] ?? "").join("");
     if (!assembledMatchesTarget(built, current.word)) {
+      postReviewStats({ errors: 1 });
       if (spellingShakeTimerRef.current) clearTimeout(spellingShakeTimerRef.current);
       setSpellingAssemblyError(true);
       setSpellingShakePlay(true);
