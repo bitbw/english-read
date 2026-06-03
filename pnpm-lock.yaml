@@ -17,6 +17,9 @@ importers:
       '@alicloud/openapi-client':
         specifier: ^0.4.15
         version: 0.4.15
+      '@alicloud/openapi-core':
+        specifier: ^1.0.7
+        version: 1.0.7
       '@alicloud/tea-util':
         specifier: ^1.4.11
         version: 1.4.11
@@ -111,6 +114,9 @@ importers:
         specifier: ^4.3.6
         version: 4.4.3
     devDependencies:
+      '@next/env':
+        specifier: ^15.5.15
+        version: 15.5.15
       '@types/bcryptjs':
         specifier: ^2.4.6
         version: 2.4.6
