@@ -57,6 +57,13 @@
       "when": 1777641600000,
       "tag": "0007_reading_daily_words",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779676781263,
+      "tag": "0008_woozy_shadowcat",
+      "breakpoints": true
     }
   ]
 }

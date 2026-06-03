@@ -11,10 +11,8 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
-    "@alicloud/credentials": "^2.4.4",
     "@alicloud/dypnsapi20170525": "^2.0.0",
-    "@alicloud/openapi-client": "^0.4.15",
-    "@alicloud/tea-util": "^1.4.11",
+    "@alicloud/openapi-core": "^1.0.7",
     "@auth/drizzle-adapter": "^1.11.1",
     "@base-ui/react": "^1.3.0",
     "@date-fns/tz": "^1.4.1",
@@ -47,6 +45,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@next/env": "^15.5.15",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",

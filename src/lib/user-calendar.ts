@@ -46,3 +46,25 @@ export function calendarDayAfter(dayKey: string, timeZone: string): string {
   const next = addDays(start, 1, { in: tz(timeZone) });
   return calendarDayKey(timeZone, next);
 }
+
+const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** 校验 YYYY-MM-DD 格式 */
+export function isCalendarDayKey(value: string): boolean {
+  return DAY_KEY_RE.test(value);
+}
+
+/** 从 start 到 end（均含）按时间正序生成日历日键；start/end 须为 YYYY-MM-DD */
+export function calendarDayKeysBetween(start: string, end: string, timeZone: string): string[] {
+  if (!isCalendarDayKey(start) || !isCalendarDayKey(end) || start > end) {
+    return [];
+  }
+  const keys: string[] = [];
+  let cursor = start;
+  while (cursor <= end) {
+    keys.push(cursor);
+    if (cursor === end) break;
+    cursor = calendarDayAfter(cursor, timeZone);
+  }
+  return keys;
+}

@@ -120,11 +120,17 @@ export default async function DashboardPage() {
       </div>
 
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 space-y-0">
           <CardTitle className="text-base flex items-center gap-2">
             <Timer className="h-4 w-4 text-muted-foreground" />
             {t("dailyStudy")}
           </CardTitle>
+          <Link
+            href="/dashboard/stats"
+            className="text-sm text-primary hover:underline shrink-0"
+          >
+            {t("viewMore")}
+          </Link>
         </CardHeader>
         <CardContent>
           <DailyStudyChart />
