@@ -35,7 +35,16 @@
     "goToStore": "前往公共书库",
     "uploadEpub": "或上传自己的 EPUB",
     "dueAriaLabel": "今日待复习，共 {count} 个单词，前往复习",
-    "vocabAriaLabel": "生词本总计 {count} 条，前往生词本"
+    "vocabAriaLabel": "生词本总计 {count} 条，前往生词本",
+    "todayReview": "今日复习",
+    "reviewMinutes": "{min} 分钟",
+    "todayReviewDesc": "复习了 {count} 个单词，共 {min} 分钟",
+    "noReviewData": "今日暂无复习",
+    "quickAddVocab": "快捷添加生词",
+    "readingDuration": "阅读时长",
+    "reviewDuration": "复习时长",
+    "todayReading": "阅读 {min} 分钟",
+    "todayReviewShort": "复习 {min} 分钟"
   },
   "vocabulary": {
     "title": "生词本",

@@ -35,7 +35,16 @@
     "goToStore": "Browse Public Library",
     "uploadEpub": "Or upload your own EPUB",
     "dueAriaLabel": "Due for review today, {count} words, go to review",
-    "vocabAriaLabel": "Total vocabulary {count} entries, go to vocabulary"
+    "vocabAriaLabel": "Total vocabulary {count} entries, go to vocabulary",
+    "todayReview": "Today's Review",
+    "reviewMinutes": "{min} min",
+    "todayReviewDesc": "Reviewed {count} words, {min} minutes total",
+    "noReviewData": "No review today",
+    "quickAddVocab": "Quick Add Word",
+    "readingDuration": "Reading",
+    "reviewDuration": "Review",
+    "todayReading": "Read {min} min",
+    "todayReviewShort": "Review {min} min"
   },
   "vocabulary": {
     "title": "Vocabulary",
