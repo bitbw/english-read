@@ -5,9 +5,8 @@ import { cn } from "@/lib/utils";
 import { clientFetch } from "@/lib/client-fetch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "next-intl";
-import { readingSpeedTierFromWpm } from "@/lib/reading-speed-tier";
 
-type SeriesPoint = { day: string; seconds: number; words?: number };
+type StudySeriesPoint = { day: string; readingSeconds: number; reviewSeconds: number };
 
 function formatDayLabel(isoDay: string) {
   const m = parseInt(isoDay.slice(5, 7), 10);
@@ -24,19 +23,19 @@ function formatBarMinutes(seconds: number) {
 
 export function DailyStudyChart() {
   const t = useTranslations("chart");
-  const tTier = useTranslations("readingSpeedTier");
-  const [series, setSeries] = useState<SeriesPoint[] | null>(null);
+  const tDash = useTranslations("dashboard");
+  const [series, setSeries] = useState<StudySeriesPoint[] | null>(null);
   const [narrow, setNarrow] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const r = await clientFetch("/api/reading/time?days=14", { showErrorToast: false });
+      const r = await clientFetch("/api/stats/study?days=14", { showErrorToast: false });
       if (!r.ok) {
         if (!cancelled) setSeries([]);
         return;
       }
-      const data = (await r.json()) as { series?: SeriesPoint[] };
+      const data = (await r.json()) as { series?: StudySeriesPoint[] };
       if (!cancelled) setSeries(data.series ?? []);
     })();
     return () => {
@@ -62,25 +61,18 @@ export function DailyStudyChart() {
   }
 
   const displaySeries = narrow ? series.slice(-7) : series;
-  const minutes = displaySeries.map((s) => s.seconds / 60);
-  const maxMin = Math.max(...minutes, 0.01);
-  const maxBarPx = 96;
+  const readingMinutes = displaySeries.map((s) => s.readingSeconds / 60);
+  const reviewMinutes = displaySeries.map((s) => s.reviewSeconds / 60);
+  const maxReadingMin = Math.max(...readingMinutes, 0.01);
+  const maxReviewMin = Math.max(...reviewMinutes, 0.01);
+  const maxBarPx = 72;
 
-  const totalToday = series.length > 0 ? series[series.length - 1]!.seconds : 0;
-  const todayMin = Math.round(totalToday / 60);
+  const totalToday = series.length > 0 ? series[series.length - 1]! : null;
+  const todayReadingMin = totalToday ? Math.round(totalToday.readingSeconds / 60) : 0;
+  const todayReviewMin = totalToday ? Math.round(totalToday.reviewSeconds / 60) : 0;
 
-  const todayPoint = series.length > 0 ? series[series.length - 1]! : null;
-  const todayWpm =
-    todayPoint && todayPoint.seconds >= 45
-      ? Math.round(((todayPoint.words ?? 0) / todayPoint.seconds) * 60)
-      : null;
-
-  const totalWordsWindow = series.reduce((a, s) => a + (s.words ?? 0), 0);
-  const totalSecondsWindow = series.reduce((a, s) => a + s.seconds, 0);
-  const periodAvgWpm =
-    totalSecondsWindow >= 300
-      ? Math.round((totalWordsWindow / totalSecondsWindow) * 60)
-      : null;
+  const totalReadingSeconds = series.reduce((a, s) => a + s.readingSeconds, 0);
+  const totalReviewSeconds = series.reduce((a, s) => a + s.reviewSeconds, 0);
 
   return (
     <div className="space-y-4">
@@ -90,56 +82,33 @@ export function DailyStudyChart() {
         </p>
         <div className="flex flex-col items-end gap-0.5 sm:items-end">
           <p className="text-sm tabular-nums text-muted-foreground">
-            {t("todayMinutes", { min: todayMin })}
+            {tDash("todayReading", { min: todayReadingMin })}
           </p>
-          {todayWpm !== null || periodAvgWpm !== null ? (
-            <p className="text-[11px] sm:text-xs text-muted-foreground tabular-nums text-right max-w-[24rem] leading-snug">
-              {todayWpm !== null ? (
-                <span className="inline-block">
-                  {t("todayWpm", { wpm: todayWpm })}{" "}
-                  <span className="text-muted-foreground/80">
-                    ({tTier(readingSpeedTierFromWpm(todayWpm))})
-                  </span>
-                </span>
-              ) : null}
-              {todayWpm !== null && periodAvgWpm !== null ? (
-                <span className="text-muted-foreground/70"> · </span>
-              ) : null}
-              {periodAvgWpm !== null ? (
-                <span className="inline-block">
-                  {t("periodAvgWpm", { days: series.length, wpm: periodAvgWpm })}{" "}
-                  <span className="text-muted-foreground/80">
-                    ({tTier(readingSpeedTierFromWpm(periodAvgWpm))})
-                  </span>
-                </span>
-              ) : null}
-            </p>
-          ) : (
-            <p className="text-[11px] sm:text-xs text-muted-foreground/90 text-right max-w-[18rem] leading-snug">
-              {t("wpmDataPending")}
-            </p>
-          )}
+          <p className="text-sm tabular-nums text-muted-foreground">
+            {tDash("todayReviewShort", { min: todayReviewMin })}
+          </p>
         </div>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <div className="flex items-end gap-1 sm:gap-1.5 min-h-[118px] px-0.5">
+      {/* 阅读时长柱状图 */}
+      <div>
+        <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm bg-primary/90 dark:bg-primary/80" />
+          {tDash("readingDuration")}
+        </p>
+        <div className="flex items-end gap-1 sm:gap-1.5 min-h-[72px] px-0.5">
           {displaySeries.map((s) => {
-            const m = s.seconds / 60;
+            const m = s.readingSeconds / 60;
             const hasTime = m > 0;
-            const barPx = hasTime ? Math.max(6, (m / maxMin) * maxBarPx) : 3;
-            const label = formatBarMinutes(s.seconds);
+            const barPx = hasTime ? Math.max(4, (m / maxReadingMin) * maxBarPx) : 2;
 
             return (
               <div
                 key={s.day}
                 className="flex-1 min-w-0 flex flex-col items-center justify-end gap-0.5"
               >
-                <span
-                  className="text-[10px] sm:text-xs font-medium tabular-nums text-foreground leading-none min-h-[14px] flex items-end justify-center"
-                  title={`${formatDayLabel(s.day)}：${label === "<1" ? t("lessThanOneMin") : t("minutes", { min: label })}`}
-                >
-                  {label}
+                <span className="text-[10px] sm:text-xs font-medium tabular-nums text-foreground leading-none">
+                  {formatBarMinutes(s.readingSeconds)}
                 </span>
                 <div
                   className={cn(
@@ -147,21 +116,57 @@ export function DailyStudyChart() {
                     hasTime ? "bg-primary/90 dark:bg-primary/80" : "bg-muted"
                   )}
                   style={{ height: `${barPx}px` }}
-                  title={`${formatDayLabel(s.day)}：${t("minutes", { min: String(Math.round(m)) })}`}
+                  title={`${tDash("readingDuration")} ${formatDayLabel(s.day)}：${t("minutes", { min: String(Math.round(m)) })}`}
                 />
               </div>
             );
           })}
         </div>
-        <div className="flex gap-1 sm:gap-1.5 px-0.5">
-          {displaySeries.map((s) => (
-            <div key={`d-${s.day}`} className="flex-1 min-w-0 flex justify-center">
-              <span className="text-[10px] text-muted-foreground tabular-nums leading-none">
-                {formatDayLabel(s.day)}
-              </span>
-            </div>
-          ))}
+      </div>
+
+      {/* 复习时长柱状图 */}
+      <div>
+        <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm bg-chart-review" />
+          {tDash("reviewDuration")}
+        </p>
+        <div className="flex items-end gap-1 sm:gap-1.5 min-h-[72px] px-0.5">
+          {displaySeries.map((s) => {
+            const m = s.reviewSeconds / 60;
+            const hasTime = m > 0;
+            const barPx = hasTime ? Math.max(4, (m / maxReviewMin) * maxBarPx) : 2;
+
+            return (
+              <div
+                key={`r-${s.day}`}
+                className="flex-1 min-w-0 flex flex-col items-center justify-end gap-0.5"
+              >
+                <span className="text-[10px] sm:text-xs font-medium tabular-nums text-foreground leading-none">
+                  {formatBarMinutes(s.reviewSeconds)}
+                </span>
+                <div
+                  className={cn(
+                    "w-full max-w-[28px] mx-auto rounded-md transition-[height]",
+                    hasTime ? "bg-chart-review" : "bg-muted"
+                  )}
+                  style={{ height: `${barPx}px` }}
+                  title={`${tDash("reviewDuration")} ${formatDayLabel(s.day)}：${t("minutes", { min: String(Math.round(m)) })}`}
+                />
+              </div>
+            );
+          })}
         </div>
+      </div>
+
+      {/* 日期标签（共用一行） */}
+      <div className="flex gap-1 sm:gap-1.5 px-0.5 -mt-1">
+        {displaySeries.map((s) => (
+          <div key={`d-${s.day}`} className="flex-1 min-w-0 flex justify-center">
+            <span className="text-[10px] text-muted-foreground tabular-nums leading-none">
+              {formatDayLabel(s.day)}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DailyStudyChart } from "@/components/dashboard/daily-study-chart";
+import { DashboardQuickActions } from "@/components/dashboard/dashboard-quick-actions";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -118,6 +119,8 @@ export default async function DashboardPage() {
           </Card>
         </Link>
       </div>
+
+      <DashboardQuickActions />
 
       <Card>
         <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 space-y-0">
