@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { deleteBlob } from "@/lib/blob";
 import { db } from "@/lib/db";
 import { books, publicLibraryBooks } from "@/lib/db/schema";
+import { isAdmin } from "@/lib/role";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -21,7 +22,7 @@ export async function DELETE(_req: Request, { params }: IdParams) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (pub.uploadedBy !== session.user.id) {
+  if (pub.uploadedBy !== session.user.id && !isAdmin(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

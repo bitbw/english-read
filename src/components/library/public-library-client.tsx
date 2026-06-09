@@ -137,7 +137,7 @@ export function PublicLibraryClient() {
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
           {items.map((item) => {
-            const canDelete = !!currentUserId && item.uploadedBy === currentUserId;
+            const canDelete = !!currentUserId && (item.uploadedBy === currentUserId || session?.user?.role === "admin");
             return (
               <div key={item.id} className="relative group min-w-0">
                 <Link href={`/library/store/${item.id}`} className="block min-w-0">
