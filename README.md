@@ -6,6 +6,22 @@
 
 ---
 
+## Screenshots
+
+| Desktop | Mobile |
+|---------|--------|
+| ![Dashboard](./docs/screenshots/概览页.png) | ![Dashboard Mobile](./docs/screenshots/概览页-移动端.png) |
+| ![Reading](./docs/screenshots/阅读页.png) | ![Reading Mobile](./docs/screenshots/阅读页-移动端.png) |
+| ![Public Library](./docs/screenshots/公共书库.png) | ![Public Library Mobile](./docs/screenshots/公共书库-移动端.png) |
+| ![Personal Bookshelf](./docs/screenshots/个人书架.png) | ![Personal Bookshelf Mobile](./docs/screenshots/个人书架-移动端.png) |
+| ![Vocabulary](./docs/screenshots/单词.png) | ![Vocabulary Mobile](./docs/screenshots/单词-移动端.png) |
+| ![Review Plan](./docs/screenshots/复习计划.png) | ![Review Plan Mobile](./docs/screenshots/复习计划-移动端.png) |
+| ![Review Page](./docs/screenshots/复习页.png) | ![Review Page Mobile](./docs/screenshots/复习页-移动端.png) |
+
+**Try it online: [https://english-read.bitbw.top/](https://english-read.bitbw.top/)**
+
+---
+
 ## Overview
 
 English Read is a Next.js 15 full-stack web application combining an online EPUB reader with an SRS (Spaced Repetition System) vocabulary learning workflow. Upload EPUBs or browse a shared public library, look up words while reading, and review them with an Ebbinghaus-curve-based flashcard system.
@@ -275,7 +291,7 @@ vercel --prod     # production
    | `AI_GATEWAY_API_KEY` | **Phrase** (multi-word) review distractors via `GET /api/review/similar-words` (required for that branch; single-word review may use other sources) | [Vercel Dashboard](https://vercel.com/dashboard) → **AI** → **AI Gateway** → API keys · [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) |
    | `GOOGLE_TRANSLATE_API_KEY` | Machine translation fallback for `/api/dictionary` | [Google Cloud Console](https://console.cloud.google.com/) → enable [Cloud Translation API](https://console.cloud.google.com/apis/library/translate.googleapis.com) → **APIs & Services** → **Credentials** → Create API key |
    | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | PostHog client analytics | [PostHog](https://app.posthog.com/) → **Project settings** → **Project API Key**; host = your region’s ingestion URL ([regions](https://posthog.com/docs/api#capture-api), e.g. `https://us.i.posthog.com`) |
-   | `ALIBABA_CLOUD_ACCESS_KEY_ID`, `ALIBABA_CLOUD_ACCESS_KEY_SECRET`, `ALIYUN_SMS_SIGN_NAME`, `ALIYUN_SMS_TEMPLATE_CODE`, … | Aliyun SMS OTP (DYPNS) login | AccessKey: [RAM](https://ram.console.aliyun.com/manage/ak); SMS / phone verification: [号码认证控制台](https://dypns.console.aliyun.com/) (sign & template); RAM needs `dypns:SendSmsVerifyCode` / `CheckSmsVerifyCode`; notes in [`docs/阿里云/`](./docs/阿里云/) |
+   | `ALIBABA_CLOUD_ACCESS_KEY_ID`, `ALIBABA_CLOUD_ACCESS_KEY_SECRET`, `ALIYUN_SMS_SIGN_NAME`, `ALIYUN_SMS_TEMPLATE_CODE`, … | Aliyun SMS OTP (DYPNS) login | AccessKey: [RAM](https://ram.console.aliyun.com/manage/ak); SMS / phone verification: [号码认证控制台](https://dypns.console.aliyun.com/) (sign & template); RAM needs `dypns:SendSmsVerifyCode` / `CheckSmsVerifyCode`; notes in [`docs/阿里云/`](./docs/aliyun/) |
    | `SENTRY_AUTH_TOKEN` | Upload **source maps** during `next build` (clearer stacks) | [sentry.io](https://sentry.io) → your organization → **Settings** → **Developer Settings** → **Auth Tokens** · [Next.js source maps](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#step-4-add-readable-stack-traces-with-source-maps-optional) |
 
    **Sentry runtime** — DSN is embedded; errors are reported when `NODE_ENV === "production"`. **`SENTRY_AUTH_TOKEN`** is only required if you want source maps uploaded on Vercel builds.
