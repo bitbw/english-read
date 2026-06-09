@@ -17,7 +17,7 @@ import { postCoverUpload } from "@/lib/post-cover-upload";
 import { useEpubCoverPreview } from "@/hooks/use-epub-cover-preview";
 import { useTranslations } from "next-intl";
 
-const MAX_EPUB_BYTES = 50 * 1024 * 1024;
+const MAX_EPUB_BYTES = 10 * 1024 * 1024;
 const MULTIPART_THRESHOLD = 5 * 1024 * 1024;
 
 export function PublicLibraryUploadClient() {
