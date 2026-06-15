@@ -262,6 +262,7 @@
     "colWpm": "Speed (wpm)",
     "colReviewed": "Reviewed",
     "colErrors": "Errors",
+    "colErrorRate": "Error rate",
     "colReviewMin": "Review (min)",
     "noData": "No data for this period",
     "wpmPending": "Insufficient data",

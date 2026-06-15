@@ -262,6 +262,7 @@
     "colWpm": "速度（词/分）",
     "colReviewed": "复习词数",
     "colErrors": "错误",
+    "colErrorRate": "错误率",
     "colReviewMin": "复习（分钟）",
     "noData": "该时段暂无数据",
     "wpmPending": "数据不足",
