@@ -6,7 +6,7 @@
 
 - 用户**无需事先注册**：验码成功后，若库中不存在该手机号则**自动创建** `users` 记录。
 - 与现有 **NextAuth v5 + JWT 会话** 一致：与 GitHub / Google / 邮箱密码共用同一套 `session` 与受保护路由逻辑。
-- 短信能力使用阿里云 **号码认证（Dypnsapi）** 的 `SendSmsVerifyCode` / `CheckSmsVerifyCode`，与「短信服务 Dysms 普通 SendSms」不是同一条产品线；权限与控制台配置需对应 **号码认证 / 赠送签名与模板**（详见 `docs/阿里云/`）。
+- 短信能力使用阿里云 **号码认证（Dypnsapi）** 的 `SendSmsVerifyCode` / `CheckSmsVerifyCode`，与「短信服务 Dysms 普通 SendSms」不是同一条产品线；权限与控制台配置需对应 **号码认证 / 赠送签名与模板**（详见 `docs/aliyun/`）。
 
 ## 2. 架构概览
 
@@ -117,4 +117,4 @@ sequenceDiagram
 
 ---
 
-*文档随实现版本编写；若接口或表结构变更，请同步更新本页与 `docs/阿里云` 下说明。*
+*文档随实现版本编写；若接口或表结构变更，请同步更新本页与 `docs/aliyun` 下说明。*

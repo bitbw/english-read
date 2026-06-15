@@ -8,6 +8,7 @@ import { eq, or } from "drizzle-orm";
 import { verifySmsCode } from "@/lib/aliyun-dypns";
 import { db } from "@/lib/db";
 import { users, accounts, sessions, verificationTokens } from "@/lib/db/schema";
+import type { Role } from "@/lib/role";
 import {
   maskPhoneForDisplay,
   parsePhoneOtpPayload,
@@ -226,6 +227,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.name = user.name;
         token.picture = user.image;
         token.phone = user.phone ?? null;
+        // 从 DB 读取 role
+        if (token.sub) {
+          const [userRow] = await db
+            .select({ role: users.role })
+            .from(users)
+            .where(eq(users.id, token.sub))
+            .limit(1);
+          token.role = userRow?.role ?? "user";
+        }
       }
       if (trigger === "update" && token.sub) {
         const [row] = await db
@@ -234,6 +244,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: users.email,
             image: users.image,
             phone: users.phone,
+            role: users.role,
           })
           .from(users)
           .where(eq(users.id, token.sub as string))
@@ -243,6 +254,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.email = row.email;
           token.picture = row.image;
           token.phone = row.phone;
+          token.role = row.role;
         }
         mergeClientSessionIntoJwt(token, clientSession);
       }
@@ -253,6 +265,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.sub;
       }
       session.user.phone = (token.phone as string | null | undefined) ?? null;
+      session.user.role = (token.role as Role | undefined) ?? "user";
       return session;
     },
   },

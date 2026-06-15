@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Only .epub files are allowed" }, { status: 400 });
   }
   if (file.size > MAX_FILE_SIZE) {
-    return NextResponse.json({ error: "File size exceeds 50MB limit" }, { status: 400 });
+    return NextResponse.json({ error: "File size exceeds 10MB limit" }, { status: 400 });
   }
 
   const safeName = file.name.replace(/\s+/g, "-").replace(/[^\w\-_.]/g, "");

@@ -33,6 +33,7 @@ type StudySeriesPoint = {
   reviewedCount: number;
   errorCount: number;
   reviewSeconds: number;
+  errorRate: number | null;
 };
 
 type StudyStatsResponse = {
@@ -357,6 +358,7 @@ export function StatsPageClient({ title, backLabel }: StatsPageClientProps) {
                           <TableHead className="text-right">{t("colWpm")}</TableHead>
                           <TableHead className="text-right">{t("colReviewed")}</TableHead>
                           <TableHead className="text-right">{t("colErrors")}</TableHead>
+                          <TableHead className="text-right">{t("colErrorRate")}</TableHead>
                           <TableHead className="text-right">{t("colReviewMin")}</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -377,6 +379,9 @@ export function StatsPageClient({ title, backLabel }: StatsPageClientProps) {
                               </TableCell>
                               <TableCell className="text-right tabular-nums">
                                 {row.errorCount}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {row.errorRate != null ? `${row.errorRate}%` : "—"}
                               </TableCell>
                               <TableCell className="text-right tabular-nums">
                                 {formatMinutes(row.reviewSeconds)}

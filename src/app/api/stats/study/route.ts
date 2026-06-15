@@ -149,6 +149,7 @@ export async function GET(req: Request) {
       reviewedCount,
       errorCount,
       reviewSeconds,
+      errorRate: reviewedCount > 0 ? Math.round((errorCount / reviewedCount) * 100) : null,
     };
   });
 

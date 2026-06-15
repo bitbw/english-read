@@ -29,6 +29,8 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash"),
   /** IANA 时区，可空：空则使用请求头 `X-User-Timezone`，再否则 UTC */
   timeZone: text("time_zone"),
+  /** 角色：user（普通用户）| admin（管理员） */
+  role: text("role").notNull().default("user"),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });

@@ -6,6 +6,22 @@
 
 ---
 
+## 界面预览
+
+| 桌面端 | 移动端 |
+|--------|--------|
+| ![概览页](./docs/screenshots/概览页.png) | ![概览页-移动端](./docs/screenshots/概览页-移动端.png) |
+| ![阅读页](./docs/screenshots/阅读页.png) | ![阅读页-移动端](./docs/screenshots/阅读页-移动端.png) |
+| ![公共书库](./docs/screenshots/公共书库.png) | ![公共书库-移动端](./docs/screenshots/公共书库-移动端.png) |
+| ![个人书架](./docs/screenshots/个人书架.png) | ![个人书架-移动端](./docs/screenshots/个人书架-移动端.png) |
+| ![单词](./docs/screenshots/单词.png) | ![单词-移动端](./docs/screenshots/单词-移动端.png) |
+| ![复习计划](./docs/screenshots/复习计划.png) | ![复习计划-移动端](./docs/screenshots/复习计划-移动端.png) |
+| ![复习页](./docs/screenshots/复习页.png) | ![复习页-移动端](./docs/screenshots/复习页-移动端.png) |
+
+**在线体验：[https://english-read.bitbw.top/](https://english-read.bitbw.top/)**
+
+---
+
 ## 项目简介
 
 English Read 是一款基于 Next.js 15 的全栈 Web 应用，将在线 EPUB 阅读器与 SRS（间隔重复系统）词汇学习工作流结合在一起。支持个人上传与**公共书库**浏览，阅读时随时查词，再通过基于艾宾浩斯遗忘曲线的闪卡系统复习。
@@ -283,7 +299,7 @@ vercel --prod     # 生产部署
    | `AI_GATEWAY_API_KEY` | **短语**（多词）复习干扰项：`GET /api/review/similar-words` 对应分支（该场景必需；单词复习可走其他数据源） | [Vercel 控制台](https://vercel.com/dashboard) → **AI** → **AI Gateway** → API 密钥 · [AI Gateway 文档](https://vercel.com/docs/ai-gateway) |
    | `GOOGLE_TRANSLATE_API_KEY` | `/api/dictionary` 机翻回退 | [Google Cloud Console](https://console.cloud.google.com/) → 启用 [Cloud Translation API](https://console.cloud.google.com/apis/library/translate.googleapis.com) → **API 与服务** → **凭据** → 创建 API 密钥 |
    | `NEXT_PUBLIC_POSTHOG_KEY`、`NEXT_PUBLIC_POSTHOG_HOST` | PostHog 客户端埋点 | [PostHog](https://app.posthog.com/) → **项目设置** → **Project API Key**；`HOST` 为分区采集地址（见 [分区说明](https://posthog.com/docs/api#capture-api)，如 `https://us.i.posthog.com`） |
-   | `ALIBABA_CLOUD_ACCESS_KEY_ID`、`ALIBABA_CLOUD_ACCESS_KEY_SECRET`、`ALIYUN_SMS_SIGN_NAME`、`ALIYUN_SMS_TEMPLATE_CODE` 等 | 阿里云短信 OTP（融合认证 DYPNS）登录 | AccessKey：[RAM 访问控制](https://ram.console.aliyun.com/manage/ak)；签名与模板：[号码认证控制台](https://dypns.console.aliyun.com/)；RAM 需 `dypns:SendSmsVerifyCode`、`CheckSmsVerifyCode`；仓库内说明见 [`docs/阿里云/`](./docs/阿里云/) |
+   | `ALIBABA_CLOUD_ACCESS_KEY_ID`、`ALIBABA_CLOUD_ACCESS_KEY_SECRET`、`ALIYUN_SMS_SIGN_NAME`、`ALIYUN_SMS_TEMPLATE_CODE` 等 | 阿里云短信 OTP（融合认证 DYPNS）登录 | AccessKey：[RAM 访问控制](https://ram.console.aliyun.com/manage/ak)；签名与模板：[号码认证控制台](https://dypns.console.aliyun.com/)；RAM 需 `dypns:SendSmsVerifyCode`、`CheckSmsVerifyCode`；仓库内说明见 [`docs/阿里云/`](./docs/aliyun/) |
    | `SENTRY_AUTH_TOKEN` | 构建时上传 **source map**（堆栈可读） | [Sentry](https://sentry.io) → 组织 → **Settings** → **Developer Settings** → **Auth Tokens** · [Next.js Source Maps](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#step-4-add-readable-stack-traces-with-source-maps-optional) |
 
    **Sentry 运行时** — DSN 已写在代码中，生产环境（`NODE_ENV === "production"`）会自动上报。**`SENTRY_AUTH_TOKEN`** 仅在需要在 Vercel 构建阶段上传 source map 时配置。
