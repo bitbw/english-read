@@ -408,7 +408,16 @@ export default function VocabularyPage() {
       )}
 
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
+        <div className="flex flex-wrap justify-center items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={page <= 1 || loading}
+            onClick={() => setPage(1)}
+          >
+            {t("firstPage")}
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -429,6 +438,15 @@ export default function VocabularyPage() {
             onClick={() => setPage((prev) => prev + 1)}
           >
             {t("nextPage")}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage(totalPages)}
+          >
+            {t("lastPage")}
           </Button>
         </div>
       )}
