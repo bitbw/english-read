@@ -34,6 +34,7 @@
     "noRecentReading": "还没有最近阅读记录。去公共书库选一本，加入「我的书架」后即可开始阅读。",
     "goToStore": "前往公共书库",
     "uploadEpub": "或上传自己的 EPUB",
+    "adminPanel": "管理员",
     "dueAriaLabel": "今日待复习，共 {count} 个单词，前往复习",
     "vocabAriaLabel": "生词本总计 {count} 条，前往生词本",
     "todayReview": "今日复习",
@@ -272,6 +273,21 @@
     "wordsUnit": "{count} 词",
     "errorsUnit": "{count} 次",
     "historicalHint": "复习错误与时长自功能上线后开始统计；复习完成词数包含历史记录"
+  },
+  "admin": {
+    "title": "用户管理",
+    "backDashboard": "返回首页",
+    "backAdmin": "返回用户列表",
+    "userStatsTitle": "用户学习统计",
+    "colUser": "用户",
+    "colFirstLogin": "首次登录",
+    "colLastOnline": "最近在线",
+    "colReadingTotal": "阅读总时长",
+    "colReviewTotal": "复习总时长",
+    "minutesUnit": "{min} 分钟",
+    "noRecord": "—",
+    "empty": "暂无用户",
+    "loadError": "加载用户列表失败"
   },
   "readingSpeedTier": {
     "leisurely": "轻松细读档",

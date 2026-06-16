@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
 import { books, publicLibraryBooks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -10,10 +10,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
+  const { session } = authResult;
 
   const body = await req.json();
   const parsed = bodySchema.safeParse(body);

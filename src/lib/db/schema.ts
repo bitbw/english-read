@@ -31,6 +31,8 @@ export const users = pgTable("users", {
   timeZone: text("time_zone"),
   /** 角色：user（普通用户）| admin（管理员） */
   role: text("role").notNull().default("user"),
+  /** 最近一次在线时间（由业务 API 鉴权时更新，5 分钟节流） */
+  lastOnlineAt: timestamp("last_online_at", { mode: "date" }),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });

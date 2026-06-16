@@ -9,6 +9,7 @@ const protectedRoutes = [
   "/read",
   "/vocabulary",
   "/settings",
+  "/admin",
 ];
 
 export default auth((req) => {
@@ -25,6 +26,10 @@ export default auth((req) => {
 
   if (isProtected && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", req.nextUrl));
+  }
+
+  if (pathname.startsWith("/admin") && req.auth?.user?.role !== "admin") {
+    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
 
   if (pathname === "/login" && isLoggedIn) {

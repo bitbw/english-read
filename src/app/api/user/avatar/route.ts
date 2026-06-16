@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { deleteBlob, uploadAvatar } from "@/lib/blob";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -10,10 +10,11 @@ function isOurBlobUrl(url: string): boolean {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) {
     return NextResponse.json({ message: "未登录" }, { status: 401 });
   }
+  const { session } = authResult;
 
   const userId = session.user.id;
   let formData: FormData;

@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
 import { vocabulary, reviewLogs } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -34,10 +34,9 @@ const submitSchema = z.object({
 
 // POST /api/review/submit
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
+  const { session } = authResult;
 
   const body = await req.json();
   const parsed = submitSchema.safeParse(body);

@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { deleteBlob } from "@/lib/blob";
 import { db } from "@/lib/db";
 import { books, publicLibraryBooks } from "@/lib/db/schema";
@@ -10,10 +10,9 @@ type IdParams = { params: Promise<{ id: string }> };
 
 // DELETE /api/library/public/[id] — 仅上传者可删；删除公共条目及关联的个人书架副本（同一 EPUB Blob），再删 Blob
 export async function DELETE(_req: Request, { params }: IdParams) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
+  const { session } = authResult;
 
   const { id } = await params;
 

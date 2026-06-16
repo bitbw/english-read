@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
 import { vocabulary } from "@/lib/db/schema";
 import { eq, and, desc, gte, lt, count, ilike, sql } from "drizzle-orm";
@@ -32,10 +32,9 @@ const addWordSchema = z.object({
 
 // GET /api/vocabulary?filter=all|pending|mastered&search=xxx&page=1&pageSize=10
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
+  const { session } = authResult;
 
   const { searchParams } = new URL(req.url);
   const lookup = searchParams.get("lookup")?.trim();
@@ -110,10 +109,9 @@ export async function GET(req: Request) {
 
 // POST /api/vocabulary
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
+  const { session } = authResult;
 
   const body = await req.json();
   const parsed = addWordSchema.safeParse(body);

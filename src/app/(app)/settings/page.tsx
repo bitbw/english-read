@@ -24,7 +24,7 @@ import {
   LEARNING_TIMEZONE_GROUPS,
 } from "@/lib/learning-timezones";
 import { learningTimeZoneOptionLabel } from "@/lib/timezone-display";
-import { ExternalLink, LogOut } from "lucide-react";
+import { /* ExternalLink, */ LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { LocaleSwitcher } from "@/components/locale-switcher";
@@ -392,7 +392,7 @@ export default function SettingsPage() {
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>{t("aboutVersion")}</p>
           <p>{t("aboutAlgo")}</p>
-          <p>
+          {/* <p>
             <a
               href="https://github.com/bitbw/english-read"
               target="_blank"
@@ -405,7 +405,7 @@ export default function SettingsPage() {
             <span className="block text-xs mt-1 text-muted-foreground">
               {t("githubHint")}
             </span>
-          </p>
+          </p> */}
         </CardContent>
       </Card>
 

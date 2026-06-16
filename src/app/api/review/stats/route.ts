@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
 import { reviewDailyStats } from "@/lib/db/schema";
 import { calendarDayKey } from "@/lib/user-calendar";
@@ -18,10 +18,9 @@ const postSchema = z
 
 // POST /api/review/stats — 累加当日复习活跃秒数与错误次数
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
+  const { session } = authResult;
 
   const body = await req.json();
   const parsed = postSchema.safeParse(body);

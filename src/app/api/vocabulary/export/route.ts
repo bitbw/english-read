@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
 import { vocabulary } from "@/lib/db/schema";
 import { and, desc, eq, ilike } from "drizzle-orm";
@@ -55,10 +55,9 @@ function toCsv(rows: VocabRow[]): string {
 
 // GET /api/vocabulary/export?format=csv|json&filter=all|pending|mastered&search=
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
+  const { session } = authResult;
 
   const { searchParams } = new URL(req.url);
   const formatRaw = (searchParams.get("format") ?? "csv").toLowerCase();

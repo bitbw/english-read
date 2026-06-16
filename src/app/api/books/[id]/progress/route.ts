@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
 import { books } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -15,10 +15,9 @@ type IdParams = { params: Promise<{ id: string }> };
 // GET /api/books/[id]/progress
 export async function GET(_req: Request, { params }: IdParams) {
   const { id } = await params;
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
+  const { session } = authResult;
 
   const [book] = await db
     .select({
@@ -39,10 +38,9 @@ export async function GET(_req: Request, { params }: IdParams) {
 // PUT /api/books/[id]/progress
 export async function PUT(req: Request, { params }: IdParams) {
   const { id } = await params;
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
+  const { session } = authResult;
 
   const body = await req.json();
   const parsed = updateProgressSchema.safeParse(body);

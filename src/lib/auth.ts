@@ -9,6 +9,7 @@ import { verifySmsCode } from "@/lib/aliyun-dypns";
 import { db } from "@/lib/db";
 import { users, accounts, sessions, verificationTokens } from "@/lib/db/schema";
 import type { Role } from "@/lib/role";
+import { touchUserOnline } from "@/lib/user-presence";
 import {
   maskPhoneForDisplay,
   parsePhoneOtpPayload,
@@ -272,5 +273,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: "/login",
     error: "/error",
+  },
+  events: {
+    async signIn({ user }) {
+      if (user.id) {
+        await touchUserOnline(user.id);
+      }
+    },
   },
 });

@@ -10,7 +10,7 @@ import {
   LayoutDashboard,
   Settings,
   Calendar,
-  ExternalLink,
+  // ExternalLink,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -25,7 +25,7 @@ function navItemIsActive(pathname: string, href: string) {
   return pathname === href;
 }
 
-const GITHUB_REPO_URL = "https://github.com/bitbw/english-read";
+// const GITHUB_REPO_URL = "https://github.com/bitbw/english-read";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -70,7 +70,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="shrink-0 border-t border-border p-4">
+      {/* <div className="shrink-0 border-t border-border p-4">
         <a
           href={GITHUB_REPO_URL}
           target="_blank"
@@ -80,7 +80,7 @@ export function Sidebar() {
           <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
           <span>{t("github")}</span>
         </a>
-      </div>
+      </div> */}
     </aside>
   );
 }

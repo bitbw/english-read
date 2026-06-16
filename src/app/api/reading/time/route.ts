@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
 import { readingDailyTime } from "@/lib/db/schema";
 import { calendarDayKey, calendarDayKeys } from "@/lib/user-calendar";
@@ -15,10 +15,9 @@ const postSchema = z.object({
 
 // POST /api/reading/time — 累加当日（学习时区自然日）阅读秒数与估算阅读词数（locations 就绪后上报）
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
+  const { session } = authResult;
 
   const body = await req.json();
   const parsed = postSchema.safeParse(body);
@@ -55,10 +54,9 @@ export async function POST(req: Request) {
 
 // GET /api/reading/time?days=14
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
+  const { session } = authResult;
 
   const { searchParams } = new URL(req.url);
   const raw = parseInt(searchParams.get("days") ?? "14", 10);

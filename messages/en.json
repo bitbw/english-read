@@ -34,6 +34,7 @@
     "noRecentReading": "No recent reading history. Browse the public library, add a book to your shelf, and start reading.",
     "goToStore": "Browse Public Library",
     "uploadEpub": "Or upload your own EPUB",
+    "adminPanel": "Admin",
     "dueAriaLabel": "Due for review today, {count} words, go to review",
     "vocabAriaLabel": "Total vocabulary {count} entries, go to vocabulary",
     "todayReview": "Today's Review",
@@ -272,6 +273,21 @@
     "wordsUnit": "{count, plural, one {# word} other {# words}}",
     "errorsUnit": "{count, plural, one {# error} other {# errors}}",
     "historicalHint": "Review errors and time are tracked from when this feature launched; completed reviews include historical logs"
+  },
+  "admin": {
+    "title": "User Management",
+    "backDashboard": "Back to Home",
+    "backAdmin": "Back to user list",
+    "userStatsTitle": "User Study Stats",
+    "colUser": "User",
+    "colFirstLogin": "First login",
+    "colLastOnline": "Last online",
+    "colReadingTotal": "Total reading",
+    "colReviewTotal": "Total review",
+    "minutesUnit": "{min} min",
+    "noRecord": "—",
+    "empty": "No users yet",
+    "loadError": "Failed to load users"
   },
   "readingSpeedTier": {
     "leisurely": "Leisurely pace",
