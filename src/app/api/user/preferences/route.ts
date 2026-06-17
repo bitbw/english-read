@@ -1,4 +1,4 @@
-import { requireSessionApi } from "@/lib/api-session";
+import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { isValidIanaTimeZone } from "@/lib/user-timezone";
@@ -6,28 +6,41 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-const patchSchema = z.object({
-  timeZone: z.union([z.string().min(1).max(120), z.null()]),
-});
+const patchSchema = z
+  .object({
+    timeZone: z.union([z.string().min(1).max(120), z.null()]).optional(),
+    showOnLeaderboard: z.boolean().optional(),
+  })
+  .refine((v) => v.timeZone !== undefined || v.showOnLeaderboard !== undefined, {
+    message: "At least one of timeZone or showOnLeaderboard is required",
+  });
 
 export async function GET() {
-  const authResult = await requireSessionApi();
-  if ("error" in authResult) return authResult.error;
-  const { session } = authResult;
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const [row] = await db
-    .select({ timeZone: users.timeZone })
+    .select({
+      timeZone: users.timeZone,
+      showOnLeaderboard: users.showOnLeaderboard,
+    })
     .from(users)
     .where(eq(users.id, session.user.id))
     .limit(1);
 
-  return NextResponse.json({ timeZone: row?.timeZone ?? null });
+  return NextResponse.json({
+    timeZone: row?.timeZone ?? null,
+    showOnLeaderboard: row?.showOnLeaderboard ?? true,
+  });
 }
 
 export async function PATCH(req: Request) {
-  const authResult = await requireSessionApi();
-  if ("error" in authResult) return authResult.error;
-  const { session } = authResult;
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);
@@ -35,20 +48,38 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const v = parsed.data.timeZone;
-  if (v !== null && !isValidIanaTimeZone(v)) {
-    return NextResponse.json({ error: "Invalid time zone" }, { status: 400 });
+  const updates: {
+    timeZone?: string | null;
+    showOnLeaderboard?: boolean;
+    updatedAt: Date;
+  } = { updatedAt: new Date() };
+
+  if (parsed.data.timeZone !== undefined) {
+    const v = parsed.data.timeZone;
+    if (v !== null && !isValidIanaTimeZone(v)) {
+      return NextResponse.json({ error: "Invalid time zone" }, { status: 400 });
+    }
+    updates.timeZone = v === null ? null : v.trim();
   }
 
-  const stored = v === null ? null : v.trim();
+  if (parsed.data.showOnLeaderboard !== undefined) {
+    updates.showOnLeaderboard = parsed.data.showOnLeaderboard;
+  }
 
-  await db
-    .update(users)
-    .set({
-      timeZone: stored,
-      updatedAt: new Date(),
+  await db.update(users).set(updates).where(eq(users.id, session.user.id));
+
+  const [row] = await db
+    .select({
+      timeZone: users.timeZone,
+      showOnLeaderboard: users.showOnLeaderboard,
     })
-    .where(eq(users.id, session.user.id));
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1);
 
-  return NextResponse.json({ ok: true, timeZone: stored });
+  return NextResponse.json({
+    ok: true,
+    timeZone: row?.timeZone ?? null,
+    showOnLeaderboard: row?.showOnLeaderboard ?? true,
+  });
 }

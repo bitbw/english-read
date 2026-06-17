@@ -33,6 +33,8 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"),
   /** 最近一次在线时间（由业务 API 鉴权时更新，5 分钟节流） */
   lastOnlineAt: timestamp("last_online_at", { mode: "date" }),
+  /** 是否参与用户类排行榜（默认参与，用户可关闭） */
+  showOnLeaderboard: boolean("show_on_leaderboard").notNull().default(true),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });

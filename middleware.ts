@@ -9,6 +9,7 @@ const protectedRoutes = [
   "/read",
   "/vocabulary",
   "/settings",
+  "/leaderboard",
   "/admin",
 ];
 

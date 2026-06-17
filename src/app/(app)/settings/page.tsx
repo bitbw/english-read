@@ -35,6 +35,8 @@ export default function SettingsPage() {
   const { data: session, update } = useSession();
   const [savedTimeZone, setSavedTimeZone] = useState<string | null | undefined>(undefined);
   const [draftTimeZone, setDraftTimeZone] = useState("");
+  const [showOnLeaderboard, setShowOnLeaderboard] = useState(false);
+  const [savingLeaderboardPref, setSavingLeaderboardPref] = useState(false);
   const [prefsLoading, setPrefsLoading] = useState(true);
   const [savingTz, setSavingTz] = useState(false);
   const [draftDisplayName, setDraftDisplayName] = useState("");
@@ -52,10 +54,11 @@ export default function SettingsPage() {
     try {
       const r = await clientFetch("/api/user/preferences", { showErrorToast: false });
       if (!r.ok) return;
-      const data = (await r.json()) as { timeZone?: string | null };
+      const data = (await r.json()) as { timeZone?: string | null; showOnLeaderboard?: boolean };
       const tz = data.timeZone ?? null;
       setSavedTimeZone(tz);
       setDraftTimeZone(tz ?? "");
+      setShowOnLeaderboard(data.showOnLeaderboard ?? true);
     } finally {
       setPrefsLoading(false);
     }
@@ -126,6 +129,23 @@ export default function SettingsPage() {
       toast.success(trimmed === "" ? t("displayNameCleared") : t("displayNameSaved"));
     } finally {
       setSavingName(false);
+    }
+  }
+
+  async function toggleShowOnLeaderboard(next: boolean) {
+    setSavingLeaderboardPref(true);
+    try {
+      const r = await clientFetch("/api/user/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ showOnLeaderboard: next }),
+      });
+      if (!r.ok) return;
+      const data = (await r.json()) as { showOnLeaderboard?: boolean };
+      setShowOnLeaderboard(data.showOnLeaderboard ?? next);
+      toast.success(next ? t("showOnLeaderboardEnabled") : t("showOnLeaderboardDisabled"));
+    } finally {
+      setSavingLeaderboardPref(false);
     }
   }
 
@@ -236,6 +256,32 @@ export default function SettingsPage() {
               {savingName ? t("savingName") : t("saveDisplayName")}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* 排行榜 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("leaderboardPrefs")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {prefsLoading ? (
+            <p className="text-sm text-muted-foreground">{t("loadingPrefs")}</p>
+          ) : (
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 shrink-0 accent-primary"
+                checked={showOnLeaderboard}
+                disabled={savingLeaderboardPref}
+                onChange={(e) => void toggleShowOnLeaderboard(e.target.checked)}
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium">{t("showOnLeaderboard")}</span>
+                <span className="block text-xs text-muted-foreground">{t("showOnLeaderboardHint")}</span>
+              </span>
+            </label>
+          )}
         </CardContent>
       </Card>
 

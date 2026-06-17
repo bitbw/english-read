@@ -27,6 +27,7 @@ import {
   BookMarked,
   Calendar,
   Settings,
+  Trophy,
   Loader2,
   // ExternalLink,
 } from "lucide-react";
@@ -62,6 +63,7 @@ export function Topbar() {
     { href: "/library", label: tNav("myLibrary"), icon: BookOpen },
     { href: "/vocabulary", label: tNav("vocabulary"), icon: BookMarked },
     { href: "/vocabulary/plan", label: tNav("reviewPlan"), icon: Calendar },
+    { href: "/leaderboard", label: tNav("leaderboard"), icon: Trophy },
     { href: "/settings", label: tNav("settings"), icon: Settings },
   ];
 

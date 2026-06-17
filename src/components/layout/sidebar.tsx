@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Settings,
   Calendar,
+  Trophy,
   // ExternalLink,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -37,6 +38,7 @@ export function Sidebar() {
     { href: "/library", label: t("myLibrary"), icon: BookOpen },
     { href: "/vocabulary", label: t("vocabulary"), icon: BookMarked },
     { href: "/vocabulary/plan", label: t("reviewPlan"), icon: Calendar },
+    { href: "/leaderboard", label: t("leaderboard"), icon: Trophy },
     { href: "/settings", label: t("settings"), icon: Settings },
   ];
 
