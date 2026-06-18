@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
 import { vocabulary } from "@/lib/db/schema";
 import { isValidPlanDayKey } from "@/lib/review-plan";
@@ -9,10 +9,9 @@ import { NextResponse } from "next/server";
 
 // GET /api/review - 待复习单词；无 date 为全部已到期；?date=YYYY-MM-DD 为指定「学习时区」自然日的计划；preview=1 可查看未来某日（仅浏览）
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
+  const { session } = authResult;
 
   const url = new URL(req.url);
   const dateParam = url.searchParams.get("date");

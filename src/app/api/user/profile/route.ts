@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { deleteBlob } from "@/lib/blob";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -17,10 +17,11 @@ const patchSchema = z.object({
 });
 
 export async function PATCH(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) {
     return NextResponse.json({ message: "未登录" }, { status: 401 });
   }
+  const { session } = authResult;
 
   let body: unknown;
   try {

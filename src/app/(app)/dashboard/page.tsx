@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { books, vocabulary } from "@/lib/db/schema";
 import { eq, and, lte, desc, count } from "drizzle-orm";
+import { isAdmin } from "@/lib/role";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -13,6 +14,7 @@ import {
   Library,
   ArrowRight,
   Timer,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DailyStudyChart } from "@/components/dashboard/daily-study-chart";
@@ -53,9 +55,20 @@ export default async function DashboardPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{t("greeting", { name: session.user.name?.split(" ")[0] ?? "" })}</h1>
-        <p className="text-muted-foreground mt-1">{t("motto")}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{t("greeting", { name: session.user.name?.split(" ")[0] ?? "" })}</h1>
+          <p className="text-muted-foreground mt-1">{t("motto")}</p>
+        </div>
+        {isAdmin(session.user.role) ? (
+          <Link
+            href="/admin"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0 self-start")}
+          >
+            <Shield className="h-4 w-4 mr-2" />
+            {t("adminPanel")}
+          </Link>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

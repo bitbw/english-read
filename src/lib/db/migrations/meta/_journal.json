@@ -71,6 +71,20 @@
       "when": 1780985422009,
       "tag": "0009_violet_lizard",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781500000000,
+      "tag": "0010_user_last_online_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781600000000,
+      "tag": "0011_show_on_leaderboard",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 
@@ -9,10 +9,8 @@ const PUBLIC_PREFIX = "epubs/public/";
  * 为客户端直传 Blob 签发 token（请求体不经由本路由承载文件，避免 Vercel 4.5MB 限制）。
  */
 export async function POST(req: Request): Promise<NextResponse> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
 
   const body = (await req.json()) as HandleUploadBody;
 

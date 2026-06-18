@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
 import { publicLibraryBooks, users } from "@/lib/db/schema";
 import { eq, desc, sql, and, or, ilike } from "drizzle-orm";
@@ -8,10 +8,8 @@ import { isReadingTierId } from "@/lib/reading-tiers";
 const PAGE_SIZE = 24;
 
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireSessionApi();
+  if ("error" in authResult) return authResult.error;
 
   const { searchParams } = new URL(req.url);
   const tier = searchParams.get("tier")?.trim();
