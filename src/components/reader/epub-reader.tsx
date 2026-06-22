@@ -43,6 +43,10 @@ import {
 } from "@/components/reader/epub-rendition-tools";
 import { saveReadingProgressToServer } from "@/lib/reader-progress-save";
 import { wordsFromLocationIndexDelta } from "@/lib/reader-word-estimate";
+import {
+  type ReaderLayoutMode,
+  epubFlowForLayoutMode,
+} from "@/lib/reader-layout-mode";
 
 interface SelectionInfo {
   word: string;
@@ -83,6 +87,8 @@ interface EpubReaderProps {
   onWordsDelta?: (estimatedWords: number) => void;
   /** 全书 `locations.generate` 成功并就绪后调用一次（与字数统计启用时机一致） */
   onLocationsReady?: () => void;
+  /** 横翻分页 vs 竖滚按章；默认 paginated */
+  layoutMode?: ReaderLayoutMode;
 }
 
 const RELOCATED_DEBOUNCE_MS = 300;
@@ -119,7 +125,7 @@ const VIEWER_HOST_STYLE: CSSProperties & { WebkitUserDrag?: "none" } = {
   userSelect: "text",
 };
 
-/** EPUB 阅读器：分页渲染、进度与划词；epubjs 仅在客户端加载。 */
+/** EPUB 阅读器：横翻分页 / 竖滚按章双模式、进度与划词；epubjs 仅在客户端加载。 */
 export function EpubReader({
   bookId,
   blobUrl,
@@ -132,12 +138,17 @@ export function EpubReader({
   onTocReady,
   onWordsDelta,
   onLocationsReady,
+  layoutMode = "paginated",
 }: EpubReaderProps) {
   const t = useTranslations("reader");
   const { resolvedTheme } = useTheme();
   const resolvedThemeRef = useRef(resolvedTheme);
   resolvedThemeRef.current = resolvedTheme;
   const colorSchemeRef = useRef<ReaderColorSchemeId>(DEFAULT_COLOR_SCHEME);
+  const layoutModeRef = useRef<ReaderLayoutMode>(layoutMode);
+  layoutModeRef.current = layoutMode;
+  /** init 的 renderTo 已设 flow 时，跳过 layoutMode effect 的首次重复 sync */
+  const skipNextLayoutFlowSyncRef = useRef(false);
   // 同步外部传入的 colorScheme 到 ref（供 content hook 和主题切换 effect 使用）
   if (colorSchemeProp && colorSchemeProp !== colorSchemeRef.current) {
     colorSchemeRef.current = colorSchemeProp;
@@ -174,8 +185,9 @@ export function EpubReader({
   /** 拉取 blobUrl、解析 EPUB、首屏 display 完成前 */
   const [bookLoading, setBookLoading] = useState(true);
 
-  /** 创建/销毁 epubjs 实例：换书、换 blob、或父组件传入新的 initialCfi 起点时整段重跑。 */
+  /** 创建/销毁 epubjs 实例：换书或换 blob 时整段重跑（勿把翻页 CFI 放入 deps，会整书重载）。 */
   useEffect(() => {
+    skipNextLayoutFlowSyncRef.current = true;
     currentCfiRef.current = initialCfi?.trim() ? initialCfi : "";
     currentPctRef.current = 0;
     setBookLoading(true);
@@ -360,11 +372,11 @@ export function EpubReader({
       navTocRef.current = navToc;
       onTocReady?.(navToc);
 
-      // 在容器内建立分页版面
+      // 在容器内建立版面（横翻 auto / 竖滚 scrolled-doc）
       const rendition = book.renderTo(viewerRef.current, {
         width: w,
         height: h,
-        flow: "auto",
+        flow: epubFlowForLayoutMode(layoutModeRef.current),
         spread: "auto",
       });
       renditionRef.current = rendition;
@@ -379,7 +391,7 @@ export function EpubReader({
       // 必须在 display 之前注册，否则会漏首次 relocated
       rendition.on("relocated", debouncedRelocated);
 
-      // 触摸横滑翻页（与 iOS 划词可能冲突；顶栏/键盘仍可翻页）
+      // 触摸横滑翻页（仅横翻模式；竖滚模式不拦截，与 iOS 划词可能冲突；顶栏/键盘仍可翻页）
       rendition.hooks.content.register((contents: Contents) => {
         const win = contents.window;
         if (touchSwipeAttached.has(win)) return;
@@ -405,6 +417,7 @@ export function EpubReader({
             const dx = e.changedTouches[0].clientX - startX;
             const dy = e.changedTouches[0].clientY - startY;
             const isHorizontalSwipe =
+              layoutModeRef.current === "paginated" &&
               Math.abs(dx) >= SWIPE_PAGE_MIN_PX &&
               Math.abs(dy) <= SWIPE_MAX_VERTICAL_PX &&
               Math.abs(dx) > Math.abs(dy);
@@ -521,8 +534,8 @@ export function EpubReader({
       renditionRef.current?.destroy();
       bookRef.current?.destroy();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blobUrl, initialCfi, bookId, dismissWordPopup]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialCfi 仅首屏起点；翻页由 rendition 内部维护 CFI
+  }, [blobUrl, bookId, dismissWordPopup]);
 
   /** 字号仅变时改主题，不重跑整段 initReader。 */
   useEffect(() => {
@@ -553,15 +566,28 @@ export function EpubReader({
     }
   }, [colorSchemeProp, resolvedTheme]);
 
-  /** 左右方向键翻页（与 iframe 内滚动不冲突时由窗口捕获）。 */
+  /** 分页模式下左右方向键翻页（竖滚模式由章节控件/原生滚动）。 */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (layoutModeRef.current !== "paginated") return;
       if (e.key === "ArrowRight") renditionRef.current?.next();
       if (e.key === "ArrowLeft") renditionRef.current?.prev();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  /** 运行时切换横翻 / 竖滚（init 的 renderTo 已设 flow 时跳过首次重复 sync）。 */
+  useEffect(() => {
+    layoutModeRef.current = layoutMode;
+    const rendition = renditionRef.current;
+    if (!rendition || bookLoading) return;
+    if (skipNextLayoutFlowSyncRef.current) {
+      skipNextLayoutFlowSyncRef.current = false;
+      return;
+    }
+    void rendition.flow(epubFlowForLayoutMode(layoutMode));
+  }, [layoutMode, bookLoading]);
 
   /** 查词弹窗打开时 Esc 关闭（与遮罩、正文点击一致）。 */
   useEffect(() => {

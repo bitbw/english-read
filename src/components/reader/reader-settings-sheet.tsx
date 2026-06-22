@@ -5,7 +5,9 @@ import { useTranslations } from "next-intl";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ReaderColorSchemeSelector } from "@/components/settings/reader-color-scheme-selector";
+import { ReaderLayoutModeSelector } from "@/components/settings/reader-layout-mode-selector";
 import type { ReaderColorSchemeId } from "@/lib/reader-color-scheme";
+import type { ReaderLayoutMode } from "@/lib/reader-layout-mode";
 import { cn } from "@/lib/utils";
 
 export interface ReaderSettingsSheetProps {
@@ -17,6 +19,8 @@ export interface ReaderSettingsSheetProps {
   onColorSchemeChange: (id: ReaderColorSchemeId) => void;
   autoPronunciation: boolean;
   onAutoPronunciationChange: (enabled: boolean) => void;
+  layoutMode: ReaderLayoutMode;
+  onLayoutModeChange: (mode: ReaderLayoutMode) => void;
 }
 
 export function ReaderSettingsSheet({
@@ -28,6 +32,8 @@ export function ReaderSettingsSheet({
   onColorSchemeChange,
   autoPronunciation,
   onAutoPronunciationChange,
+  layoutMode,
+  onLayoutModeChange,
 }: ReaderSettingsSheetProps) {
   const t = useTranslations("reader");
 
@@ -71,6 +77,10 @@ export function ReaderSettingsSheet({
               </button>
             </div>
           </div>
+          <ReaderLayoutModeSelector
+            value={layoutMode}
+            onChange={onLayoutModeChange}
+          />
           <ReaderColorSchemeSelector
             value={colorScheme}
             onChange={onColorSchemeChange}
