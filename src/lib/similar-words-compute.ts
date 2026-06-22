@@ -5,24 +5,39 @@ import {
   pickDistractorEnglishWords,
 } from "@/lib/review-distractor-pick";
 import { fetchYoudaoExplain } from "@/lib/youdao-suggest";
+import {
+  DEFAULT_PHRASE_LLM_MODEL,
+  resolvePhraseLlmModel,
+} from "@/lib/similar-words-llm-models";
 import { unstable_cache } from "next/cache";
-import { generateText, Output } from "ai";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 import { z } from "zod";
 
 /** 服务端按词条缓存干扰项；秒，与 Datamuse fetch 的 3600 量级对齐并控制有道调用频率 */
 const SIMILAR_WORDS_CACHE_REVALIDATE_SEC = 86400;
 
-const PHRASE_LLM_MODEL = "deepseek/deepseek-v4-flash" as const;
+export { DEFAULT_PHRASE_LLM_MODEL };
+
+/** LLM 常把英文短语字段写成 "phrase"；校验时兼容并 normalize 为 word */
+const phraseDistractorItemSchema = z
+  .object({
+    word: z.string().optional(),
+    phrase: z.string().optional(),
+    explainZh: z.string(),
+  })
+  .transform((item) => ({
+    word: (item.word ?? item.phrase ?? "").trim(),
+    explainZh: item.explainZh.trim(),
+  }))
+  .refine((item) => item.word.length > 0, {
+    message: 'Each distractor must include non-empty "word" (or "phrase")',
+  })
+  .refine((item) => item.explainZh.length > 0, {
+    message: 'Each distractor must include non-empty "explainZh"',
+  });
 
 const phraseDistractorsSchema = z.object({
-  distractors: z
-    .array(
-      z.object({
-        word: z.string(),
-        explainZh: z.string(),
-      })
-    )
-    .length(3),
+  distractors: z.array(phraseDistractorItemSchema).length(3),
 });
 
 export function isMultiWordPhrase(word: string): boolean {
@@ -47,7 +62,9 @@ Return exactly 3 English phrases for wrong answers:
 For each item, "explainZh" must be a short natural Chinese gloss (one sentence or multiple senses separated by ";" when needed).
 Do **not** prefix or label with English part-of-speech abbreviations (e.g. n., v., adj., adv., prep.).
 
-Output must strictly follow the JSON schema (3 items in "distractors").`;
+JSON output shape (strict keys):
+{"distractors":[{"word":"<English phrase>","explainZh":"<Chinese gloss>"}, ... exactly 3 items]}
+Use the key "word" for the English phrase text — do NOT use "phrase" as a JSON key.`;
 }
 
 function lettersKey(w: string): string {
@@ -86,11 +103,109 @@ function logSimilarWordsCacheMiss(canonicalWord: string): void {
   });
 }
 
+function shouldLogPhraseLlmDetails(): boolean {
+  return process.env.SIMILAR_WORDS_LLM_LOG === "1" || process.env.NODE_ENV !== "production";
+}
+
+const PHRASE_LLM_LOG_MAX = 16_000;
+
+function truncateForLog(text: string): string {
+  return text.length > PHRASE_LLM_LOG_MAX
+    ? `${text.slice(0, PHRASE_LLM_LOG_MAX)}\n...[truncated]`
+    : text;
+}
+
+/** 解析 raw text 并跑 Zod，便于对照 schema 失败原因 */
+function diagnosePhraseLlmSchemaFailure(rawText: string | undefined): {
+  jsonParseError?: string;
+  parsed?: unknown;
+  zodIssues?: z.core.$ZodIssue[];
+} {
+  if (!rawText?.trim()) {
+    return {};
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch (e) {
+    return {
+      jsonParseError: e instanceof Error ? e.message : String(e),
+    };
+  }
+  const validated = phraseDistractorsSchema.safeParse(parsed);
+  if (validated.success) {
+    return { parsed, zodIssues: [] };
+  }
+  return { parsed, zodIssues: validated.error.issues };
+}
+
+export type PhraseLlmErrorDebugInfo = {
+  model: string;
+  message: string;
+  finishReason?: string;
+  usage?: unknown;
+  cause?: string;
+  rawText?: string;
+  diagnosis: ReturnType<typeof diagnosePhraseLlmSchemaFailure>;
+};
+
+export function getPhraseLlmErrorDebugInfo(
+  error: unknown,
+  llmModel = DEFAULT_PHRASE_LLM_MODEL
+): PhraseLlmErrorDebugInfo | null {
+  if (!NoObjectGeneratedError.isInstance(error)) {
+    return null;
+  }
+  const rawText = error.text;
+  return {
+    model: llmModel,
+    message: error.message,
+    finishReason: error.finishReason,
+    usage: error.usage,
+    cause: error.cause instanceof Error ? error.cause.message : String(error.cause ?? ""),
+    rawText,
+    diagnosis: diagnosePhraseLlmSchemaFailure(rawText),
+  };
+}
+
+function logPhraseLlmFailure(
+  canonicalWord: string,
+  error: unknown,
+  llmModel: string
+): void {
+  if (!shouldLogPhraseLlmDetails()) return;
+
+  const debug = getPhraseLlmErrorDebugInfo(error, llmModel);
+  if (debug) {
+    console.error("[similar-words] phrase LLM schema failure", {
+      canonicalWord,
+      ...debug,
+      rawText: debug.rawText ? truncateForLog(debug.rawText) : undefined,
+    });
+    return;
+  }
+
+  console.error("[similar-words] phrase LLM error", {
+    canonicalWord,
+    model: llmModel,
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
+}
+
+function shouldBypassSimilarWordsCache(bypassRequest?: boolean): boolean {
+  return (
+    process.env.SIMILAR_WORDS_CACHE_DISABLE === "1" ||
+    (bypassRequest === true && process.env.NODE_ENV === "development")
+  );
+}
+
 /**
  * 实际计算（不经 unstable_cache）。鉴权必须在 Route Handler，本模块只做按词条可共享的结果缓存。
  */
 async function computeSimilarWordDistractors(
-  canonicalWord: string
+  canonicalWord: string,
+  llmModel = DEFAULT_PHRASE_LLM_MODEL
 ): Promise<{ distractors: SimilarWordDistractor[] }> {
   const word = canonicalWord;
 
@@ -98,20 +213,24 @@ async function computeSimilarWordDistractors(
     if (!process.env.AI_GATEWAY_API_KEY?.trim()) {
       return { distractors: [] };
     }
-    const result = await generateText({
-      model: PHRASE_LLM_MODEL,
-      output: Output.object({ schema: phraseDistractorsSchema }),
-      prompt: phraseDistractorPrompt(word),
-    });
-    const logPhraseLlm =
-      process.env.SIMILAR_WORDS_LLM_LOG === "1" || process.env.NODE_ENV === "development";
-    if (logPhraseLlm) {
-      const logMax = 16_000;
+    let result;
+    try {
+      result = await generateText({
+        model: llmModel,
+        output: Output.object({ schema: phraseDistractorsSchema }),
+        prompt: phraseDistractorPrompt(word),
+      });
+    } catch (e) {
+      logPhraseLlmFailure(word, e, llmModel);
+      throw e;
+    }
+    if (shouldLogPhraseLlmDetails()) {
       const t = result.text;
       console.log("[similar-words] phrase LLM raw text", {
         canonicalWord: word,
+        model: llmModel,
         textLength: t.length,
-        text: t.length > logMax ? `${t.slice(0, logMax)}\n...[truncated]` : t,
+        text: truncateForLog(t),
       });
     }
     const targetKey = normalizeWordKey(word);
@@ -197,19 +316,30 @@ async function computeSimilarWordDistractors(
 }
 
 /**
- * 干扰项列表：按 `canonicalWord` 走 Next `unstable_cache`（跨请求共享，与登录用户无关）。
+ * 干扰项列表：按 `canonicalWord` + 模型 id 走 Next `unstable_cache`（跨用户共享，与登录用户无关）。
  * - **MISS**：只会打印 `[similar-words] cache MISS (computing)`（见 `logSimilarWordsCacheMiss`，生产环境默认关闭）。
  * - **HIT**：不会进入上述日志；可在 Route 开启 `SIMILAR_WORDS_CACHE_LOG=1` 或开发环境看 `elapsedMs` 辅助判断。
+ * - **跳过缓存**：`.env.local` 设 `SIMILAR_WORDS_CACHE_DISABLE=1`，或开发环境请求带 `?nocache=1`。
  */
 export async function getCachedSimilarWordDistractors(
-  canonicalWord: string
-): Promise<{ distractors: SimilarWordDistractor[] }> {
+  canonicalWord: string,
+  options?: { bypassCache?: boolean; llmModel?: string }
+): Promise<{ distractors: SimilarWordDistractor[]; llmModel: string }> {
+  const llmModel = resolvePhraseLlmModel(options?.llmModel);
+
+  if (shouldBypassSimilarWordsCache(options?.bypassCache)) {
+    logSimilarWordsCacheMiss(canonicalWord);
+    const { distractors } = await computeSimilarWordDistractors(canonicalWord, llmModel);
+    return { distractors, llmModel };
+  }
+
   return unstable_cache(
     async () => {
       logSimilarWordsCacheMiss(canonicalWord);
-      return computeSimilarWordDistractors(canonicalWord);
+      const { distractors } = await computeSimilarWordDistractors(canonicalWord, llmModel);
+      return { distractors, llmModel };
     },
-    ["similar-word-distractors", canonicalWord],
+    ["similar-word-distractors", llmModel, canonicalWord],
     { revalidate: SIMILAR_WORDS_CACHE_REVALIDATE_SEC, tags: ["similar-words"] }
   )();
 }
