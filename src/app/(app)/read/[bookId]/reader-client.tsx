@@ -15,6 +15,11 @@ import {
   type ReaderColorSchemeId,
   readColorSchemeFromStorage,
 } from "@/lib/reader-color-scheme";
+import {
+  type ReaderLayoutMode,
+  readLayoutModeFromStorage,
+  writeLayoutModeToStorage,
+} from "@/lib/reader-layout-mode";
 import { ReaderSettingsSheet } from "@/components/reader/reader-settings-sheet";
 import {
   readAutoPronunciationFromStorage,
@@ -61,6 +66,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const controlsRef = useRef<ReaderControls | null>(null);
   const [fontSize, setFontSize] = useState(22);
   const [colorScheme, setColorScheme] = useState<ReaderColorSchemeId>(readColorSchemeFromStorage());
+  const [layoutMode, setLayoutMode] = useState<ReaderLayoutMode>(readLayoutModeFromStorage());
   const [autoPronunciation, setAutoPronunciation] = useState(readAutoPronunciationFromStorage);
   const [chapterName, setChapterName] = useState("");
   /** 全书进度 0–100（epub locations 生成后才由阅读器填入） */
@@ -267,6 +273,11 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     writeAutoPronunciationToStorage(enabled);
   }
 
+  function changeLayoutMode(mode: ReaderLayoutMode) {
+    setLayoutMode(mode);
+    writeLayoutModeToStorage(mode);
+  }
+
   function renderTocItems(items: NavItem[], depth = 0) {
     return items.map((item) => (
       <Fragment key={item.href + depth}>
@@ -347,6 +358,8 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
           onColorSchemeChange={setColorScheme}
           autoPronunciation={autoPronunciation}
           onAutoPronunciationChange={changeAutoPronunciation}
+          layoutMode={layoutMode}
+          onLayoutModeChange={changeLayoutMode}
         />
         {/* 章节目录：与顶栏移动端一致的左侧抽屉 */}
         <Sheet open={tocOpen} onOpenChange={setTocOpen}>
@@ -384,10 +397,11 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             initialCfi={effectiveCfi}
             fontSize={fontSize}
             colorScheme={colorScheme}
+            layoutMode={layoutMode}
             autoPronunciation={autoPronunciation}
             onReady={(controls) => { controlsRef.current = controls; }}
             onTocReady={(items) => setToc(items)}
-            onProgress={(_, bookPct, name, chapPct) => {
+            onProgress={(_cfi, bookPct, name, chapPct) => {
               if (bookPct !== null) setBookPercent(bookPct);
               setChapterName(name ?? "");
               setChapterPercent(chapPct);
@@ -407,7 +421,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
         <button
           onClick={() => controlsRef.current?.prev()}
           className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 shrink-0")}
-          aria-label={t("prevChapter")}
+          aria-label={layoutMode === "paginated" ? t("prevPage") : t("prevChapter")}
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -428,7 +442,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
         <button
           onClick={() => controlsRef.current?.next()}
           className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 shrink-0")}
-          aria-label={t("nextChapter")}
+          aria-label={layoutMode === "paginated" ? t("nextPage") : t("nextChapter")}
         >
           <ChevronRight className="h-4 w-4" />
         </button>
