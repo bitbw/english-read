@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 
 const protectedRoutes = [
   "/dashboard",
+  "/guide",
   "/library",
   "/read",
   "/vocabulary",

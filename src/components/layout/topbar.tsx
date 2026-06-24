@@ -29,6 +29,7 @@ import {
   Settings,
   Trophy,
   BarChart3,
+  BookOpenCheck,
   Loader2,
   // ExternalLink,
 } from "lucide-react";
@@ -62,12 +63,13 @@ export function Topbar() {
 
   const navItems = [
     { href: "/dashboard", label: tNav("home"), icon: LayoutDashboard },
-    { href: "/dashboard/stats", label: tNav("studyStats"), icon: BarChart3 },
     { href: "/library/store", label: tNav("publicLibrary"), icon: Library },
     { href: "/library", label: tNav("myLibrary"), icon: BookOpen },
     { href: "/vocabulary", label: tNav("vocabulary"), icon: BookMarked },
     { href: "/vocabulary/plan", label: tNav("reviewPlan"), icon: Calendar },
+    { href: "/dashboard/stats", label: tNav("studyStats"), icon: BarChart3 },
     { href: "/leaderboard", label: tNav("leaderboard"), icon: Trophy },
+    { href: "/guide", label: tNav("guide"), icon: BookOpenCheck },
     { href: "/settings", label: tNav("settings"), icon: Settings },
   ];
 
