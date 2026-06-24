@@ -28,6 +28,7 @@ import {
   Calendar,
   Settings,
   Trophy,
+  BarChart3,
   Loader2,
   // ExternalLink,
 } from "lucide-react";
@@ -39,6 +40,8 @@ import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 
 function navItemIsActive(pathname: string, href: string) {
+  if (href === "/dashboard") return pathname === "/dashboard";
+  if (href === "/dashboard/stats") return pathname.startsWith("/dashboard/stats");
   if (href === "/vocabulary/plan") {
     return pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review");
   }
@@ -59,6 +62,7 @@ export function Topbar() {
 
   const navItems = [
     { href: "/dashboard", label: tNav("home"), icon: LayoutDashboard },
+    { href: "/dashboard/stats", label: tNav("studyStats"), icon: BarChart3 },
     { href: "/library/store", label: tNav("publicLibrary"), icon: Library },
     { href: "/library", label: tNav("myLibrary"), icon: BookOpen },
     { href: "/vocabulary", label: tNav("vocabulary"), icon: BookMarked },

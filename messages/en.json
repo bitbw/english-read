@@ -1,6 +1,7 @@
 {
   "nav": {
     "home": "Home",
+    "studyStats": "Study Statistics",
     "publicLibrary": "Public Library",
     "myLibrary": "My Bookshelf",
     "vocabulary": "Vocabulary",
@@ -523,7 +524,8 @@
     "addToVocab": "Add to Vocabulary",
     "alreadyExists": "\"{word}\" is already in your vocabulary",
     "addedSuccess": "\"{word}\" added to vocabulary and scheduled for review",
-    "fillWord": "Please enter a word or phrase"
+    "fillWord": "Please enter a word or phrase",
+    "charCount": "{current}/{max}"
   },
   "wordPopup": {
     "lookingUp": "Looking up…",
@@ -540,6 +542,8 @@
     "noSelectedWord": "No word selected",
     "waitLoading": "Please wait for definition and vocabulary status to load",
     "noDefinitionForSave": "No definition available — cannot save",
+    "wordTooLong": "Selection too long",
+    "wordTooLongHint": "Selected text exceeds {max} characters — shorten it to add to vocabulary",
     "usAccent": "US",
     "ukAccent": "UK",
     "ttsPronunciation": "Pronounce (TTS)"

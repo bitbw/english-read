@@ -21,6 +21,10 @@ import {
   playPronunciationMp3 as playPronunciationMp3Url,
   stopPronunciationAudio,
 } from "@/lib/pronunciation-audio";
+import {
+  VOCAB_CONTEXT_MAX_LENGTH,
+  VOCAB_WORD_MAX_LENGTH,
+} from "@/lib/vocabulary-limits";
 import { useTranslations } from "next-intl";
 
 interface Definition {
@@ -288,13 +292,18 @@ export function ManualAddVocabularyDialog({
           </DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="grid gap-2">
-              <Label htmlFor="vocab-manual-word">{t("wordLabel")}</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="vocab-manual-word">{t("wordLabel")}</Label>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {t("charCount", { current: word.length, max: VOCAB_WORD_MAX_LENGTH })}
+                </span>
+              </div>
               <Input
                 id="vocab-manual-word"
                 value={word}
                 onChange={(e) => setWord(e.target.value)}
                 placeholder={t("wordPlaceholder")}
-                maxLength={500}
+                maxLength={VOCAB_WORD_MAX_LENGTH}
                 autoComplete="off"
               />
             </div>
@@ -406,14 +415,19 @@ export function ManualAddVocabularyDialog({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="vocab-manual-ref">{t("contextLabel")}</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="vocab-manual-ref">{t("contextLabel")}</Label>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {t("charCount", { current: reference.length, max: VOCAB_CONTEXT_MAX_LENGTH })}
+                </span>
+              </div>
               <Textarea
                 id="vocab-manual-ref"
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
                 placeholder={t("contextPlaceholder")}
                 rows={3}
-                maxLength={4000}
+                maxLength={VOCAB_CONTEXT_MAX_LENGTH}
                 className="resize-y min-h-[72px]"
               />
             </div>

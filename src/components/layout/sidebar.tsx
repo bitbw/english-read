@@ -11,11 +11,14 @@ import {
   Settings,
   Calendar,
   Trophy,
+  BarChart3,
   // ExternalLink,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 function navItemIsActive(pathname: string, href: string) {
+  if (href === "/dashboard") return pathname === "/dashboard";
+  if (href === "/dashboard/stats") return pathname.startsWith("/dashboard/stats");
   if (href === "/vocabulary/plan") {
     return pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review");
   }
@@ -34,6 +37,7 @@ export function Sidebar() {
 
   const navItems = [
     { href: "/dashboard", label: t("home"), icon: LayoutDashboard },
+    { href: "/dashboard/stats", label: t("studyStats"), icon: BarChart3 },
     { href: "/library/store", label: t("publicLibrary"), icon: Library },
     { href: "/library", label: t("myLibrary"), icon: BookOpen },
     { href: "/vocabulary", label: t("vocabulary"), icon: BookMarked },

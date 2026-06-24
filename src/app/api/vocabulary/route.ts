@@ -9,6 +9,13 @@ import {
   vocabularyZonedDayBounds,
 } from "@/lib/vocabulary-daily-limit";
 import { resolveTimeZone } from "@/lib/user-timezone";
+import {
+  VOCAB_AUDIO_URL_MAX_LENGTH,
+  VOCAB_CONTEXT_MAX_LENGTH,
+  VOCAB_DEFINITION_MAX_LENGTH,
+  VOCAB_PHONETIC_MAX_LENGTH,
+  VOCAB_WORD_MAX_LENGTH,
+} from "@/lib/vocabulary-limits";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -20,14 +27,14 @@ function escapeIlikePattern(raw: string) {
 }
 
 const addWordSchema = z.object({
-  word: z.string().min(1).max(500),
+  word: z.string().min(1).max(VOCAB_WORD_MAX_LENGTH),
   bookId: z.string().optional(),
-  context: z.string().max(4000).optional(),
+  context: z.string().max(VOCAB_CONTEXT_MAX_LENGTH).optional(),
   contextCfi: z.string().optional(),
-  definition: z.string().optional(),
-  phonetic: z.string().optional(),
-  audioUk: z.string().max(2048).optional(),
-  audioUs: z.string().max(2048).optional(),
+  definition: z.string().max(VOCAB_DEFINITION_MAX_LENGTH).optional(),
+  phonetic: z.string().max(VOCAB_PHONETIC_MAX_LENGTH).optional(),
+  audioUk: z.string().max(VOCAB_AUDIO_URL_MAX_LENGTH).optional(),
+  audioUs: z.string().max(VOCAB_AUDIO_URL_MAX_LENGTH).optional(),
 });
 
 // GET /api/vocabulary?filter=all|pending|mastered&search=xxx&page=1&pageSize=10

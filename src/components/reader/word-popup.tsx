@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
 import { toastConfirmAction } from "@/lib/toast-confirm";
 import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
+import { VOCAB_WORD_MAX_LENGTH } from "@/lib/vocabulary-limits";
 import { linkifyToReactNodes } from "@/components/linkified-text";
 import {
   playPronunciationMp3 as playPronunciationMp3Url,
@@ -304,9 +305,11 @@ export function WordPopup({
 
   const hasSavableDefinition =
     definitions.length > 0 || translation.trim().length > 0;
+  const trimmedWord = word.trim();
+  const isWordTooLong = trimmedWord.length > VOCAB_WORD_MAX_LENGTH;
 
   async function handleSave() {
-    if (!word.trim() || !hasSavableDefinition || loading || lookupLoading) return;
+    if (!trimmedWord || isWordTooLong || !hasSavableDefinition || loading || lookupLoading) return;
     setSaving(true);
     try {
       const definitionStr = serializeVocabularyDefinition(definitions, translation);
@@ -542,28 +545,31 @@ export function WordPopup({
             saved ||
             loading ||
             lookupLoading ||
-            !word.trim() ||
+            !trimmedWord ||
+            isWordTooLong ||
             !hasSavableDefinition
           }
           variant={saved ? "secondary" : "default"}
           title={
-            !word.trim()
+            !trimmedWord
               ? t("noSelectedWord")
-              : loading || lookupLoading
-                ? t("waitLoading")
-                : !hasSavableDefinition
-                  ? t("noDefinitionForSave")
-                  : undefined
+              : isWordTooLong
+                ? t("wordTooLongHint", { max: VOCAB_WORD_MAX_LENGTH })
+                : loading || lookupLoading
+                  ? t("waitLoading")
+                  : !hasSavableDefinition
+                    ? t("noDefinitionForSave")
+                    : undefined
           }
         >
           {saving ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
           ) : saved ? (
             <BookmarkCheck className="h-3.5 w-3.5 mr-1" />
-          ) : (
+          ) : isWordTooLong ? null : (
             <BookmarkPlus className="h-3.5 w-3.5 mr-1" />
           )}
-          {saved ? t("addedToVocab") : t("addToVocab")}
+          {saved ? t("addedToVocab") : isWordTooLong ? t("wordTooLong") : t("addToVocab")}
         </Button>
       )}
     </div>
