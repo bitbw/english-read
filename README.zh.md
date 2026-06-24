@@ -1,22 +1,10 @@
 # English Read
 
-> 一个全栈 EPUB 阅读器与间隔重复词汇学习平台。
+> 全栈 EPUB 英语阅读平台：阅读中查词收录，按**艾宾浩斯间隔**（1→30 天）复习生词，并提供学习统计、社区排行榜与中英双语界面。
 
 [English](./README.md) | **中文文档**
 
----
-
-## 界面预览
-
-| 桌面端 | 移动端 |
-|--------|--------|
-| ![概览页](./docs/screenshots/概览页.png) | ![概览页-移动端](./docs/screenshots/概览页-移动端.png) |
-| ![阅读页](./docs/screenshots/阅读页.png) | ![阅读页-移动端](./docs/screenshots/阅读页-移动端.png) |
-| ![公共书库](./docs/screenshots/公共书库.png) | ![公共书库-移动端](./docs/screenshots/公共书库-移动端.png) |
-| ![个人书架](./docs/screenshots/个人书架.png) | ![个人书架-移动端](./docs/screenshots/个人书架-移动端.png) |
-| ![单词](./docs/screenshots/单词.png) | ![单词-移动端](./docs/screenshots/单词-移动端.png) |
-| ![复习计划](./docs/screenshots/复习计划.png) | ![复习计划-移动端](./docs/screenshots/复习计划-移动端.png) |
-| ![复习页](./docs/screenshots/复习页.png) | ![复习页-移动端](./docs/screenshots/复习页-移动端.png) |
+[![English Read — 阅读页](./docs/screenshots/阅读页.png)](https://english-read.bitbw.top/)
 
 **在线体验：[https://english-read.bitbw.top/](https://english-read.bitbw.top/)**
 
@@ -32,6 +20,8 @@ English Read 是一款基于 Next.js 15 的全栈 Web 应用，将在线 EPUB �
 - **个人书架与公共书库** — 本地上传；浏览共享书目并加入个人书架
 - **生词本** — 阅读中收藏生词；支持复习计划视图
 - **间隔重复复习** — 艾宾浩斯间隔：1天 → 2天 → 4天 → 7天 → 15天 → 30天 → 已掌握；**短语**（多词）复习的干扰项可在配置 Vercel AI Gateway 后生成；单词路径不一定需要该 Key
+- **学习统计** — 阅读时长、平均阅读速度（词/分）、复习词数、错误次数与复习时长；柱状图与每日明细表；支持近 7 / 14 / 30 天或自定义区间（按学习时区）
+- **排行榜** — 社区热门公共书；阅读、复习与综合用户榜单（时长、速度、连续天数、学习积分等）；可在设置中关闭参与用户类排行
 - **词典与翻译** — 英文释义（Free Dictionary API）+ 中文翻译（MyMemory）；可选用 Google Cloud Translation 作为机翻回退；缓存 24 小时
 - **身份验证** — NextAuth v5：GitHub / Google OAuth、邮箱密码、手机短信验证码（阿里云）；统一 **JWT** 会话
 - **国际化** — 中英文 UI（next-intl，Cookie，URL 不变）
@@ -114,6 +104,8 @@ src/
 ├── app/
 │   ├── (app)/                   # 需登录：侧栏 + 顶栏布局
 │   │   ├── dashboard/
+│   │   ├── dashboard/stats/     # 学习统计
+│   │   ├── leaderboard/         # 社区与用户排行榜
 │   │   ├── library/             # 个人书架与上传
 │   │   ├── library/store/       # 公共书库浏览与投稿
 │   │   ├── vocabulary/          # 生词列表
@@ -147,7 +139,7 @@ messages/
 
 ### 身份验证
 
-`middleware.ts` 保护 `/dashboard`、`/library`、`/read`、`/vocabulary`、`/settings`。应用会话为 **JWT**（`session.strategy: "jwt"`）；`sessions` 表仍供 Drizzle 适配器 / OAuth 关联使用，**并非**按请求读写的主要会话存储。支持 GitHub、Google、邮箱密码（bcrypt）、手机短信验证码（需阿里云环境变量）。已登录用户访问 `/login` 或 `/signup` 会重定向到 `/dashboard`。
+`middleware.ts` 保护 `/dashboard`、`/leaderboard`、`/library`、`/read`、`/vocabulary`、`/settings`。应用会话为 **JWT**（`session.strategy: "jwt"`）；`sessions` 表仍供 Drizzle 适配器 / OAuth 关联使用，**并非**按请求读写的主要会话存储。支持 GitHub、Google、邮箱密码（bcrypt）、手机短信验证码（需阿里云环境变量）。已登录用户访问 `/login` 或 `/signup` 会重定向到 `/dashboard`。
 
 ### EPUB 阅读器
 
@@ -317,3 +309,19 @@ vercel --prod     # 生产部署
 | `reading_daily_time` | 每日阅读时长（秒） |
 | `vocabulary` | 生词本；艾宾浩斯阶段与下次复习时间 |
 | `review_logs` | 每次复习记录（记住 / 遗忘） |
+
+---
+
+## 界面预览
+
+| 桌面端 | 移动端 |
+|--------|--------|
+| ![概览页](./docs/screenshots/概览页.png) | ![概览页-移动端](./docs/screenshots/概览页-移动端.png) |
+| ![阅读页](./docs/screenshots/阅读页.png) | ![阅读页-移动端](./docs/screenshots/阅读页-移动端.png) |
+| ![公共书库](./docs/screenshots/公共书库.png) | ![公共书库-移动端](./docs/screenshots/公共书库-移动端.png) |
+| ![个人书架](./docs/screenshots/个人书架.png) | ![个人书架-移动端](./docs/screenshots/个人书架-移动端.png) |
+| ![单词](./docs/screenshots/单词.png) | ![单词-移动端](./docs/screenshots/单词-移动端.png) |
+| ![复习计划](./docs/screenshots/复习计划.png) | ![复习计划-移动端](./docs/screenshots/复习计划-移动端.png) |
+| ![复习页](./docs/screenshots/复习页.png) | ![复习页-移动端](./docs/screenshots/复习页-移动端.png) |
+| ![学习统计](./docs/screenshots/学习统计.png) | ![学习统计-移动端](./docs/screenshots/学习统计-移动端.png) |
+| ![排行榜](./docs/screenshots/排行榜.png) | ![排行榜-移动端](./docs/screenshots/排行榜-移动端.png) |
