@@ -24,7 +24,10 @@ import {
   LEARNING_TIMEZONE_GROUPS,
 } from "@/lib/learning-timezones";
 import { learningTimeZoneOptionLabel } from "@/lib/timezone-display";
-import { /* ExternalLink, */ LogOut } from "lucide-react";
+import { ExternalLink, LogOut, Mail } from "lucide-react";
+
+const GITHUB_REPO_URL = "https://github.com/bitbw/english-read";
+const FEEDBACK_EMAIL = "mail.bitbw@gmail.com";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { LocaleSwitcher } from "@/components/locale-switcher";
@@ -435,23 +438,42 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-base">{t("about")}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
+        <CardContent className="space-y-4 text-sm text-muted-foreground">
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">{t("aboutAuthorTitle")}</p>
+            <p>{t("aboutAuthor")}</p>
+          </div>
           <p>{t("aboutVersion")}</p>
           <p>{t("aboutAlgo")}</p>
-          {/* <p>
-            <a
-              href="https://github.com/bitbw/english-read"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-foreground underline-offset-4 hover:underline"
-            >
-              <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
-              {t("github")}
-            </a>
-            <span className="block text-xs mt-1 text-muted-foreground">
-              {t("githubHint")}
-            </span>
-          </p> */}
+          <div className="space-y-2 pt-1 border-t border-border">
+            <p className="font-medium text-foreground">{t("feedback")}</p>
+            <p className="text-xs">{t("feedbackHint")}</p>
+            <div className="space-y-3">
+              <p>
+                <a
+                  href={`mailto:${FEEDBACK_EMAIL}`}
+                  className="inline-flex items-center gap-1.5 text-foreground underline-offset-4 hover:underline"
+                >
+                  <Mail className="h-4 w-4 shrink-0" aria-hidden />
+                  {t("sendEmail")}
+                </a>
+                <span className="block text-xs mt-1 tabular-nums">{FEEDBACK_EMAIL}</span>
+              </p>
+              <p>
+                <a
+                  href={GITHUB_REPO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-foreground underline-offset-4 hover:underline"
+                >
+                  <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
+                  {t("github")}
+                </a>
+                <span className="block text-xs mt-1 break-all">{GITHUB_REPO_URL}</span>
+                <span className="block text-xs mt-1">{t("githubHint")}</span>
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

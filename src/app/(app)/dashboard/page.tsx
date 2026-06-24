@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Timer,
   Shield,
+  BookOpenCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DailyStudyChart } from "@/components/dashboard/daily-study-chart";
@@ -52,6 +53,7 @@ export default async function DashboardPage() {
   const masteredCount = masteredRows[0]?.count ?? 0;
 
   const t = await getTranslations("dashboard");
+  const isNewUser = recentBooks.length === 0 && totalVocab === 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -70,6 +72,26 @@ export default async function DashboardPage() {
           </Link>
         ) : null}
       </div>
+
+      {isNewUser ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pt-6">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <BookOpenCheck className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold">{t("guideBannerTitle")}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">{t("guideBannerDesc")}</p>
+              </div>
+            </div>
+            <Link href="/guide" className={cn(buttonVariants(), "shrink-0 self-start sm:self-center")}>
+              {t("guideBannerCta")}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Link

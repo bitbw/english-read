@@ -12,6 +12,7 @@ import {
   Calendar,
   Trophy,
   BarChart3,
+  BookOpenCheck,
   // ExternalLink,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -37,12 +38,13 @@ export function Sidebar() {
 
   const navItems = [
     { href: "/dashboard", label: t("home"), icon: LayoutDashboard },
-    { href: "/dashboard/stats", label: t("studyStats"), icon: BarChart3 },
     { href: "/library/store", label: t("publicLibrary"), icon: Library },
     { href: "/library", label: t("myLibrary"), icon: BookOpen },
     { href: "/vocabulary", label: t("vocabulary"), icon: BookMarked },
     { href: "/vocabulary/plan", label: t("reviewPlan"), icon: Calendar },
+    { href: "/dashboard/stats", label: t("studyStats"), icon: BarChart3 },
     { href: "/leaderboard", label: t("leaderboard"), icon: Trophy },
+    { href: "/guide", label: t("guide"), icon: BookOpenCheck },
     { href: "/settings", label: t("settings"), icon: Settings },
   ];
 

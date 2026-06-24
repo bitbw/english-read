@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookOpen, Loader2, Search, Trash2 } from "lucide-react";
 import { clientFetch } from "@/lib/client-fetch";
-import { READING_TIERS, type ReadingTierId } from "@/lib/reading-tiers";
+import { READING_TIERS, isReadingTierId, type ReadingTierId } from "@/lib/reading-tiers";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { toastConfirmAction } from "@/lib/toast-confirm";
@@ -26,11 +26,15 @@ type PublicItem = {
   uploadedBy: string;
 };
 
-export function PublicLibraryClient() {
+type PublicLibraryClientProps = {
+  initialTier?: ReadingTierId | "all";
+};
+
+export function PublicLibraryClient({ initialTier = "all" }: PublicLibraryClientProps) {
   const t = useTranslations("library");
   const { data: session } = useSession();
   const currentUserId = session?.user?.id ?? null;
-  const [tier, setTier] = useState<ReadingTierId | "all">("all");
+  const [tier, setTier] = useState<ReadingTierId | "all">(initialTier);
   const [q, setQ] = useState("");
   const [items, setItems] = useState<PublicItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);

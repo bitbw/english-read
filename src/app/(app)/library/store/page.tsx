@@ -1,12 +1,19 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { PublicLibraryClient } from "@/components/library/public-library-client";
+import { isReadingTierId } from "@/lib/reading-tiers";
 import { BookOpen, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTranslations } from "next-intl/server";
 
-export default async function PublicLibraryStorePage() {
+type PublicLibraryStorePageProps = {
+  searchParams: Promise<{ tier?: string }>;
+};
+
+export default async function PublicLibraryStorePage({ searchParams }: PublicLibraryStorePageProps) {
   const t = await getTranslations("library");
+  const { tier: tierParam } = await searchParams;
+  const initialTier = tierParam && isReadingTierId(tierParam) ? tierParam : "all";
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -32,7 +39,7 @@ export default async function PublicLibraryStorePage() {
         </div>
       </div>
 
-      <PublicLibraryClient />
+      <PublicLibraryClient initialTier={initialTier} />
     </div>
   );
 }
