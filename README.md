@@ -1,22 +1,10 @@
 # English Read
 
-> A full-stack EPUB reader and spaced repetition vocabulary learning platform.
+> A full-stack EPUB reader: look up words while reading, review with **Ebbinghaus intervals** (1→30 days), plus study stats, leaderboards, and an English / Chinese UI.
 
 **English** | [中文文档](./README.zh.md)
 
----
-
-## Screenshots
-
-| Desktop | Mobile |
-|---------|--------|
-| ![Dashboard](./docs/screenshots/概览页.png) | ![Dashboard Mobile](./docs/screenshots/概览页-移动端.png) |
-| ![Reading](./docs/screenshots/阅读页.png) | ![Reading Mobile](./docs/screenshots/阅读页-移动端.png) |
-| ![Public Library](./docs/screenshots/公共书库.png) | ![Public Library Mobile](./docs/screenshots/公共书库-移动端.png) |
-| ![Personal Bookshelf](./docs/screenshots/个人书架.png) | ![Personal Bookshelf Mobile](./docs/screenshots/个人书架-移动端.png) |
-| ![Vocabulary](./docs/screenshots/单词.png) | ![Vocabulary Mobile](./docs/screenshots/单词-移动端.png) |
-| ![Review Plan](./docs/screenshots/复习计划.png) | ![Review Plan Mobile](./docs/screenshots/复习计划-移动端.png) |
-| ![Review Page](./docs/screenshots/复习页.png) | ![Review Page Mobile](./docs/screenshots/复习页-移动端.png) |
+[![English Read — Reading page](./docs/screenshots/阅读页.png)](https://english-read.bitbw.top/)
 
 **Try it online: [https://english-read.bitbw.top/](https://english-read.bitbw.top/)**
 
@@ -32,6 +20,8 @@ English Read is a Next.js 15 full-stack web application combining an online EPUB
 - **Personal Library & Public Library** — upload to your shelf; browse and add books from a shared public catalog
 - **Vocabulary** — collect unknown words from the reader; optional review plan view
 - **Spaced Repetition Review** — Ebbinghaus intervals: 1d → 2d → 4d → 7d → 15d → 30d → mastered; **phrase** (multi-word) review distractors can use Vercel AI Gateway when configured; single-word paths may not need it
+- **Study Statistics** — reading time, average speed (wpm), words reviewed, errors, and review time; bar charts plus daily breakdown; filter by last 7 / 14 / 30 days or a custom range (learning timezone)
+- **Leaderboard** — community popular public books; reading, review, and overall user rankings (time, speed, streak, study score, etc.); opt out of user boards in Settings
 - **Dictionary & Translation** — English definitions (Free Dictionary API) + Chinese translation (MyMemory); optional Google Cloud Translation fallback; cached 24 h
 - **Authentication** — GitHub and Google OAuth; email/password; phone OTP (Aliyun SMS) via NextAuth v5 with JWT sessions
 - **Internationalization** — English / Chinese UI (next-intl, cookie-based, URL unchanged)
@@ -114,6 +104,8 @@ src/
 ├── app/
 │   ├── (app)/                   # Authenticated shell (Sidebar + Topbar)
 │   │   ├── dashboard/
+│   │   ├── dashboard/stats/     # Study statistics
+│   │   ├── leaderboard/         # Community & user rankings
 │   │   ├── library/             # Personal books + upload
 │   │   ├── library/store/       # Public library browse & contribute
 │   │   ├── vocabulary/          # Word list
@@ -147,7 +139,7 @@ The `src/lib/` listing above is **not exhaustive** — browse the folder for the
 
 ### Authentication
 
-`middleware.ts` protects `/dashboard`, `/library`, `/read`, `/vocabulary`, and `/settings`. The app session is **JWT** (`session.strategy: "jwt"`); the `sessions` table remains for the Drizzle adapter / OAuth linking, not as the primary per-request session store. Providers include GitHub, Google, email/password (hashed with bcrypt), and phone OTP (requires Aliyun env vars). Logged-in users hitting `/login` or `/signup` are redirected to `/dashboard`.
+`middleware.ts` protects `/dashboard`, `/leaderboard`, `/library`, `/read`, `/vocabulary`, and `/settings`. The app session is **JWT** (`session.strategy: "jwt"`); the `sessions` table remains for the Drizzle adapter / OAuth linking, not as the primary per-request session store. Providers include GitHub, Google, email/password (hashed with bcrypt), and phone OTP (requires Aliyun env vars). Logged-in users hitting `/login` or `/signup` are redirected to `/dashboard`.
 
 ### EPUB Reader
 
@@ -309,3 +301,19 @@ vercel --prod     # production
 | `reading_daily_time` | Per-day reading time (seconds) |
 | `vocabulary` | Saved words and SRS schedule |
 | `review_logs` | Each review outcome (remembered / forgotten) |
+
+---
+
+## Screenshots
+
+| Desktop | Mobile |
+|---------|--------|
+| ![Dashboard](./docs/screenshots/概览页.png) | ![Dashboard Mobile](./docs/screenshots/概览页-移动端.png) |
+| ![Reading](./docs/screenshots/阅读页.png) | ![Reading Mobile](./docs/screenshots/阅读页-移动端.png) |
+| ![Public Library](./docs/screenshots/公共书库.png) | ![Public Library Mobile](./docs/screenshots/公共书库-移动端.png) |
+| ![Personal Bookshelf](./docs/screenshots/个人书架.png) | ![Personal Bookshelf Mobile](./docs/screenshots/个人书架-移动端.png) |
+| ![Vocabulary](./docs/screenshots/单词.png) | ![Vocabulary Mobile](./docs/screenshots/单词-移动端.png) |
+| ![Review Plan](./docs/screenshots/复习计划.png) | ![Review Plan Mobile](./docs/screenshots/复习计划-移动端.png) |
+| ![Review Page](./docs/screenshots/复习页.png) | ![Review Page Mobile](./docs/screenshots/复习页-移动端.png) |
+| ![Study Statistics](./docs/screenshots/学习统计.png) | ![Study Statistics Mobile](./docs/screenshots/学习统计-移动端.png) |
+| ![Leaderboard](./docs/screenshots/排行榜.png) | ![Leaderboard Mobile](./docs/screenshots/排行榜-移动端.png) |

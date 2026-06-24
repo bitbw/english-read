@@ -1,6 +1,5 @@
 import type { Book, Location, NavItem } from "epubjs";
-
-export const CONTEXT_SENTENCE_MAX = 320;
+import { VOCAB_CONTEXT_MAX_LENGTH } from "@/lib/vocabulary-limits";
 
 /** 从所在段落中截取一句（或整段截断）作为划词收藏时的「上下文」展示文案。 */
 export function excerptSentenceForVocabulary(
@@ -10,7 +9,7 @@ export function excerptSentenceForVocabulary(
   const flat = paragraph.replace(/\s+/g, " ").trim();
   const sel = selected.trim();
   if (!flat) return sel;
-  if (!sel) return flat.slice(0, CONTEXT_SENTENCE_MAX);
+  if (!sel) return flat.slice(0, VOCAB_CONTEXT_MAX_LENGTH);
 
   const lowerSel = sel.toLowerCase();
   const sentences = flat
@@ -30,8 +29,8 @@ export function excerptSentenceForVocabulary(
   if (firstTok && !out.toLowerCase().includes(firstTok)) {
     out = sel;
   }
-  if (out.length > CONTEXT_SENTENCE_MAX) {
-    out = `${out.slice(0, CONTEXT_SENTENCE_MAX)}…`;
+  if (out.length > VOCAB_CONTEXT_MAX_LENGTH) {
+    out = `${out.slice(0, VOCAB_CONTEXT_MAX_LENGTH)}…`;
   }
   return out;
 }

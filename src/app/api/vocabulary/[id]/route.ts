@@ -2,15 +2,21 @@ import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
 import { vocabulary } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import {
+  VOCAB_AUDIO_URL_MAX_LENGTH,
+  VOCAB_DEFINITION_MAX_LENGTH,
+  VOCAB_NOTE_MAX_LENGTH,
+  VOCAB_PHONETIC_MAX_LENGTH,
+} from "@/lib/vocabulary-limits";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 const updateWordSchema = z.object({
-  note: z.string().optional(),
-  definition: z.string().optional(),
-  phonetic: z.string().optional(),
-  audioUk: z.string().max(2048).optional().nullable(),
-  audioUs: z.string().max(2048).optional().nullable(),
+  note: z.string().max(VOCAB_NOTE_MAX_LENGTH).optional(),
+  definition: z.string().max(VOCAB_DEFINITION_MAX_LENGTH).optional(),
+  phonetic: z.string().max(VOCAB_PHONETIC_MAX_LENGTH).optional(),
+  audioUk: z.string().max(VOCAB_AUDIO_URL_MAX_LENGTH).optional().nullable(),
+  audioUs: z.string().max(VOCAB_AUDIO_URL_MAX_LENGTH).optional().nullable(),
 });
 
 type IdParams = { params: Promise<{ id: string }> };
