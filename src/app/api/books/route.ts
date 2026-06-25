@@ -1,4 +1,10 @@
 import { requireSessionApi } from "@/lib/api-session";
+import {
+  BOOKSHELF_UPLOAD_LIMIT_CODE,
+  MAX_SELF_UPLOADED_BOOKS,
+  countSelfUploadedBooks,
+  isSelfUploadLimitReached,
+} from "@/lib/bookshelf-limits";
 import { db } from "@/lib/db";
 import { books } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
@@ -39,6 +45,17 @@ export async function POST(req: Request) {
   const parsed = createBookSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const selfUploadedCount = await countSelfUploadedBooks(session.user.id);
+  if (isSelfUploadLimitReached(selfUploadedCount)) {
+    return NextResponse.json(
+      {
+        code: BOOKSHELF_UPLOAD_LIMIT_CODE,
+        message: `个人书架最多上传 ${MAX_SELF_UPLOADED_BOOKS} 本书，请删除旧书后再试，或从公共书库添加书籍`,
+      },
+      { status: 403 },
+    );
   }
 
   const [book] = await db
