@@ -11,17 +11,26 @@ import { EXTERNAL_EPUB_FIND_URL } from "@/lib/external-epub-find";
 import { cn } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import {
+  MAX_SELF_UPLOADED_BOOKS,
+  countSelfUploadedBooks,
+  isSelfUploadLimitReached,
+} from "@/lib/bookshelf-limits";
 
 export default async function LibraryPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const userBooks = await db
-    .select()
-    .from(books)
-    .where(eq(books.userId, session.user.id))
-    .orderBy(desc(books.lastReadAt), desc(books.createdAt));
+  const [userBooks, selfUploadedCount] = await Promise.all([
+    db
+      .select()
+      .from(books)
+      .where(eq(books.userId, session.user.id))
+      .orderBy(desc(books.lastReadAt), desc(books.createdAt)),
+    countSelfUploadedBooks(session.user.id),
+  ]);
 
+  const uploadLimitReached = isSelfUploadLimitReached(selfUploadedCount);
   const t = await getTranslations("library");
 
   return (
@@ -34,16 +43,27 @@ export default async function LibraryPage() {
             <Link href="/library/store" className="text-primary underline-offset-4 hover:underline">
               {t("storeLink")}
             </Link>
+            {!uploadLimitReached && (
+              <>
+                {" "}
+                {t("uploadQuota", {
+                  current: selfUploadedCount,
+                  max: MAX_SELF_UPLOADED_BOOKS,
+                })}
+              </>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           <Link href="/library/store" className={cn(buttonVariants({ variant: "outline" }))}>
             {t("publicLibrary")}
           </Link>
-          <Link href="/library/upload" className={cn(buttonVariants())}>
-            <Upload className="h-4 w-4 mr-2" />
-            {t("uploadEpub")}
-          </Link>
+          {!uploadLimitReached && (
+            <Link href="/library/upload" className={cn(buttonVariants())}>
+              <Upload className="h-4 w-4 mr-2" />
+              {t("uploadEpub")}
+            </Link>
+          )}
         </div>
       </div>
 
@@ -78,10 +98,16 @@ export default async function LibraryPage() {
               <p className="font-medium">{t("emptyTitle")}</p>
               <p className="text-sm text-muted-foreground mt-1">{t("emptyHint")}</p>
             </div>
-            <Link href="/library/upload" className={cn(buttonVariants())}>
-              <Upload className="h-4 w-4 mr-2" />
-              {t("uploadEpub")}
-            </Link>
+            {!uploadLimitReached ? (
+              <Link href="/library/upload" className={cn(buttonVariants())}>
+                <Upload className="h-4 w-4 mr-2" />
+                {t("uploadEpub")}
+              </Link>
+            ) : (
+              <Link href="/library/store" className={cn(buttonVariants())}>
+                {t("publicLibrary")}
+              </Link>
+            )}
           </CardContent>
         </Card>
       )}

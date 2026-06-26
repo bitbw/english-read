@@ -17,8 +17,19 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { useEpubCoverPreview } from "@/hooks/use-epub-cover-preview";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 
-export function EpubUpload() {
+type EpubUploadProps = {
+  selfUploadedCount: number;
+  maxSelfUploaded: number;
+  uploadLimitReached: boolean;
+};
+
+export function EpubUpload({
+  selfUploadedCount,
+  maxSelfUploaded,
+  uploadLimitReached,
+}: EpubUploadProps) {
   const t = useTranslations("upload");
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -69,7 +80,7 @@ export function EpubUpload() {
   }
 
   async function handleUpload() {
-    if (!file) return;
+    if (!file || uploadLimitReached) return;
     setUploading(true);
 
     try {
@@ -164,6 +175,22 @@ export function EpubUpload() {
 
   return (
     <div className="max-w-xl mx-auto space-y-4">
+      {uploadLimitReached ? (
+        <Card className="border-dashed p-8 text-center space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {t("uploadLimitReached", { max: maxSelfUploaded })}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Link href="/library" className={cn(buttonVariants({ variant: "outline" }))}>
+              {t("backToShelf")}
+            </Link>
+            <Link href="/library/store" className={cn(buttonVariants())}>
+              {t("browsePublicLibrary")}
+            </Link>
+          </div>
+        </Card>
+      ) : (
+        <>
       {/* 拖拽区域 */}
       <Card
         className={`border-2 border-dashed p-12 text-center cursor-pointer transition-colors ${
@@ -305,6 +332,14 @@ export function EpubUpload() {
           {t("downloadEbook")}
         </a>
       </div>
+        </>
+      )}
+
+      {!uploadLimitReached && (
+        <p className="text-xs text-muted-foreground text-center">
+          {t("uploadQuota", { current: selfUploadedCount, max: maxSelfUploaded })}
+        </p>
+      )}
     </div>
   );
 }

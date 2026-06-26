@@ -1,4 +1,10 @@
 import { requireSessionApi } from "@/lib/api-session";
+import {
+  BOOKSHELF_UPLOAD_LIMIT_CODE,
+  MAX_SELF_UPLOADED_BOOKS,
+  countSelfUploadedBooks,
+  isSelfUploadLimitReached,
+} from "@/lib/bookshelf-limits";
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
@@ -20,6 +26,17 @@ export async function POST(req: Request) {
   }
   if (file.size > MAX_FILE_SIZE) {
     return NextResponse.json({ error: "File size exceeds 10MB limit" }, { status: 400 });
+  }
+
+  const selfUploadedCount = await countSelfUploadedBooks(session.user.id);
+  if (isSelfUploadLimitReached(selfUploadedCount)) {
+    return NextResponse.json(
+      {
+        code: BOOKSHELF_UPLOAD_LIMIT_CODE,
+        message: `个人书架最多上传 ${MAX_SELF_UPLOADED_BOOKS} 本书，请删除旧书后再试，或从公共书库添加书籍`,
+      },
+      { status: 403 },
+    );
   }
 
   const safeName = file.name.replace(/\s+/g, "-").replace(/[^\w\-_.]/g, "");
