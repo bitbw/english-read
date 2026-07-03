@@ -173,7 +173,7 @@ export async function POST(req: Request) {
       userId: session.user.id,
       word: parsed.data.word.trim(),
       normalizedWord,
-      bookId: parsed.data.bookId ?? null,
+      bookId: parsed.data.bookId || null,
       context: parsed.data.context?.trim() || null,
       contextCfi: parsed.data.contextCfi ?? null,
       definition: parsed.data.definition ?? null,

@@ -85,6 +85,13 @@
       "when": 1781600000000,
       "tag": "0011_show_on_leaderboard",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1782833096427,
+      "tag": "0012_rapid_lucky_pierre",
+      "breakpoints": true
     }
   ]
 }

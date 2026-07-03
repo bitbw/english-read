@@ -1,6 +1,7 @@
 {
   "nav": {
     "home": "Home",
+    "dailyRead": "Daily Read",
     "guide": "Usage Guide",
     "studyStats": "Study Statistics",
     "publicLibrary": "Public Library",
@@ -391,6 +392,22 @@
     "noRecord": "—",
     "empty": "No users yet",
     "loadError": "Failed to load users"
+  },
+  "articles": {
+    "title": "Daily English",
+    "subtitle": "Daily English articles from Level Read",
+    "level1": "Beginner",
+    "level2": "Intermediate",
+    "level3": "Advanced",
+    "emptyTitle": "No articles yet",
+    "emptyHint": "Articles are scraped daily. Admins can manually trigger via /api/cron/scrape-articles",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "pageIndicator": "{page} / {total}",
+    "backToList": "Daily English",
+    "sourceLink": "Source",
+    "words": "{count} words",
+    "selectHint": "Select a word to add to vocabulary · Source: levelread.com"
   },
   "readingSpeedTier": {
     "leisurely": "Leisurely pace",

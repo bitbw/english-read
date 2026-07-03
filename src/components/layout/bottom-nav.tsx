@@ -9,7 +9,7 @@ import {
   Library,
   BookMarked,
   Calendar,
-  Settings,
+  Newspaper,
 } from "lucide-react";
 
 export function BottomNav() {
@@ -18,10 +18,10 @@ export function BottomNav() {
 
   const navItems = [
     { href: "/dashboard", label: t("home"), icon: LayoutDashboard },
+    { href: "/articles", label: t("dailyRead"), icon: Newspaper },
     { href: "/library", label: t("myLibrary"), icon: Library },
     { href: "/vocabulary", label: t("vocabulary"), icon: BookMarked },
     { href: "/vocabulary/plan", label: t("reviewPlan"), icon: Calendar },
-    { href: "/settings", label: t("settings"), icon: Settings },
   ];
 
   return (

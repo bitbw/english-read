@@ -340,3 +340,35 @@ export const readingDailyTimeRelations = relations(readingDailyTime, ({ one }) =
 export const reviewDailyStatsRelations = relations(reviewDailyStats, ({ one }) => ({
   user: one(users, { fields: [reviewDailyStats.userId], references: [users.id] }),
 }));
+
+// ─────────────────────────────────────────────
+// Daily Articles（每日英文文章，从 levelread.com 爬取）
+// ─────────────────────────────────────────────
+
+export const dailyArticles = pgTable(
+  "daily_articles",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    slug: text("slug").notNull(),
+    /** 难度等级：1=初级 2=中级 3=高级 */
+    level: integer("level").notNull().default(1),
+    title: text("title").notNull(),
+    description: text("description"),
+    coverUrl: text("cover_url"),
+    /** 文章正文，段落间用 \n\n 分隔 */
+    content: text("content").notNull(),
+    wordCount: integer("word_count"),
+    publishedAt: timestamp("published_at", { mode: "date" }),
+    sourceUrl: text("source_url").notNull(),
+    scrapedAt: timestamp("scraped_at", { mode: "date" }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => ({
+    slugLevelUnique: uniqueIndex("daily_articles_slug_level_unique").on(t.slug, t.level),
+    publishedAtIdx: index("daily_articles_published_at_idx").on(t.publishedAt),
+    levelIdx: index("daily_articles_level_idx").on(t.level),
+    createdAtIdx: index("daily_articles_created_at_idx").on(t.createdAt),
+  })
+);

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookOpen, Loader2, Search, Trash2 } from "lucide-react";
 import { clientFetch } from "@/lib/client-fetch";
-import { READING_TIERS, isReadingTierId, type ReadingTierId } from "@/lib/reading-tiers";
+import { READING_TIERS, type ReadingTierId } from "@/lib/reading-tiers";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { toastConfirmAction } from "@/lib/toast-confirm";
