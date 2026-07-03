@@ -26,6 +26,12 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-chart-review: var(--chart-review);
+  --color-card-due: var(--card-due);
+  --color-card-due-foreground: var(--card-due-foreground);
+  --color-card-vocab: var(--card-vocab);
+  --color-card-vocab-foreground: var(--card-vocab-foreground);
+  --color-card-bookshelf: var(--card-bookshelf);
+  --color-card-bookshelf-foreground: var(--card-bookshelf-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -61,6 +67,12 @@
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);
     --chart-review: oklch(0.6 0.15 240);
+    --card-due: oklch(0.96 0.04 75);
+    --card-due-foreground: oklch(0.6 0.14 55);
+    --card-vocab: oklch(0.96 0.04 155);
+    --card-vocab-foreground: oklch(0.45 0.1 155);
+    --card-bookshelf: oklch(0.96 0.04 245);
+    --card-bookshelf-foreground: oklch(0.45 0.1 245);
     --radius: 0.625rem;
   }
 
@@ -84,6 +96,12 @@
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);
     --chart-review: oklch(0.5 0.12 260);
+    --card-due: oklch(0.22 0.05 55);
+    --card-due-foreground: oklch(0.7 0.1 55);
+    --card-vocab: oklch(0.22 0.05 155);
+    --card-vocab-foreground: oklch(0.6 0.1 155);
+    --card-bookshelf: oklch(0.22 0.05 245);
+    --card-bookshelf-foreground: oklch(0.6 0.1 245);
   }
 
   * {
