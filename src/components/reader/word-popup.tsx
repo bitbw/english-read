@@ -36,7 +36,7 @@ interface WordPopupProps {
   word: string;
   context: string;
   contextCfi: string;
-  bookId: string;
+  bookId?: string;
   anchorRect: WordPopupAnchorRect;
   autoPronunciation?: boolean;
   onClose: () => void;
@@ -319,7 +319,7 @@ export function WordPopup({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           word,
-          bookId,
+          ...(bookId ? { bookId } : {}),
           context,
           contextCfi,
           definition: definitionStr,

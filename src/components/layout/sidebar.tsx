@@ -13,6 +13,7 @@ import {
   Trophy,
   BarChart3,
   BookOpenCheck,
+  Newspaper,
   // ExternalLink,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -38,6 +39,7 @@ export function Sidebar() {
 
   const navItems = [
     { href: "/dashboard", label: t("home"), icon: LayoutDashboard },
+    { href: "/articles", label: t("dailyRead"), icon: Newspaper },
     { href: "/library/store", label: t("publicLibrary"), icon: Library },
     { href: "/library", label: t("myLibrary"), icon: BookOpen },
     { href: "/vocabulary", label: t("vocabulary"), icon: BookMarked },

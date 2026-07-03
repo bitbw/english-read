@@ -71,9 +71,6 @@ export function DailyStudyChart() {
   const todayReadingMin = totalToday ? Math.round(totalToday.readingSeconds / 60) : 0;
   const todayReviewMin = totalToday ? Math.round(totalToday.reviewSeconds / 60) : 0;
 
-  const totalReadingSeconds = series.reduce((a, s) => a + s.readingSeconds, 0);
-  const totalReviewSeconds = series.reduce((a, s) => a + s.reviewSeconds, 0);
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">

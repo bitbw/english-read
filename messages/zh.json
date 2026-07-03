@@ -1,6 +1,7 @@
 {
   "nav": {
     "home": "首页",
+    "dailyRead": "每日英文",
     "guide": "使用指南",
     "studyStats": "学习统计",
     "publicLibrary": "公共书库",
@@ -391,6 +392,22 @@
     "noRecord": "—",
     "empty": "暂无用户",
     "loadError": "加载用户列表失败"
+  },
+  "articles": {
+    "title": "每日英文",
+    "subtitle": "Daily English articles from Level Read",
+    "level1": "初级",
+    "level2": "中级",
+    "level3": "高级",
+    "emptyTitle": "暂无文章",
+    "emptyHint": "文章将每天自动爬取，管理员可手动访问 /api/cron/scrape-articles 触发",
+    "prevPage": "上一页",
+    "nextPage": "下一页",
+    "pageIndicator": "{page} / {total}",
+    "backToList": "每日英文",
+    "sourceLink": "原文",
+    "words": "{count} 词",
+    "selectHint": "划选单词可加入生词本 · Source: levelread.com"
   },
   "readingSpeedTier": {
     "leisurely": "轻松细读档",

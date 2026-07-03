@@ -31,6 +31,7 @@ import {
   BarChart3,
   BookOpenCheck,
   Loader2,
+  Newspaper,
   // ExternalLink,
 } from "lucide-react";
 
@@ -63,6 +64,7 @@ export function Topbar() {
 
   const navItems = [
     { href: "/dashboard", label: tNav("home"), icon: LayoutDashboard },
+    { href: "/articles", label: tNav("dailyRead"), icon: Newspaper },
     { href: "/library/store", label: tNav("publicLibrary"), icon: Library },
     { href: "/library", label: tNav("myLibrary"), icon: BookOpen },
     { href: "/vocabulary", label: tNav("vocabulary"), icon: BookMarked },
