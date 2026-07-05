@@ -53,30 +53,44 @@ export function ArticleReaderClient({ article }: { article: Article }) {
       const popupEl = document.querySelector("[data-word-popup]");
       if (popupEl?.contains(target)) return;
 
-      setTimeout(() => {
-        const selection = window.getSelection();
-        if (!selection || selection.isCollapsed || !selection.rangeCount) {
-          if (!(e.target as HTMLElement)?.closest?.("[data-word-popup]")) {
-            setPopup(null);
-          }
-          return;
-        }
-
-        const word = selection.toString().trim();
-        if (!word || word.length > VOCAB_WORD_MAX_LENGTH) {
+      // On mobile, touchend fires before selection is committed.
+      // We still clear popup on touchend when there's no selection.
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.rangeCount) {
+        if (!(e.target as HTMLElement)?.closest?.("[data-word-popup]")) {
           setPopup(null);
-          return;
         }
+      }
+    }
 
-        const range = selection.getRangeAt(0);
-        if (!contentRef.current?.contains(range.commonAncestorContainer)) {
-          return;
-        }
+    function handleSelectionChange() {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.rangeCount) {
+        return;
+      }
 
-        const context = range.startContainer.textContent?.trim() ?? "";
-        const rect = range.getBoundingClientRect();
+      const word = selection.toString().trim();
+      if (!word || word.length > VOCAB_WORD_MAX_LENGTH) {
+        return;
+      }
 
-        setPopup({
+      const range = selection.getRangeAt(0);
+      if (!contentRef.current?.contains(range.commonAncestorContainer)) {
+        return;
+      }
+
+      const rect = range.getBoundingClientRect();
+      // getBoundingClientRect may return zero rect before selection is fully rendered
+      if (rect.width === 0 && rect.height === 0) {
+        return;
+      }
+
+      const context = range.startContainer.textContent?.trim() ?? "";
+
+      // Avoid re-triggering for the same word
+      setPopup((prev) => {
+        if (prev?.word === word) return prev;
+        return {
           word,
           context,
           anchorRect: {
@@ -87,15 +101,17 @@ export function ArticleReaderClient({ article }: { article: Article }) {
             width: rect.width,
             height: rect.height,
           },
-        });
-      }, 30);
+        };
+      });
     }
 
     document.addEventListener("mouseup", handlePointerUp);
     document.addEventListener("touchend", handlePointerUp as EventListener);
+    document.addEventListener("selectionchange", handleSelectionChange);
     return () => {
       document.removeEventListener("mouseup", handlePointerUp);
       document.removeEventListener("touchend", handlePointerUp as EventListener);
+      document.removeEventListener("selectionchange", handleSelectionChange);
     };
   }, []);
 
