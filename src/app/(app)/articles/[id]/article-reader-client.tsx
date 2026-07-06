@@ -9,6 +9,7 @@ import { WordPopup, type WordPopupAnchorRect } from "@/components/reader/word-po
 import { cn } from "@/lib/utils";
 import { VOCAB_WORD_MAX_LENGTH } from "@/lib/vocabulary-limits";
 import { useTranslations } from "next-intl";
+import { useReadingTimeTracker } from "@/hooks/use-reading-time-tracker";
 
 interface Article {
   id: string;
@@ -41,6 +42,9 @@ export function ArticleReaderClient({ article }: { article: Article }) {
   const t = useTranslations("articles");
   const contentRef = useRef<HTMLDivElement>(null);
   const [popup, setPopup] = useState<PopupState | null>(null);
+
+  // 阅读时长追踪（页面可见时自动上报到 readingDailyTime）
+  useReadingTimeTracker({ enabled: true });
 
   const closePopup = useCallback(() => {
     setPopup(null);
