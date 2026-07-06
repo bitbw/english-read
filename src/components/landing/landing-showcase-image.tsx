@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 type LandingShowcaseImageProps = {
   src: string;
   alt: string;
+  mobileSrc?: string;
   priority?: boolean;
   className?: string;
 };
@@ -11,6 +12,7 @@ type LandingShowcaseImageProps = {
 export function LandingShowcaseImage({
   src,
   alt,
+  mobileSrc,
   priority = false,
   className,
 }: LandingShowcaseImageProps) {
@@ -21,15 +23,38 @@ export function LandingShowcaseImage({
         className,
       )}
     >
-      <Image
-        src={src}
-        alt={alt}
-        width={1280}
-        height={720}
-        priority={priority}
-        sizes="(max-width: 768px) 100vw, 50vw"
-        className="h-auto w-full"
-      />
+      {mobileSrc ? (
+        <>
+          <Image
+            src={src}
+            alt={alt}
+            width={1280}
+            height={720}
+            priority={priority}
+            sizes="(max-width: 768px) 0px, 50vw"
+            className="h-auto w-full hidden md:block"
+          />
+          <Image
+            src={mobileSrc}
+            alt={alt}
+            width={480}
+            height={960}
+            priority={priority}
+            sizes="(max-width: 768px) 100vw, 0px"
+            className="h-auto w-full block md:hidden"
+          />
+        </>
+      ) : (
+        <Image
+          src={src}
+          alt={alt}
+          width={1280}
+          height={720}
+          priority={priority}
+          sizes="(max-width: 768px) 100vw, 50vw"
+          className="h-auto w-full"
+        />
+      )}
     </div>
   );
 }
