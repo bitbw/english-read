@@ -53,9 +53,17 @@ export function DailyStudyChart() {
 
   if (series === null) {
     return (
-      <div className="space-y-3 py-2">
+      <div className="space-y-4 py-2">
         <Skeleton className="h-4 w-48" />
-        <Skeleton className="h-[118px] w-full" />
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-[72px] w-full" />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-[72px] w-full" />
+        </div>
+        <Skeleton className="h-3 w-full" />
       </div>
     );
   }

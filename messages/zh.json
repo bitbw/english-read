@@ -52,7 +52,13 @@
     "readingDuration": "阅读时长",
     "reviewDuration": "复习时长",
     "todayReading": "阅读 {min} 分钟",
-    "todayReviewShort": "复习 {min} 分钟"
+    "todayReviewShort": "复习 {min} 分钟",
+    "leaderboard": "排行榜",
+    "leaderboardDesc": "查看社区排行",
+    "studyStats": "学习分析",
+    "studyStatsDesc": "阅读与复习数据",
+    "reviewPlanSection": "复习计划",
+    "dailyReadSection": "每日阅读"
   },
   "vocabulary": {
     "title": "生词本",
@@ -193,6 +199,13 @@
   },
   "landing": {
     "login": "登录",
+    "dailyReadSection": "每日英文精读",
+    "dailyReadSectionDesc": "每天推送分级短文，阅读中积累词汇，学习不间断",
+    "dailyReadBeginner": "初级",
+    "dailyReadIntermediate": "中级",
+    "dailyReadAdvanced": "高级",
+    "dailyReadWords": "{count} 词",
+    "dailyReadMore": "查看更多",
     "hero": "边读书，边记单词",
     "heroDesc": "上传 EPUB 或从公共书库选书，阅读中查词收录，按艾宾浩斯间隔复习，学习统计与排行榜助你坚持。",
     "heroBadge": "EPUB 阅读 · 艾宾浩斯复习 · 免费使用",
@@ -211,6 +224,9 @@
     "feature6Desc": "浏览共享书目，一键加入个人书架",
     "showcaseReadingTitle": "阅读中查词，语境里记单词",
     "showcaseReadingDesc": "在线读 EPUB，选中单词即查音标、英文释义与中文翻译，并保存原文上下文。",
+    "showcaseDailyReadTitle": "每日英文精读",
+    "showcaseDailyReadDesc": "每天推送分级短文，边读边查词，阅读中积累词汇量，学习不间断",
+    "altDailyRead": "English Read 每日英文阅读",
     "showcaseVocabTitle": "生词本集中管理",
     "showcaseVocabDesc": "所有阅读中收藏的词一目了然，随时查看复习阶段与下次复习时间。",
     "showcaseReviewTitle": "艾宾浩斯闪卡复习",
@@ -426,7 +442,10 @@
     "legendPast": "往日：该日排期且仍到期的词；点入有到期则直接开始复习",
     "legendFuture": "未来：仅预览当日排期，尚未到期不会进入测验",
     "monthTitle": "{year} 年 {month} 月",
-    "weekLabels": ["一", "二", "三", "四", "五", "六", "日"]
+    "weekLabels": ["一", "二", "三", "四", "五", "六", "日"],
+    "todayCount": "今天 {count} 个待复习",
+    "allCaughtUp": "今日无待复习",
+    "details": "详情"
   },
   "library": {
     "title": "我的书架",

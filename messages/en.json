@@ -52,7 +52,13 @@
     "readingDuration": "Reading",
     "reviewDuration": "Review",
     "todayReading": "Read {min} min",
-    "todayReviewShort": "Review {min} min"
+    "todayReviewShort": "Review {min} min",
+    "leaderboard": "Leaderboard",
+    "leaderboardDesc": "Community rankings",
+    "studyStats": "Study Stats",
+    "studyStatsDesc": "Reading & review data",
+    "reviewPlanSection": "Review Plan",
+    "dailyReadSection": "Daily Reading"
   },
   "vocabulary": {
     "title": "Vocabulary",
@@ -193,6 +199,13 @@
   },
   "landing": {
     "login": "Sign In",
+    "dailyReadSection": "Daily English Reading",
+    "dailyReadSectionDesc": "Daily graded short articles — build vocabulary through consistent reading",
+    "dailyReadBeginner": "Beginner",
+    "dailyReadIntermediate": "Intermediate",
+    "dailyReadAdvanced": "Advanced",
+    "dailyReadWords": "{count} words",
+    "dailyReadMore": "View All",
     "hero": "Read Books, Learn Words",
     "heroDesc": "Upload EPUBs or browse the public library, look up words while reading, review with Ebbinghaus intervals, and track progress with stats and leaderboards.",
     "heroBadge": "EPUB Reader · Spaced Repetition · Free",
@@ -211,6 +224,9 @@
     "feature6Desc": "Browse shared titles and add them to your shelf",
     "showcaseReadingTitle": "Look up words in context",
     "showcaseReadingDesc": "Read EPUBs online; tap a word for phonetics, English definitions, Chinese translation, and saved sentence context.",
+    "showcaseDailyReadTitle": "Daily English Reading",
+    "showcaseDailyReadDesc": "Daily graded short articles — look up words as you read and build vocabulary consistently",
+    "altDailyRead": "English Read daily article reader",
     "showcaseVocabTitle": "All your words in one place",
     "showcaseVocabDesc": "Every word you save while reading, with review stage and next review date at a glance.",
     "showcaseReviewTitle": "Ebbinghaus flashcard review",
@@ -426,7 +442,10 @@
     "legendPast": "Past: scheduled words still due; click to start review if any are due",
     "legendFuture": "Future: preview only, not yet due",
     "monthTitle": "{year} / {month}",
-    "weekLabels": ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+    "weekLabels": ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
+    "todayCount": "{count} due today",
+    "allCaughtUp": "All caught up",
+    "details": "Details"
   },
   "library": {
     "title": "My Bookshelf",

@@ -10,19 +10,19 @@ import { Progress } from "@/components/ui/progress";
 import {
   BookOpen,
   BookMarked,
-  GraduationCap,
   Library,
   ArrowRight,
   Timer,
   Shield,
   BookOpenCheck,
-  Newspaper,
-  Plus,
+  BarChart3,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 import { DailyStudyChart } from "@/components/dashboard/daily-study-chart";
 import { DashboardQuickActions } from "@/components/dashboard/dashboard-quick-actions";
+import { MiniReviewPlan } from "@/components/dashboard/mini-review-plan";
+import { DashboardDailyArticles } from "@/components/dashboard/dashboard-daily-articles";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -33,7 +33,7 @@ export default async function DashboardPage() {
   const userId = session.user.id;
   const now = new Date();
 
-  const [dueRows, totalVocabRows, masteredRows, recentBooks, recentArticles] =
+  const [dueRows, totalVocabRows, masteredRows, recentBooks, level1Articles, level2Articles, level3Articles] =
     await Promise.all([
       db
         .select({ count: count() })
@@ -61,6 +61,7 @@ export default async function DashboardPage() {
         .where(eq(books.userId, userId))
         .orderBy(desc(books.lastReadAt), desc(books.createdAt))
         .limit(3),
+      // 4 articles per level
       db
         .select({
           id: dailyArticles.id,
@@ -73,6 +74,37 @@ export default async function DashboardPage() {
           level: dailyArticles.level,
         })
         .from(dailyArticles)
+        .where(eq(dailyArticles.level, 1))
+        .orderBy(desc(dailyArticles.publishedAt), desc(dailyArticles.createdAt))
+        .limit(4),
+      db
+        .select({
+          id: dailyArticles.id,
+          title: dailyArticles.title,
+          description: dailyArticles.description,
+          coverUrl: dailyArticles.coverUrl,
+          wordCount: dailyArticles.wordCount,
+          publishedAt: dailyArticles.publishedAt,
+          createdAt: dailyArticles.createdAt,
+          level: dailyArticles.level,
+        })
+        .from(dailyArticles)
+        .where(eq(dailyArticles.level, 2))
+        .orderBy(desc(dailyArticles.publishedAt), desc(dailyArticles.createdAt))
+        .limit(4),
+      db
+        .select({
+          id: dailyArticles.id,
+          title: dailyArticles.title,
+          description: dailyArticles.description,
+          coverUrl: dailyArticles.coverUrl,
+          wordCount: dailyArticles.wordCount,
+          publishedAt: dailyArticles.publishedAt,
+          createdAt: dailyArticles.createdAt,
+          level: dailyArticles.level,
+        })
+        .from(dailyArticles)
+        .where(eq(dailyArticles.level, 3))
         .orderBy(desc(dailyArticles.publishedAt), desc(dailyArticles.createdAt))
         .limit(4),
     ]);
@@ -84,17 +116,6 @@ export default async function DashboardPage() {
   const t = await getTranslations("dashboard");
   const ta = await getTranslations("articles");
   const isNewUser = recentBooks.length === 0 && totalVocab === 0;
-
-  const levelLabel: Record<number, string> = {
-    1: "L1",
-    2: "L2",
-    3: "L3",
-  };
-  const levelColor: Record<number, string> = {
-    1: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-    2: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-    3: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
-  };
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -126,7 +147,37 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ─── Bento Grid: Stats + Guide + Quick Actions ─── */}
+      {/* ─── Due Notice (above bento grid) ─── */}
+      {dueCount > 0 ? (
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-amber-50/80 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-950/10 ring-1 ring-amber-200/50 dark:ring-amber-800/30 p-5 mb-6">
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-lg bg-amber-200/50 dark:bg-amber-700/30 flex items-center justify-center shrink-0">
+                <Timer className="h-5 w-5 text-amber-700 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="font-semibold">
+                  {t("dueNotice", { count: dueCount })}
+                </p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {t("dueHint")}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <Link
+                href="/vocabulary/review"
+                className={cn(buttonVariants({ size: "sm" }))}
+              >
+                {t("startReview")}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ─── Bento Grid ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
         {/* Left column */}
         <div className="md:col-span-2 space-y-5">
@@ -165,15 +216,15 @@ export default async function DashboardPage() {
           {/* Quick actions */}
           <DashboardQuickActions />
 
-          {/* Vocab + Bookshelf 2-col grid */}
-          <div className="grid grid-cols-2 gap-5">
+          {/* Stats row: Vocab + Bookshelf + Leaderboard + Stats entry */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {/* Vocab card */}
             <Link
               href="/vocabulary"
               aria-label={t("vocabAriaLabel", { count: totalVocab })}
               className="block rounded-xl outline-offset-2 group focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <div className="h-full rounded-xl bg-card-vocab/40 dark:bg-card-vocab/20 ring-1 ring-card-vocab-foreground/20 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-card-vocab-foreground/10 hover:bg-card-vocab/60 dark:hover:bg-card-vocab/30 group-focus-visible:ring-2 group-focus-visible:ring-ring">
+              <div className="h-full rounded-xl bg-card-vocab/40 dark:bg-card-vocab/20 ring-1 ring-card-vocab-foreground/20 p-4 transition-all duration-300 hover:shadow-lg hover:shadow-card-vocab-foreground/10 hover:bg-card-vocab/60 dark:hover:bg-card-vocab/30 group-focus-visible:ring-2 group-focus-visible:ring-ring">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-card-vocab-foreground">
                     {t("vocabTotal")}
@@ -205,7 +256,7 @@ export default async function DashboardPage() {
               aria-label={t("bookshelf")}
               className="block rounded-xl outline-offset-2 group focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <div className="h-full rounded-xl bg-card-bookshelf/40 dark:bg-card-bookshelf/20 ring-1 ring-card-bookshelf-foreground/20 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-card-bookshelf-foreground/10 hover:bg-card-bookshelf/60 dark:hover:bg-card-bookshelf/30 group-focus-visible:ring-2 group-focus-visible:ring-ring">
+              <div className="h-full rounded-xl bg-card-bookshelf/40 dark:bg-card-bookshelf/20 ring-1 ring-card-bookshelf-foreground/20 p-4 transition-all duration-300 hover:shadow-lg hover:shadow-card-bookshelf-foreground/10 hover:bg-card-bookshelf/60 dark:hover:bg-card-bookshelf/30 group-focus-visible:ring-2 group-focus-visible:ring-ring">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-card-bookshelf-foreground">
                     {t("bookshelf")}
@@ -220,76 +271,48 @@ export default async function DashboardPage() {
                 </p>
               </div>
             </Link>
+
+            {/* Leaderboard entry */}
+            <Link
+              href="/leaderboard"
+              className="block rounded-xl outline-offset-2 group focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <div className="h-full rounded-xl bg-gradient-to-br from-amber-50/60 to-orange-50/40 dark:from-amber-950/20 dark:to-orange-950/10 ring-1 ring-amber-200/40 dark:ring-amber-800/30 p-4 transition-all duration-300 hover:shadow-lg hover:shadow-amber-200/20 group-focus-visible:ring-2 group-focus-visible:ring-ring">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                    {t("leaderboard")}
+                  </span>
+                  <Trophy className="h-4 w-4 text-amber-500/60" />
+                </div>
+                <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-1">
+                  {t("leaderboardDesc")}
+                </p>
+              </div>
+            </Link>
+
+            {/* Study Stats entry */}
+            <Link
+              href="/dashboard/stats"
+              className="block rounded-xl outline-offset-2 group focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <div className="h-full rounded-xl bg-gradient-to-br from-sky-50/60 to-blue-50/40 dark:from-sky-950/20 dark:to-blue-950/10 ring-1 ring-sky-200/40 dark:ring-sky-800/30 p-4 transition-all duration-300 hover:shadow-lg hover:shadow-sky-200/20 group-focus-visible:ring-2 group-focus-visible:ring-ring">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-sky-700 dark:text-sky-300">
+                    {t("studyStats")}
+                  </span>
+                  <BarChart3 className="h-4 w-4 text-sky-500/60" />
+                </div>
+                <p className="text-xs text-sky-600/70 dark:text-sky-400/70 mt-1">
+                  {t("studyStatsDesc")}
+                </p>
+              </div>
+            </Link>
           </div>
         </div>
 
-        {/* Right column: Due review (tall card) */}
-        <Link
-          href="/vocabulary/review"
-          aria-label={t("dueAriaLabel", { count: dueCount })}
-          className="block rounded-xl outline-offset-2 group md:row-span-1 focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <div className="h-full rounded-xl bg-card-due/40 dark:bg-card-due/20 ring-1 ring-card-due-foreground/20 p-6 transition-all duration-300 hover:shadow-lg hover:shadow-card-due-foreground/10 hover:bg-card-due/60 dark:hover:bg-card-due/30 group-focus-visible:ring-2 group-focus-visible:ring-ring">
-            <div className="flex items-center gap-2 text-sm font-medium text-card-due-foreground mb-3">
-              <GraduationCap className="h-5 w-5" />
-              {t("dueReview")}
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-bold tracking-tight text-card-due-foreground">
-                {dueCount}
-              </span>
-              <span className="text-sm text-card-due-foreground/70">
-                {t("words")}
-              </span>
-            </div>
-            <div className="mt-4 h-1.5 w-full rounded-full bg-card-due-foreground/10 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-card-due-foreground/40 transition-all"
-                style={{ width: `${Math.min(100, dueCount * 5)}%` }}
-              />
-            </div>
-            <p className="mt-3 text-xs text-card-due-foreground/60">
-              {dueCount > 0 ? t("dueHint") : "All caught up!"}
-            </p>
-          </div>
-        </Link>
+        {/* Right column: Mini Review Plan */}
+        <MiniReviewPlan />
       </div>
-
-      {/* ─── Due Notice ─── */}
-      {dueCount > 0 ? (
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-amber-50/80 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-950/10 ring-1 ring-amber-200/50 dark:ring-amber-800/30 p-5 mb-6">
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-lg bg-amber-200/50 dark:bg-amber-700/30 flex items-center justify-center shrink-0">
-                <Timer className="h-5 w-5 text-amber-700 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="font-semibold">
-                  {t("dueNotice", { count: dueCount })}
-                </p>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {t("dueHint")}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 shrink-0">
-              <Link
-                href="/vocabulary/plan"
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-              >
-                {t("reviewPlan")}
-              </Link>
-              <Link
-                href="/vocabulary/review"
-                className={cn(buttonVariants({ size: "sm" }))}
-              >
-                {t("startReview")}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {/* ─── Daily Study Chart ─── */}
       <Card className="overflow-hidden mb-6 py-0">
@@ -313,74 +336,15 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* ─── 每日文章 (Daily Articles) ─── */}
-      {recentArticles.length > 0 ? (
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Newspaper className="h-5 w-5 text-muted-foreground" />
-              {ta("title")}
-            </h2>
-            <Link
-              href="/articles"
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "sm" })
-              )}
-            >
-              {t("viewAll")}
-              <ArrowRight className="ml-1 h-3 w-3" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {recentArticles.map((article) => (
-              <Link
-                key={article.id}
-                href={`/articles/${article.id}`}
-                className="group block rounded-xl overflow-hidden ring-1 ring-foreground/10 bg-card hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring outline-offset-2"
-              >
-                <div className="relative aspect-[16/9] bg-muted overflow-hidden">
-                  {article.coverUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={article.coverUrl}
-                      alt=""
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-                      <Newspaper className="h-6 w-6 text-primary/30" />
-                    </div>
-                  )}
-                  <span
-                    className={cn(
-                      "absolute top-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                      levelColor[article.level] ?? levelColor[1]
-                    )}
-                  >
-                    {levelLabel[article.level] ?? "L1"}
-                  </span>
-                </div>
-                <div className="p-3">
-                  <p className="text-sm font-medium line-clamp-2 leading-snug group-hover:text-primary transition-colors">
-                    {article.title}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-1.5">
-                    {article.wordCount
-                      ? ta("words", { count: article.wordCount })
-                      : null}
-                    {article.wordCount && article.publishedAt ? (
-                      <span className="mx-1">·</span>
-                    ) : null}
-                    {article.publishedAt
-                      ? format(article.publishedAt, "MM/dd")
-                      : null}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {/* ─── 每日文章 (Daily Articles with tabs) ─── */}
+      <DashboardDailyArticles
+        level1={level1Articles}
+        level2={level2Articles}
+        level3={level3Articles}
+        viewAllLabel={t("viewAll")}
+        emptyLabel={ta("emptyTitle")}
+        titleLabel={t("dailyReadSection")}
+      />
 
       {/* ─── Recent Reading ─── */}
       <div>
