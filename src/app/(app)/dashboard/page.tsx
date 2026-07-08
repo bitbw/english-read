@@ -311,7 +311,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Right column: Mini Review Plan */}
-        <MiniReviewPlan />
+        <MiniReviewPlan dueCount={dueCount} />
       </div>
 
       {/* ─── Daily Study Chart ─── */}

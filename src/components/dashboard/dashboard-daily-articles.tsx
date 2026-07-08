@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Newspaper, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+import { getSavedArticleLevel, saveArticleLevel } from "@/lib/article-level";
 
 type ArticleItem = {
   id: string;
@@ -46,7 +47,15 @@ export function DashboardDailyArticles({
     { level: 3, articles: level3 },
   ];
   const [activeLevel, setActiveLevel] = useState(1);
+
+  useEffect(() => {
+    setActiveLevel(getSavedArticleLevel());
+  }, []);
   const currentArticles = levels.find((l) => l.level === activeLevel)?.articles ?? [];
+
+  useEffect(() => {
+    saveArticleLevel(activeLevel);
+  }, [activeLevel]);
 
   function formatDate(d: Date | null): string {
     if (!d) return "";

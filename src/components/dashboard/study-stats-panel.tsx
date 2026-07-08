@@ -154,7 +154,8 @@ export function StudyStatsPanel({
         s.readingSeconds > 0 ||
         s.reviewSeconds > 0 ||
         s.reviewedCount > 0 ||
-        s.errorCount > 0,
+        s.errorCount > 0 ||
+        s.vocabAdded > 0,
     );
   }, [data]);
 
@@ -172,6 +173,15 @@ export function StudyStatsPanel({
       (data?.series ?? []).map((s) => ({
         day: s.day,
         value: s.reviewSeconds,
+      })),
+    [data],
+  );
+
+  const vocabChartSeries = useMemo(
+    () =>
+      (data?.series ?? []).map((s) => ({
+        day: s.day,
+        value: s.vocabAdded,
       })),
     [data],
   );
@@ -259,7 +269,7 @@ export function StudyStatsPanel({
       {loading ? (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {Array.from({ length: 5 }).map((_, i) => (
+            {Array.from({ length: 7 }).map((_, i) => (
               <Skeleton key={i} className="h-20 rounded-xl" />
             ))}
           </div>
@@ -268,7 +278,7 @@ export function StudyStatsPanel({
         </div>
       ) : data ? (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
             <Card>
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">{t("readingTime")}</p>
@@ -291,6 +301,25 @@ export function StudyStatsPanel({
                   ) : (
                     <span className="text-base text-muted-foreground">{t("wpmPending")}</span>
                   )}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs text-muted-foreground">{t("vocabAdded")}</p>
+                <p className="text-2xl font-bold tabular-nums mt-1">
+                  {data.totals.totalVocabAdded}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs text-muted-foreground">{t("avgDailyAdded")}</p>
+                <p className="text-2xl font-bold tabular-nums mt-1">
+                  {data.totals.avgDailyAdded}
+                  <span className="text-xs font-normal text-muted-foreground ml-1">
+                    {t("wordsUnit", { count: 1 }).replace(/[0-9]/g, "").trim()}
+                  </span>
                 </p>
               </CardContent>
             </Card>
@@ -339,6 +368,15 @@ export function StudyStatsPanel({
 
               <Card>
                 <CardHeader className="pb-2">
+                  <CardTitle className="text-base">{t("vocabSection")}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <StudyBarChart series={vocabChartSeries} valueAsMinutes={false} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
                   <CardTitle className="text-base">{t("reviewSection")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -352,6 +390,7 @@ export function StudyStatsPanel({
                           <TableHead>{t("colDate")}</TableHead>
                           <TableHead className="text-right">{t("colReadingMin")}</TableHead>
                           <TableHead className="text-right">{t("colWpm")}</TableHead>
+                          <TableHead className="text-right">{t("colVocabAdded")}</TableHead>
                           <TableHead className="text-right">{t("colReviewed")}</TableHead>
                           <TableHead className="text-right">{t("colErrors")}</TableHead>
                           <TableHead className="text-right">{t("colErrorRate")}</TableHead>
@@ -369,6 +408,9 @@ export function StudyStatsPanel({
                               </TableCell>
                               <TableCell className="text-right tabular-nums">
                                 {wpm ?? "—"}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {row.vocabAdded}
                               </TableCell>
                               <TableCell className="text-right tabular-nums">
                                 {row.reviewedCount}

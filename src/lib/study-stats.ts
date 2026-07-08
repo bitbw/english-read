@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { readingDailyTime, reviewDailyStats, reviewLogs } from "@/lib/db/schema";
+import { readingDailyTime, reviewDailyStats, reviewLogs, vocabulary } from "@/lib/db/schema";
 import { avgWpmFromTotals } from "@/lib/reading-wpm";
 import {
   calendarDayKey,
@@ -8,7 +8,7 @@ import {
   isCalendarDayKey,
   zonedDayRangeUtc,
 } from "@/lib/user-calendar";
-import { and, eq, gte, lt, lte } from "drizzle-orm";
+import { and, eq, gte, lt, lte, sql } from "drizzle-orm";
 
 export const MAX_STUDY_RANGE_DAYS = 90;
 
@@ -20,6 +20,7 @@ export type StudySeriesPoint = {
   errorCount: number;
   reviewSeconds: number;
   errorRate: number | null;
+  vocabAdded: number;
 };
 
 export type StudyStatsResponse = {
@@ -34,6 +35,8 @@ export type StudyStatsResponse = {
     errorCount: number;
     reviewSeconds: number;
     avgWpm: number | null;
+    totalVocabAdded: number;
+    avgDailyAdded: number;
   };
 };
 
@@ -79,7 +82,7 @@ export async function getStudyStats(
   const { dayStart: rangeStartUtc } = zonedDayRangeUtc(start, timeZone);
   const { dayEndExclusive: rangeEndExclusiveUtc } = zonedDayRangeUtc(end, timeZone);
 
-  const [readingRows, reviewStatRows, reviewLogRows] = await Promise.all([
+  const [readingRows, reviewStatRows, reviewLogRows, vocabRows] = await Promise.all([
     db
       .select({
         day: readingDailyTime.day,
@@ -118,6 +121,20 @@ export async function getStudyStats(
           lt(reviewLogs.reviewedAt, rangeEndExclusiveUtc),
         ),
       ),
+    db
+      .select({
+        day: sql<string>`date(${vocabulary.createdAt})`.as("day"),
+        count: sql<number>`count(*)`.as("count"),
+      })
+      .from(vocabulary)
+      .where(
+        and(
+          eq(vocabulary.userId, userId),
+          sql`date(${vocabulary.createdAt}) >= ${start}`,
+          sql`date(${vocabulary.createdAt}) <= ${end}`,
+        ),
+      )
+      .groupBy(sql`date(${vocabulary.createdAt})`),
   ]);
 
   const readingMap = new Map(
@@ -134,11 +151,17 @@ export async function getStudyStats(
     reviewedByDay.set(day, (reviewedByDay.get(day) ?? 0) + 1);
   }
 
+  const vocabAddedByDay = new Map<string, number>();
+  for (const row of vocabRows) {
+    vocabAddedByDay.set(row.day, Number(row.count));
+  }
+
   let totalReadingSeconds = 0;
   let totalReadingWords = 0;
   let totalReviewedCount = 0;
   let totalErrorCount = 0;
   let totalReviewSeconds = 0;
+  let totalVocabAdded = 0;
 
   const series = dayKeys.map((day) => {
     const reading = readingMap.get(day);
@@ -148,12 +171,14 @@ export async function getStudyStats(
     const reviewedCount = reviewedByDay.get(day) ?? 0;
     const errorCount = reviewStat?.errorCount ?? 0;
     const reviewSeconds = reviewStat?.seconds ?? 0;
+    const vocabAdded = vocabAddedByDay.get(day) ?? 0;
 
     totalReadingSeconds += readingSeconds;
     totalReadingWords += readingWords;
     totalReviewedCount += reviewedCount;
     totalErrorCount += errorCount;
     totalReviewSeconds += reviewSeconds;
+    totalVocabAdded += vocabAdded;
 
     return {
       day,
@@ -163,8 +188,11 @@ export async function getStudyStats(
       errorCount,
       reviewSeconds,
       errorRate: reviewedCount > 0 ? Math.round((errorCount / reviewedCount) * 100) : null,
+      vocabAdded,
     };
   });
+
+  const totalDays = dayKeys.length;
 
   return {
     timeZone,
@@ -178,6 +206,8 @@ export async function getStudyStats(
       errorCount: totalErrorCount,
       reviewSeconds: totalReviewSeconds,
       avgWpm: avgWpmFromTotals(totalReadingWords, totalReadingSeconds),
+      totalVocabAdded,
+      avgDailyAdded: Math.round(totalVocabAdded / totalDays),
     },
   };
 }
