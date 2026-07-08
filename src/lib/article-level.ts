@@ -1,4 +1,4 @@
-export const ARTICLE_LEVEL_KEY = "bowen_article_level";
+export const ARTICLE_LEVEL_KEY = "english-read-article-level";
 
 export function getSavedArticleLevel(): number {
   if (typeof window === "undefined") return 1;
