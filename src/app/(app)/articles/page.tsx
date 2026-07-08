@@ -4,17 +4,17 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/articles/article-card";
+import { ArticleLevelTabs } from "@/components/articles/article-level-tabs";
 import { Newspaper } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 const PAGE_SIZE = 12;
 
 const levelTabs = [
-  { level: 1, key: "level1" },
-  { level: 2, key: "level2" },
-  { level: 3, key: "level3" },
+  { level: 1, label: "level1" },
+  { level: 2, label: "level2" },
+  { level: 3, label: "level3" },
 ];
 
 export default async function ArticlesPage({
@@ -26,6 +26,10 @@ export default async function ArticlesPage({
   if (!session) redirect("/login");
 
   const t = await getTranslations("articles");
+  const translatedLevelTabs = levelTabs.map((lt) => ({
+    ...lt,
+    label: t(lt.label),
+  }));
 
   const sp = await searchParams;
   const level = Math.max(1, Math.min(3, parseInt(sp.level ?? "1", 10)));
@@ -73,23 +77,7 @@ export default async function ArticlesPage({
       </div>
 
       {/* Level tabs */}
-      <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
-        {levelTabs.map(({ level: lv, key }) => (
-          <Link
-            key={lv}
-            href={`/articles?level=${lv}`}
-            className={cn(
-              "flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              level === lv
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Level {lv}
-            <span className="hidden sm:inline text-xs opacity-60">· {t(key)}</span>
-          </Link>
-        ))}
-      </div>
+      <ArticleLevelTabs levelTabs={translatedLevelTabs} currentLevel={level} />
 
       {/* Article grid */}
       {articles.length === 0 ? (

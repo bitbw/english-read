@@ -350,7 +350,11 @@
     "minutesUnit": "{min} min",
     "wordsUnit": "{count, plural, one {# word} other {# words}}",
     "errorsUnit": "{count, plural, one {# error} other {# errors}}",
-    "historicalHint": "Review errors and time are tracked from when this feature launched; completed reviews include historical logs"
+    "historicalHint": "Review errors and time are tracked from when this feature launched; completed reviews include historical logs",
+    "vocabAdded": "New words added",
+    "avgDailyAdded": "Avg daily added",
+    "vocabSection": "New Vocabulary",
+    "colVocabAdded": "Words added"
   },
   "leaderboard": {
     "title": "Leaderboard",
@@ -445,7 +449,8 @@
     "weekLabels": ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
     "todayCount": "{count} due today",
     "allCaughtUp": "All caught up",
-    "details": "Details"
+    "details": "View Plan Details",
+    "startReview": "Start Review"
   },
   "library": {
     "title": "My Bookshelf",

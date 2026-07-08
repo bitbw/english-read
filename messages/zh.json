@@ -350,7 +350,11 @@
     "minutesUnit": "{min} 分钟",
     "wordsUnit": "{count} 词",
     "errorsUnit": "{count} 次",
-    "historicalHint": "复习错误与时长自功能上线后开始统计；复习完成词数包含历史记录"
+    "historicalHint": "复习错误与时长自功能上线后开始统计；复习完成词数包含历史记录",
+    "vocabAdded": "新增词汇",
+    "avgDailyAdded": "日均新增",
+    "vocabSection": "新增词汇",
+    "colVocabAdded": "新增词数"
   },
   "leaderboard": {
     "title": "排行榜",
@@ -445,7 +449,8 @@
     "weekLabels": ["一", "二", "三", "四", "五", "六", "日"],
     "todayCount": "今天 {count} 个待复习",
     "allCaughtUp": "今日无待复习",
-    "details": "详情"
+    "details": "查看计划详情",
+    "startReview": "开始复习"
   },
   "library": {
     "title": "我的书架",

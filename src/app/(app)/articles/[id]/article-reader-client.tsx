@@ -41,6 +41,7 @@ const levelColor: Record<number, string> = {
 export function ArticleReaderClient({ article }: { article: Article }) {
   const t = useTranslations("articles");
   const contentRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const [popup, setPopup] = useState<PopupState | null>(null);
 
   // 阅读时长追踪（页面可见时自动上报到 readingDailyTime）
@@ -79,7 +80,9 @@ export function ArticleReaderClient({ article }: { article: Article }) {
       }
 
       const range = selection.getRangeAt(0);
-      if (!contentRef.current?.contains(range.commonAncestorContainer)) {
+      const isInContent = contentRef.current?.contains(range.commonAncestorContainer) ?? false;
+      const isInHeader = headerRef.current?.contains(range.commonAncestorContainer) ?? false;
+      if (!isInContent && !isInHeader) {
         return;
       }
 
@@ -148,8 +151,8 @@ export function ArticleReaderClient({ article }: { article: Article }) {
         </div>
       )}
 
-      {/* Article meta */}
-      <div className="flex flex-col gap-2">
+      {/* Article meta — 标题和简介区域，也支持划词弹窗 */}
+      <div ref={headerRef} className="flex flex-col gap-2 select-text" style={{ userSelect: "text", WebkitUserSelect: "text" }}>
         <div className="flex items-center gap-2 flex-wrap">
           <span
             className={cn(

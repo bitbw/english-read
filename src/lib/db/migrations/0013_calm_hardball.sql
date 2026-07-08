@@ -1,0 +1,1 @@
+CREATE INDEX "vocabulary_created_at_idx" ON "vocabulary" USING btree ("user_id","created_at");

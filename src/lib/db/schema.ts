@@ -250,6 +250,7 @@ export const vocabulary = pgTable(
       vocab.isMastered
     ),
     bookIdIdx: index("vocabulary_book_id_idx").on(vocab.bookId),
+    createdAtIdx: index("vocabulary_created_at_idx").on(vocab.userId, vocab.createdAt),
   })
 );
 
