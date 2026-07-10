@@ -478,6 +478,23 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
+          <div className="space-y-2 pt-1 border-t border-border">
+            <p className="font-medium text-foreground">{t("thanksTitle")}</p>
+            <p className="text-xs text-muted-foreground pt-2">{t("thanksSites")}</p>
+            <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
+              <li>
+                {t("levelReadThanks")}{" "}
+                <a
+                  href="https://levelread.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-foreground underline-offset-4 hover:underline"
+                >
+                  https://levelread.com
+                </a>
+              </li>
+            </ul>
+          </div>
         </CardContent>
       </Card>
 

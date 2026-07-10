@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 
-const GUIDE_BANNER_DISMISSED_KEY = "english-read-guide-banner-dismissed";
+export const GUIDE_BANNER_DISMISSED_KEY = "english-read-guide-banner-dismissed";
 
 type GuideBannerProps = {
   isNewUser: boolean;
