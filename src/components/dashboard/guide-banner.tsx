@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpenCheck, X } from "lucide-react";
+import { ArrowRight, BookOpenCheck } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 
-const GUIDE_BANNER_DISMISSED_KEY = "bowen_guide_banner_dismissed";
+const GUIDE_BANNER_DISMISSED_KEY = "english-read-guide-banner-dismissed";
 
 type GuideBannerProps = {
   isNewUser: boolean;
@@ -43,14 +43,6 @@ export function GuideBanner({ isNewUser }: GuideBannerProps) {
   return (
     <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/5 via-primary/5 to-primary/10 ring-1 ring-primary/20 p-5">
       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-      <button
-        type="button"
-        onClick={handleDismiss}
-        className="absolute top-3 right-3 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-        aria-label={t("guideBannerDismiss")}
-      >
-        <X className="h-4 w-4" />
-      </button>
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 ring-1 ring-primary/20">
@@ -73,18 +65,16 @@ export function GuideBanner({ isNewUser }: GuideBannerProps) {
             {t("guideBannerCta")}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
-          {isNewUser ? (
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "sm" }),
-                "text-xs text-muted-foreground shrink-0"
-              )}
-            >
-              {t("guideBannerDismiss")}
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={handleDismiss}
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "text-xs text-muted-foreground shrink-0"
+            )}
+          >
+            {t("guideBannerDismiss")}
+          </button>
         </div>
       </div>
     </div>

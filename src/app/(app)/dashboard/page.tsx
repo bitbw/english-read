@@ -148,6 +148,11 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* ─── Guide Banner (full width) ─── */}
+      <div className="mb-6">
+        <GuideBanner isNewUser={isNewUser} />
+      </div>
+
       {/* ─── Due Notice (above bento grid) ─── */}
       {dueCount > 0 ? (
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-amber-50/80 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-950/10 ring-1 ring-amber-200/50 dark:ring-amber-800/30 p-5 mb-6">
@@ -182,9 +187,6 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
         {/* Left column */}
         <div className="md:col-span-2 space-y-5">
-          {/* Guide banner */}
-          <GuideBanner isNewUser={isNewUser} />
-
           {/* Quick actions */}
           <DashboardQuickActions />
 
