@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { BackButton } from "@/components/back-button";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
-  ArrowLeft,
   BookOpen,
   Calendar,
   HardDrive,
@@ -142,16 +142,14 @@ export function PublicBookDetailClient({ book }: { book: PublicBookDetailPayload
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <Link
-        href="/library/store"
+      <BackButton
+        fallbackHref="/library/store"
         className={cn(
           buttonVariants({ variant: "ghost", size: "sm" }),
           "-ml-2 w-fit text-muted-foreground hover:text-foreground"
         )}
-      >
-        <ArrowLeft className="h-4 w-4 mr-1" />
-        {t("backToStore")}
-      </Link>
+        label={t("backToStore")}
+      />
 
       <Card className="overflow-hidden py-0 gap-0 shadow-sm ring-1 ring-foreground/10">
         <CardContent className="p-0">

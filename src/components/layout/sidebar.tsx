@@ -9,21 +9,13 @@ import {
   BookMarked,
   LayoutDashboard,
   Settings,
-  Calendar,
   Trophy,
-  BarChart3,
-  BookOpenCheck,
   Newspaper,
-  // ExternalLink,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 function navItemIsActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
-  if (href === "/dashboard/stats") return pathname.startsWith("/dashboard/stats");
-  if (href === "/vocabulary/plan") {
-    return pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review");
-  }
   if (href === "/library/store") return pathname.startsWith("/library/store");
   if (href === "/library") {
     return pathname === "/library" || pathname.startsWith("/library/upload");
@@ -43,10 +35,7 @@ export function Sidebar() {
     { href: "/library/store", label: t("publicLibrary"), icon: Library },
     { href: "/library", label: t("myLibrary"), icon: BookOpen },
     { href: "/vocabulary", label: t("vocabulary"), icon: BookMarked },
-    { href: "/vocabulary/plan", label: t("reviewPlan"), icon: Calendar },
-    { href: "/dashboard/stats", label: t("studyStats"), icon: BarChart3 },
     { href: "/leaderboard", label: t("leaderboard"), icon: Trophy },
-    { href: "/guide", label: t("guide"), icon: BookOpenCheck },
     { href: "/settings", label: t("settings"), icon: Settings },
   ];
 

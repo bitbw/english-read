@@ -1,10 +1,10 @@
 "use client";
 
+import { BackButton } from "@/components/back-button";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -101,13 +101,7 @@ export function AdminUsersClient({ title, backLabel, locale }: AdminUsersClientP
   return (
     <>
       <div className="flex items-center gap-3">
-        <Link
-          href="/dashboard"
-          className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
-          aria-label={backLabel}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
+        <BackButton fallbackHref="/dashboard" label={backLabel} />
         <h1 className="text-2xl font-bold flex-1 min-w-0">{title}</h1>
       </div>
 

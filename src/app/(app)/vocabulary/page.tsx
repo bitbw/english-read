@@ -1,5 +1,6 @@
 "use client";
 
+import { BackButton } from "@/components/back-button";
 import { useState, useEffect, useCallback } from "react";
 import { WordCard } from "@/components/vocabulary/word-card";
 import { VocabularyWordTable } from "@/components/vocabulary/vocabulary-word-table";
@@ -232,26 +233,27 @@ export default function VocabularyPage() {
         viewMode === "table" ? "max-w-6xl" : "max-w-3xl"
       )}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-        <div className="min-w-0 shrink-0">
-          <h1 className="text-2xl font-bold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5 whitespace-nowrap sm:whitespace-normal">
-            {t("total", { count: total })}
-          </p>
-        </div>
-        <div className="flex w-full flex-row flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              disabled={exporting || total === 0}
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial data-disabled:pointer-events-none data-disabled:opacity-50"
-              )}
-            >
-              <Download className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t("export")}</span>
+      <div className="flex items-center gap-3">
+        <BackButton fallbackHref="/dashboard" className="shrink-0" />
+        <h1 className="text-2xl font-bold min-w-0 truncate">{t("title")}</h1>
+        <span className="text-sm text-muted-foreground whitespace-nowrap tabular-nums shrink-0">
+          {t("total", { count: total })}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            disabled={exporting || total === 0}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "inline-flex min-h-10 items-center justify-center gap-2 data-disabled:pointer-events-none data-disabled:opacity-50"
+            )}
+          >
+            <Download className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t("export")}</span>
               <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
-            </DropdownMenuTrigger>
+          </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-44">
               <DropdownMenuItem
                 disabled={exporting || total === 0}
@@ -270,7 +272,7 @@ export default function VocabularyPage() {
           <Button
             type="button"
             variant="outline"
-            className="inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial"
+            className="inline-flex min-h-10 items-center justify-center gap-2"
             onClick={() => setAddOpen(true)}
           >
             <Plus className="h-4 w-4 shrink-0" />
@@ -285,7 +287,7 @@ export default function VocabularyPage() {
             href="/vocabulary/plan"
             className={cn(
               buttonVariants({ variant: "outline" }),
-              "inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial"
+              "inline-flex min-h-10 items-center justify-center gap-2"
             )}
           >
             <Calendar className="h-4 w-4 shrink-0" />
@@ -295,7 +297,7 @@ export default function VocabularyPage() {
             href="/vocabulary/review"
             className={cn(
               buttonVariants(),
-              "inline-flex flex-1 min-h-10 items-center justify-center gap-2 sm:flex-initial"
+              "inline-flex min-h-10 items-center justify-center gap-2"
             )}
           >
             <GraduationCap className="h-4 w-4 shrink-0" />
@@ -307,7 +309,6 @@ export default function VocabularyPage() {
             )}
           </Link>
         </div>
-      </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">

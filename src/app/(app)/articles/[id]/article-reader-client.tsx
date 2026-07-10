@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { BackButton } from "@/components/back-button";
+import { ExternalLink } from "lucide-react";
 import { WordPopup, type WordPopupAnchorRect } from "@/components/reader/word-popup";
 import { cn } from "@/lib/utils";
 import { VOCAB_WORD_MAX_LENGTH } from "@/lib/vocabulary-limits";
@@ -128,13 +129,10 @@ export function ArticleReaderClient({ article }: { article: Article }) {
   return (
     <div className="flex flex-col gap-6 pb-20 md:pb-0 max-w-2xl mx-auto">
       {/* Back button */}
-      <Link
-        href="/articles"
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t("backToList")}
-      </Link>
+      <BackButton
+        fallbackHref="/articles"
+        label={t("backToList")}
+      />
 
       {/* Cover image */}
       {article.coverUrl && (

@@ -1,3 +1,4 @@
+import { BackButton } from "@/components/back-button";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { PublicLibraryClient } from "@/components/library/public-library-client";
@@ -17,14 +18,15 @@ export default async function PublicLibraryStorePage({ searchParams }: PublicLib
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{t("storeTitle")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t("storeSubtitle")}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
+      <div className="flex items-center gap-3">
+        <BackButton fallbackHref="/dashboard" className="shrink-0" />
+        <h1 className="text-2xl font-bold min-w-0 truncate">{t("storeTitle")}</h1>
+      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <p className="text-sm text-muted-foreground flex-1">
+          {t("storeSubtitle")}
+        </p>
+        <div className="flex flex-wrap gap-2">
           <Link
             href="/library/store/upload"
             className={cn(buttonVariants({ variant: "default" }), "justify-center")}

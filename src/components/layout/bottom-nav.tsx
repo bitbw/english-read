@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Library,
   BookMarked,
-  Calendar,
   Newspaper,
 } from "lucide-react";
 
@@ -21,7 +20,6 @@ export function BottomNav() {
     { href: "/articles", label: t("dailyRead"), icon: Newspaper },
     { href: "/library", label: t("myLibrary"), icon: Library },
     { href: "/vocabulary", label: t("vocabulary"), icon: BookMarked },
-    { href: "/vocabulary/plan", label: t("reviewPlan"), icon: Calendar },
   ];
 
   return (
@@ -30,11 +28,9 @@ export function BottomNav() {
         const isActive =
           href === "/dashboard"
             ? pathname === "/dashboard"
-            : href === "/vocabulary/plan"
-              ? pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review")
-              : href === "/vocabulary"
-                ? pathname === "/vocabulary"
-                : pathname.startsWith(href);
+            : href === "/vocabulary"
+              ? pathname === "/vocabulary" || pathname.startsWith("/vocabulary/review")
+              : pathname.startsWith(href);
         return (
           <Link
             key={href}

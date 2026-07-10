@@ -1,3 +1,4 @@
+import { BackButton } from "@/components/back-button";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { books } from "@/lib/db/schema";
@@ -35,26 +36,27 @@ export default async function LibraryPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t("subtitle")}{" "}
-            <Link href="/library/store" className="text-primary underline-offset-4 hover:underline">
-              {t("storeLink")}
-            </Link>
-            {!uploadLimitReached && (
-              <>
-                {" "}
-                {t("uploadQuota", {
-                  current: selfUploadedCount,
-                  max: MAX_SELF_UPLOADED_BOOKS,
-                })}
-              </>
-            )}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
+      <div className="flex items-center gap-3">
+        <BackButton fallbackHref="/dashboard" className="shrink-0" />
+        <h1 className="text-2xl font-bold min-w-0 truncate">{t("title")}</h1>
+      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <p className="text-sm text-muted-foreground flex-1">
+          {t("subtitle")}{" "}
+          <Link href="/library/store" className="text-primary underline-offset-4 hover:underline">
+            {t("storeLink")}
+          </Link>
+          {!uploadLimitReached && (
+            <>
+              {" "}
+              {t("uploadQuota", {
+                current: selfUploadedCount,
+                max: MAX_SELF_UPLOADED_BOOKS,
+              })}
+            </>
+          )}
+        </p>
+        <div className="flex flex-wrap gap-2">
           <Link href="/library/store" className={cn(buttonVariants({ variant: "outline" }))}>
             {t("publicLibrary")}
           </Link>
