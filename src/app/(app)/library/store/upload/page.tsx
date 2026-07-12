@@ -1,3 +1,4 @@
+import { BackButton } from "@/components/back-button";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -12,15 +13,14 @@ export default async function PublicLibraryUploadPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col gap-2">
-        <Link
-          href="/library/store"
+        <BackButton
+          fallbackHref="/library/store"
+          label={t("storeUploadBack")}
           className={cn(
             buttonVariants({ variant: "ghost", size: "sm" }),
             "w-fit -ml-2 text-muted-foreground hover:text-foreground"
           )}
-        >
-          {t("storeUploadBack")}
-        </Link>
+        />
         <div>
           <h1 className="text-2xl font-bold">{t("storeUploadTitle")}</h1>
           <p className="text-sm text-muted-foreground mt-1">

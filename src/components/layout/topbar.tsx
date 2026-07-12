@@ -25,28 +25,20 @@ import {
   LayoutDashboard,
   Library,
   BookMarked,
-  Calendar,
   Settings,
   Trophy,
-  BarChart3,
-  BookOpenCheck,
   Loader2,
   Newspaper,
-  // ExternalLink,
 } from "lucide-react";
 
 // const GITHUB_REPO_URL = "https://github.com/bitbw/english-read";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 
 function navItemIsActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
-  if (href === "/dashboard/stats") return pathname.startsWith("/dashboard/stats");
-  if (href === "/vocabulary/plan") {
-    return pathname === "/vocabulary/plan" || pathname.startsWith("/vocabulary/review");
-  }
   if (href === "/library/store") return pathname.startsWith("/library/store");
   if (href === "/library") {
     return pathname === "/library" || pathname.startsWith("/library/upload");
@@ -68,10 +60,7 @@ export function Topbar() {
     { href: "/library/store", label: tNav("publicLibrary"), icon: Library },
     { href: "/library", label: tNav("myLibrary"), icon: BookOpen },
     { href: "/vocabulary", label: tNav("vocabulary"), icon: BookMarked },
-    { href: "/vocabulary/plan", label: tNav("reviewPlan"), icon: Calendar },
-    { href: "/dashboard/stats", label: tNav("studyStats"), icon: BarChart3 },
     { href: "/leaderboard", label: tNav("leaderboard"), icon: Trophy },
-    { href: "/guide", label: tNav("guide"), icon: BookOpenCheck },
     { href: "/settings", label: tNav("settings"), icon: Settings },
   ];
 

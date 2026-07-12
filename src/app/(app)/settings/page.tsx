@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BackButton } from "@/components/back-button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -174,7 +175,10 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">{t("title")}</h1>
+      <div className="flex items-center gap-3">
+        <BackButton fallbackHref="/dashboard" />
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+      </div>
 
       {/* 账户信息 */}
       <Card>
@@ -473,6 +477,23 @@ export default function SettingsPage() {
                 <span className="block text-xs mt-1">{t("githubHint")}</span>
               </p>
             </div>
+          </div>
+          <div className="space-y-2 pt-1 border-t border-border">
+            <p className="font-medium text-foreground">{t("thanksTitle")}</p>
+            <p className="text-xs text-muted-foreground pt-2">{t("thanksSites")}</p>
+            <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
+              <li>
+                {t("levelReadThanks")}{" "}
+                <a
+                  href="https://levelread.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-foreground underline-offset-4 hover:underline"
+                >
+                  https://levelread.com
+                </a>
+              </li>
+            </ul>
           </div>
         </CardContent>
       </Card>

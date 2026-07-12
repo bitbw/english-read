@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { BackButton } from "@/components/back-button";
+import { ExternalLink, Eye, EyeOff } from "lucide-react";
 import { WordPopup, type WordPopupAnchorRect } from "@/components/reader/word-popup";
 import { cn } from "@/lib/utils";
 import { VOCAB_WORD_MAX_LENGTH } from "@/lib/vocabulary-limits";
@@ -43,6 +44,7 @@ export function ArticleReaderClient({ article }: { article: Article }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const [popup, setPopup] = useState<PopupState | null>(null);
+  const [showCover, setShowCover] = useState(true);
 
   // 阅读时长追踪（页面可见时自动上报到 readingDailyTime）
   useReadingTimeTracker({ enabled: true });
@@ -128,26 +130,35 @@ export function ArticleReaderClient({ article }: { article: Article }) {
   return (
     <div className="flex flex-col gap-6 pb-20 md:pb-0 max-w-2xl mx-auto">
       {/* Back button */}
-      <Link
-        href="/articles"
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t("backToList")}
-      </Link>
+      <BackButton
+        fallbackHref="/articles"
+        label={t("backToList")}
+      />
 
-      {/* Cover image */}
+      {/* Cover image — 右上角眼睛图标可切换显示/隐藏 */}
       {article.coverUrl && (
         <div className="relative aspect-video w-full overflow-hidden rounded-xl">
-          <Image
-            src={article.coverUrl}
-            alt={article.title}
-            fill
-            sizes="(max-width: 768px) 100vw, 672px"
-            className="object-cover"
-            unoptimized
-            priority
-          />
+          {showCover ? (
+            <Image
+              src={article.coverUrl}
+              alt={article.title}
+              fill
+              sizes="(max-width: 768px) 100vw, 672px"
+              className="object-cover"
+              unoptimized
+              priority
+            />
+          ) : (
+            <div className="absolute inset-0 bg-muted" />
+          )}
+          <button
+            type="button"
+            onClick={() => setShowCover((prev) => !prev)}
+            className="absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur-sm hover:bg-background/95 transition-colors"
+            aria-label={showCover ? "隐藏图片" : "显示图片"}
+          >
+            {showCover ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       )}
 

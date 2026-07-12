@@ -2,7 +2,8 @@ import { auth } from "@/lib/auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { ArrowLeft, ArrowRight, BookOpen, GraduationCap, Library, Lightbulb, Timer } from "lucide-react";
+import { BackButton } from "@/components/back-button";
+import { ArrowRight, BookOpen, GraduationCap, Library, Lightbulb, Timer, Newspaper, ExternalLink } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -16,13 +17,7 @@ export default async function GuidePage() {
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <Link
-          href="/dashboard"
-          className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
-          aria-label={t("backHome")}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
+        <BackButton fallbackHref="/dashboard" label={t("backHome")} />
         <h1 className="text-2xl font-bold">{t("title")}</h1>
       </div>
 
@@ -44,6 +39,38 @@ export default async function GuidePage() {
             {t("browse2k")}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
+        </CardContent>
+      </Card>
+
+      <Card className="border-blue-400/30 bg-blue-500/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Newspaper className="h-4 w-4 text-blue-500" />
+            {t("dailyReadTitle")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>{t("dailyReadBody")}</p>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="https://levelread.com/vocabulary-test"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: "default", size: "sm" }))}
+            >
+              {t("dailyReadTest")}
+              <ExternalLink className="ml-2 h-3.5 w-3.5" />
+            </a>
+            <a
+              href="https://levelread.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            >
+              {t("dailyReadLink")}
+              <ExternalLink className="ml-2 h-3.5 w-3.5" />
+            </a>
+          </div>
         </CardContent>
       </Card>
 

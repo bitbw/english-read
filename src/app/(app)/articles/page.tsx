@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { dailyArticles } from "@/lib/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
+import { BackButton } from "@/components/back-button";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -69,6 +70,7 @@ export default async function ArticlesPage({
     <div className="flex flex-col gap-6 pb-20 md:pb-0">
       {/* Header */}
       <div className="flex items-center gap-3">
+        <BackButton fallbackHref="/dashboard" />
         <Newspaper className="h-6 w-6 text-primary shrink-0" />
         <div>
           <h1 className="text-xl font-bold leading-tight">{t("title")}</h1>

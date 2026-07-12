@@ -1,10 +1,7 @@
 "use client";
 
+import { BackButton } from "@/components/back-button";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button-variants";
-import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -189,13 +186,7 @@ export function StudyStatsPanel({
   return (
     <>
       <div className="flex items-center gap-3">
-        <Link
-          href={backHref}
-          className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
-          aria-label={backLabel}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
+        <BackButton fallbackHref={backHref} label={backLabel} />
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold">{title}</h1>
           {subtitle ? (

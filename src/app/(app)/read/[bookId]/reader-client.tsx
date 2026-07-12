@@ -3,7 +3,8 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { ArrowLeft, ChevronLeft, ChevronRight, List } from "lucide-react";
+import { BackButton } from "@/components/back-button";
+import { ChevronLeft, ChevronRight, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRef, useState, useEffect, useCallback, Fragment } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -303,12 +304,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
     <div className="flex flex-col h-full bg-background">
       {/* 顶栏：返回 + 书名 + 字号调节 + 章节目录 */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-card shrink-0">
-        <Link
-          href="/library"
-          className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 shrink-0")}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
+        <BackButton fallbackHref="/library" className="h-8 w-8 shrink-0" />
         <div className="flex-1 min-w-0">
           <h1 className="text-sm font-medium truncate">{title}</h1>
           {!locationsIndexed ? (

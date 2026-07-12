@@ -23,6 +23,7 @@ import { DailyStudyChart } from "@/components/dashboard/daily-study-chart";
 import { DashboardQuickActions } from "@/components/dashboard/dashboard-quick-actions";
 import { MiniReviewPlan } from "@/components/dashboard/mini-review-plan";
 import { DashboardDailyArticles } from "@/components/dashboard/dashboard-daily-articles";
+import { GuideBanner } from "@/components/dashboard/guide-banner";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -147,6 +148,11 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* ─── Guide Banner (full width) ─── */}
+      <div className="mb-6">
+        <GuideBanner isNewUser={isNewUser} />
+      </div>
+
       {/* ─── Due Notice (above bento grid) ─── */}
       {dueCount > 0 ? (
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-amber-50/80 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-950/10 ring-1 ring-amber-200/50 dark:ring-amber-800/30 p-5 mb-6">
@@ -181,38 +187,6 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
         {/* Left column */}
         <div className="md:col-span-2 space-y-5">
-          {/* Guide banner (new users only) */}
-          {isNewUser ? (
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/5 via-primary/5 to-primary/10 ring-1 ring-primary/20 p-5">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-              <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 ring-1 ring-primary/20">
-                    <BookOpenCheck className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-foreground">
-                      {t("guideBannerTitle")}
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {t("guideBannerDesc")}
-                    </p>
-                  </div>
-                </div>
-                <Link
-                  href="/guide"
-                  className={cn(
-                    buttonVariants(),
-                    "shrink-0 self-start sm:self-center"
-                  )}
-                >
-                  {t("guideBannerCta")}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </div>
-            </div>
-          ) : null}
-
           {/* Quick actions */}
           <DashboardQuickActions />
 

@@ -6,7 +6,8 @@ import Link from "next/link";
 import { ReviewSession, type ReviewWord } from "@/components/review/review-session";
 import { ReviewSettingsSheet } from "@/components/review/review-settings-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookMarked, ArrowLeft } from "lucide-react";
+import { BackButton } from "@/components/back-button";
+import { BookMarked } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -109,9 +110,7 @@ export function ReviewPageClient() {
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       <div className="flex items-center gap-3">
-        <Link href="/vocabulary/plan" className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
+        <BackButton fallbackHref="/vocabulary/plan" />
         <h1 className="text-2xl font-bold flex-1 min-w-0 truncate">{title}</h1>
         {showSession ? (
           <ReviewSettingsSheet
