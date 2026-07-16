@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
+  BarChart3,
   GraduationCap,
   LayoutGrid,
   Plus,
@@ -292,6 +293,16 @@ export default function VocabularyPage() {
           >
             <Calendar className="h-4 w-4 shrink-0" />
             <span className="truncate">{t("reviewPlan")}</span>
+          </Link>
+          <Link
+            href="/dashboard/stats"
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "inline-flex min-h-10 items-center justify-center gap-2"
+            )}
+          >
+            <BarChart3 className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t("analysis")}</span>
           </Link>
           <Link
             href="/vocabulary/review"

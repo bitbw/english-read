@@ -102,7 +102,8 @@
     "exportCsv": "下载 CSV",
     "exportJson": "下载 JSON",
     "exportSuccess": "已开始下载",
-    "exportTooMany": "当前结果超过单次导出上限，请缩小筛选或搜索范围后再试。"
+    "exportTooMany": "当前结果超过单次导出上限，请缩小筛选或搜索范围后再试。",
+    "analysis": "学习分析"
   },
   "settings": {
     "title": "设置",
