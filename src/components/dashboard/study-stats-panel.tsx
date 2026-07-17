@@ -24,6 +24,10 @@ import { useTranslations } from "next-intl";
 
 type RangeMode = "7" | "14" | "30" | "custom";
 
+function formatAvg(n: number): string {
+  return n % 1 === 0 ? String(n) : n.toFixed(1);
+}
+
 function localDayKey(d = new Date()): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -330,11 +334,39 @@ export function StudyStatsPanel({
                 </p>
               </CardContent>
             </Card>
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs text-muted-foreground">{t("errorRate")}</p>
+                <p className="text-2xl font-bold tabular-nums mt-1">
+                  {data.totals.errorRate != null ? (
+                    <>{t("percentUnit", { pct: formatAvg(data.totals.errorRate) })}</>
+                  ) : (
+                    <span className="text-base text-muted-foreground">—</span>
+                  )}
+                </p>
+              </CardContent>
+            </Card>
             <Card className="col-span-2 sm:col-span-1">
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">{t("reviewTime")}</p>
                 <p className="text-2xl font-bold tabular-nums mt-1">
                   {t("minutesUnit", { min: formatMinutes(data.totals.reviewSeconds) })}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs text-muted-foreground">{t("avgDailyReadingTime")}</p>
+                <p className="text-2xl font-bold tabular-nums mt-1">
+                  {t("minutesUnit", { min: formatAvg(data.totals.avgDailyReadingMins) })}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs text-muted-foreground">{t("avgDailyReviewTime")}</p>
+                <p className="text-2xl font-bold tabular-nums mt-1">
+                  {t("minutesUnit", { min: formatAvg(data.totals.avgDailyReviewMins) })}
                 </p>
               </CardContent>
             </Card>
