@@ -11,11 +11,14 @@
     "db:migrate": "drizzle-kit migrate",
     "run:android": "cap run android --live-reload --port 3000 --host localhost --forwardPorts 3000:3000",
     "patch": "node scripts/bump-android-version.js",
-    "build:android": "npm run build && cap sync && cd android && gradlew assembleRelease && cd .. && npm run upload:apk",
-    "build:android:debug": "npm run build && cap sync && cd android && gradlew assembleDebug && cd .. && npm run upload:apk:debug",
+    "build:android": "cap sync && cd android && gradlew assembleRelease && cd .. && npm run upload:apk",
+    "build:android:debug": "cap sync && cd android && gradlew assembleDebug && cd .. && npm run upload:apk:debug",
     "upload:apk": "node --env-file=.env.local scripts/upload-apk.mjs",
     "upload:apk:debug": "node --env-file=.env.local scripts/upload-apk.mjs --debug",
     "logo": "npx @capacitor/assets generate"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@swc/core", "esbuild", "@sentry/cli"]
   },
   "dependencies": {
     "@alicloud/dypnsapi20170525": "^2.0.0",

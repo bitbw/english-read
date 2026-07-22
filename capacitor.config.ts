@@ -10,7 +10,6 @@ const config: CapacitorConfig = {
   },
   android: {
     webContentsDebuggingEnabled: true,
-    adjustResize: true,
   },
 };
 
