@@ -10,6 +10,7 @@
     "reviewPlan": "Review Plan",
     "settings": "Settings",
     "leaderboard": "Leaderboard",
+    "downloadApp": "Download App",
     "github": "GitHub Repository"
   },
   "topbar": {
@@ -102,7 +103,8 @@
     "exportCsv": "Download CSV",
     "exportJson": "Download JSON",
     "exportSuccess": "Download started",
-    "exportTooMany": "Too many words to export at once. Narrow your filter or search and try again."
+    "exportTooMany": "Too many words to export at once. Narrow your filter or search and try again.",
+    "analysis": "Learning Analysis"
   },
   "settings": {
     "title": "Settings",
@@ -266,7 +268,12 @@
     "day4": "after 4 days",
     "day7": "after 7 days",
     "day15": "after 15 days",
-    "day30": "after 30 days → Mastered"
+    "day30": "after 30 days → Mastered",
+    "statsSrsStages": "SRS Stages",
+    "statsPublicBooks": "Public Books",
+    "statsAiPowered": "Powered",
+    "featuresTitle": "Everything you need",
+    "featuresDesc": "Read, learn, and track — all in one seamless flow"
   },
   "auth": {
     "login": "Sign In",
@@ -344,11 +351,13 @@
     "readingSection": "Reading",
     "reviewSection": "Review",
     "readingTime": "Reading time",
+    "avgDailyReadingTime": "Avg daily reading",
     "avgWpm": "Avg reading speed",
     "reviewedWords": "Words reviewed",
     "errorCount": "Errors",
+    "errorRate": "Error rate",
     "reviewTime": "Review time",
-    "dailyBreakdown": "Daily breakdown",
+    "avgDailyReviewTime": "Avg daily review",
     "colDate": "Date",
     "colReadingMin": "Reading (min)",
     "colWpm": "Speed (wpm)",
@@ -359,6 +368,7 @@
     "noData": "No data for this period",
     "wpmPending": "Insufficient data",
     "minutesUnit": "{min} min",
+    "percentUnit": "{pct}%",
     "wordsUnit": "{count, plural, one {# word} other {# words}}",
     "errorsUnit": "{count, plural, one {# error} other {# errors}}",
     "historicalHint": "Review errors and time are tracked from when this feature launched; completed reviews include historical logs",

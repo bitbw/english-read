@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { registerWithCredentials } from "@/app/(auth)/signup/actions";
 import { useTranslations } from "next-intl";
+import { useCapacitorOAuth, openOAuthUrl } from "@/hooks/use-capacitor-oauth";
+import { isCapacitor } from "@/lib/is-capacitor";
 
 type SignupFormProps = {
   className?: string;
@@ -28,6 +30,7 @@ type OAuthProvider = "google" | "github";
 export function SignupForm({ className }: SignupFormProps) {
   const router = useRouter();
   const t = useTranslations("signup");
+  useCapacitorOAuth();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [oauthPending, setOauthPending] = useState<OAuthProvider | null>(null);
@@ -36,6 +39,18 @@ export function SignupForm({ className }: SignupFormProps) {
   async function signInWithOAuth(provider: OAuthProvider) {
     setOauthPending(provider);
     try {
+      if (isCapacitor()) {
+        const result = await signIn(provider, {
+          callbackUrl: "/dashboard",
+          redirect: false,
+        });
+        if (result?.url) {
+          await openOAuthUrl(result.url);
+        } else {
+          setOauthPending(null);
+        }
+        return;
+      }
       await signIn(provider, { callbackUrl: "/dashboard" });
     } catch {
       setOauthPending(null);

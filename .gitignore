@@ -42,3 +42,9 @@ next-env.d.ts
 # IDE
 .claude/
 .cursor/
+.playwright-mcp
+
+# Android / Capacitor
+android/keystore.properties
+android/app/*.keystore
+android/app/build/outputs/

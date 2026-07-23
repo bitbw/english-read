@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.englishread.app",
+      "sha256_cert_fingerprints": [
+        "2A:21:7C:26:8F:0F:69:0F:19:75:EE:1D:F9:B8:77:53:26:B0:AD:DA:75:54:C7:82:0F:E4:8B:90:9F:25:D8:A9"
+      ]
+    }
+  }
+]

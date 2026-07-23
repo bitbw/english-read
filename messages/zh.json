@@ -10,6 +10,7 @@
     "reviewPlan": "复习计划",
     "settings": "设置",
     "leaderboard": "排行榜",
+    "downloadApp": "下载 App",
     "github": "GitHub 开源仓库"
   },
   "topbar": {
@@ -102,7 +103,8 @@
     "exportCsv": "下载 CSV",
     "exportJson": "下载 JSON",
     "exportSuccess": "已开始下载",
-    "exportTooMany": "当前结果超过单次导出上限，请缩小筛选或搜索范围后再试。"
+    "exportTooMany": "当前结果超过单次导出上限，请缩小筛选或搜索范围后再试。",
+    "analysis": "学习分析"
   },
   "settings": {
     "title": "设置",
@@ -266,7 +268,12 @@
     "day4": "4 天后",
     "day7": "7 天后",
     "day15": "15 天后",
-    "day30": "30 天后 → 掌握"
+    "day30": "30 天后 → 掌握",
+    "statsSrsStages": "SRS 复习阶段",
+    "statsPublicBooks": "公共书籍",
+    "statsAiPowered": "AI 驱动",
+    "featuresTitle": "你需要的一切",
+    "featuresDesc": "阅读、学习、追踪 — 一气呵成"
   },
   "auth": {
     "login": "登录",
@@ -344,11 +351,13 @@
     "readingSection": "阅读",
     "reviewSection": "复习",
     "readingTime": "阅读时长",
+    "avgDailyReadingTime": "日均阅读",
     "avgWpm": "平均阅读速度",
     "reviewedWords": "复习词数",
     "errorCount": "错误次数",
+    "errorRate": "错误率",
     "reviewTime": "复习时长",
-    "dailyBreakdown": "每日明细",
+    "avgDailyReviewTime": "日均复习",
     "colDate": "日期",
     "colReadingMin": "阅读（分钟）",
     "colWpm": "速度（词/分）",
@@ -359,6 +368,7 @@
     "noData": "该时段暂无数据",
     "wpmPending": "数据不足",
     "minutesUnit": "{min} 分钟",
+    "percentUnit": "{pct}%",
     "wordsUnit": "{count} 词",
     "errorsUnit": "{count} 次",
     "historicalHint": "复习错误与时长自功能上线后开始统计；复习完成词数包含历史记录",

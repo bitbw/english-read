@@ -38,6 +38,8 @@ import {
 import { PasswordInput } from "@/components/ui/password-input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslations } from "next-intl";
+import { useCapacitorOAuth, openOAuthUrl } from "@/hooks/use-capacitor-oauth";
+import { isCapacitor } from "@/lib/is-capacitor";
 
 type LoginFormProps = {
   className?: string;
@@ -81,6 +83,7 @@ function setInputValueAndNotify(input: HTMLInputElement, value: string) {
 export function LoginForm({ className }: LoginFormProps) {
   const router = useRouter();
   const t = useTranslations("auth");
+  useCapacitorOAuth();
   const [error, setError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -115,6 +118,18 @@ export function LoginForm({ className }: LoginFormProps) {
   async function signInWithOAuth(provider: OAuthProvider) {
     setOauthPending(provider);
     try {
+      if (isCapacitor()) {
+        const result = await signIn(provider, {
+          callbackUrl: "/dashboard",
+          redirect: false,
+        });
+        if (result?.url) {
+          await openOAuthUrl(result.url);
+        } else {
+          setOauthPending(null);
+        }
+        return;
+      }
       await signIn(provider, { callbackUrl: "/dashboard" });
     } catch {
       setOauthPending(null);

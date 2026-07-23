@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Newspaper, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { getSavedArticleLevel, saveArticleLevel } from "@/lib/article-level";
+import { saveArticleLevel } from "@/lib/article-level";
 
 type ArticleItem = {
   id: string;
@@ -17,6 +17,7 @@ type ArticleItem = {
 };
 
 interface DashboardDailyArticlesProps {
+  defaultLevel: number;
   level1: ArticleItem[];
   level2: ArticleItem[];
   level3: ArticleItem[];
@@ -33,6 +34,7 @@ const levelColor: Record<number, string> = {
 };
 
 export function DashboardDailyArticles({
+  defaultLevel,
   level1,
   level2,
   level3,
@@ -46,16 +48,13 @@ export function DashboardDailyArticles({
     { level: 2, articles: level2 },
     { level: 3, articles: level3 },
   ];
-  const [activeLevel, setActiveLevel] = useState(1);
-
-  useEffect(() => {
-    setActiveLevel(getSavedArticleLevel());
-  }, []);
+  const [activeLevel, setActiveLevel] = useState(defaultLevel);
   const currentArticles = levels.find((l) => l.level === activeLevel)?.articles ?? [];
 
-  useEffect(() => {
-    saveArticleLevel(activeLevel);
-  }, [activeLevel]);
+  function handleLevelChange(level: number) {
+    setActiveLevel(level);
+    saveArticleLevel(level);
+  }
 
   function formatDate(d: Date | null): string {
     if (!d) return "";
@@ -87,7 +86,7 @@ export function DashboardDailyArticles({
             key={level}
             type="button"
             data-active={activeLevel === level}
-            onClick={() => setActiveLevel(level)}
+            onClick={() => handleLevelChange(level)}
             className={cn(
               "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
               activeLevel === level

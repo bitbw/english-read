@@ -37,6 +37,9 @@ export type StudyStatsResponse = {
     avgWpm: number | null;
     totalVocabAdded: number;
     avgDailyAdded: number;
+    errorRate: number | null;
+    avgDailyReadingMins: number;
+    avgDailyReviewMins: number;
   };
 };
 
@@ -208,6 +211,11 @@ export async function getStudyStats(
       avgWpm: avgWpmFromTotals(totalReadingWords, totalReadingSeconds),
       totalVocabAdded,
       avgDailyAdded: Math.round(totalVocabAdded / totalDays),
+      errorRate: totalReviewedCount > 0
+        ? +((totalErrorCount / totalReviewedCount) * 100).toFixed(1)
+        : null,
+      avgDailyReadingMins: +(totalReadingSeconds / 60 / totalDays).toFixed(1),
+      avgDailyReviewMins: +(totalReviewSeconds / 60 / totalDays).toFixed(1),
     },
   };
 }
