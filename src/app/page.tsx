@@ -14,12 +14,101 @@ import {
   Brain,
   BarChart3,
   Trophy,
-  BookText,
+  Download,
+  Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTranslations } from "next-intl/server";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { LandingShowcaseImage } from "@/components/landing/landing-showcase-image";
+import { list } from "@vercel/blob";
+
+function formatSize(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) {
+    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
+  }
+  if (bytes >= 1024 * 1024) {
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  }
+  if (bytes >= 1024) {
+    return (bytes / 1024).toFixed(0) + " KB";
+  }
+  return bytes + " B";
+}
+
+async function DownloadAppSection() {
+  let latestName = "";
+  let latestUrl = "";
+  let latestSize = "";
+  let totalVersions = 0;
+
+  try {
+    const { blobs } = await list({ prefix: "apks/" });
+    const apks = blobs
+      .filter((b) => {
+        const n = b.pathname.split("/").pop() ?? "";
+        return n.startsWith("EnglishRead") && n.endsWith(".apk");
+      })
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+
+    if (apks.length > 0) {
+      latestName = apks[0].pathname.split("/").pop() ?? "";
+      latestUrl = apks[0].url;
+      latestSize = formatSize(apks[0].size);
+      totalVersions = apks.length;
+    }
+  } catch {
+    // Blob list 失败时静默降级，不显示下载区块
+    return null;
+  }
+
+  if (!latestUrl) return null;
+
+  return (
+    <section className="relative overflow-hidden border-y border-border bg-muted/20">
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute top-1/3 right-1/4 h-72 w-72 rounded-full bg-gradient-to-l from-amber-500/10 to-orange-500/5 blur-3xl" />
+      </div>
+      <div className="relative mx-auto max-w-4xl px-4 py-14 text-center sm:px-6 sm:py-20 md:py-28">
+        <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 px-3.5 py-1 text-xs font-medium text-primary mb-4">
+          <Smartphone className="h-3.5 w-3.5" />
+          Android App
+        </div>
+        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          Get the App
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+          Take English Read on the go. Read, learn vocabulary, and review anywhere — right from your Android device.
+        </p>
+        <div className="mt-10 flex flex-col items-center gap-4">
+          <a
+            href={latestUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "inline-flex gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/30 hover:-translate-y-0.5",
+            )}
+          >
+            <Download className="h-4 w-4" />
+            Download Latest
+          </a>
+          <p className="text-xs text-muted-foreground">
+            {latestName} &middot; {latestSize}
+            {totalVersions > 1 && (
+              <>
+                {" "}&middot;{" "}
+                <Link href="/download" className="underline underline-offset-2 hover:text-foreground">
+                  View all {totalVersions} versions
+                </Link>
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default async function LandingPage() {
   const session = await auth();
@@ -118,7 +207,7 @@ export default async function LandingPage() {
           <div className="absolute top-1/2 left-1/3 h-[400px] w-[400px] rounded-full bg-gradient-to-br from-sky-500/10 via-cyan-500/10 to-transparent blur-3xl" />
         </div>
 
-        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 md:grid-cols-2 md:items-center md:py-32">
+        <div className="relative mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:px-6 sm:py-20 md:grid-cols-2 md:items-center md:py-32 md:gap-10">
           <div className="text-center md:text-left">
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-4 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur-sm mb-5">
               <Sparkles className="h-3.5 w-3.5 text-primary" />
@@ -127,10 +216,10 @@ export default async function LandingPage() {
             <h1 className="text-balance text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text">
               {t("hero")}
             </h1>
-            <p className="mt-4 text-lg text-muted-foreground sm:text-xl max-w-lg mx-auto md:mx-0">
+            <p className="mt-4 text-base text-muted-foreground sm:text-xl max-w-lg mx-auto md:mx-0">
               {t("heroDesc")}
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-3 md:justify-start">
+            <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3 md:justify-start">
               <Link
                 href="/login"
                 className={cn(
@@ -147,23 +236,30 @@ export default async function LandingPage() {
               >
                 {t("login")}
               </Link>
+              <Link
+                href="/download"
+                className={cn(buttonVariants({ size: "lg", variant: "outline" }), "gap-2")}
+              >
+                <Download className="h-4 w-4" />
+                App
+              </Link>
             </div>
 
-            {/* Stats row */}
-            <div className="mt-10 flex items-center justify-center gap-8 md:justify-start">
+            {/* Stats row - desktop only inside left column */}
+            <div className="hidden md:flex md:items-center md:justify-start md:gap-8 mt-8">
               <div className="text-center md:text-left">
-                <p className="text-2xl font-bold">6+</p>
-                <p className="text-xs text-muted-foreground">SRS Stages</p>
+                <p className="text-xl font-bold md:text-2xl">6+</p>
+                <p className="text-xs text-muted-foreground">{t("statsSrsStages")}</p>
               </div>
               <div className="h-8 w-px bg-border" />
               <div className="text-center md:text-left">
-                <p className="text-2xl font-bold">100+</p>
-                <p className="text-xs text-muted-foreground">Public Books</p>
+                <p className="text-xl font-bold md:text-2xl">100+</p>
+                <p className="text-xs text-muted-foreground">{t("statsPublicBooks")}</p>
               </div>
               <div className="h-8 w-px bg-border" />
               <div className="text-center md:text-left">
-                <p className="text-2xl font-bold">AI</p>
-                <p className="text-xs text-muted-foreground">Powered</p>
+                <p className="text-xl font-bold md:text-2xl">AI</p>
+                <p className="text-xs text-muted-foreground">{t("statsAiPowered")}</p>
               </div>
             </div>
           </div>
@@ -176,19 +272,34 @@ export default async function LandingPage() {
               className="relative"
             />
           </div>
+          {/* Stats row - mobile below image */}
+          <div className="grid grid-cols-3 gap-4 md:hidden">
+            <div className="text-center">
+              <p className="text-xl font-bold">6+</p>
+              <p className="text-xs text-muted-foreground">{t("statsSrsStages")}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-bold">100+</p>
+              <p className="text-xs text-muted-foreground">{t("statsPublicBooks")}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-bold">AI</p>
+              <p className="text-xs text-muted-foreground">{t("statsAiPowered")}</p>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* ────────────── FEATURES ────────────── */}
       <section className="relative overflow-hidden">
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_60%_at_50%_40%,oklch(0.92_0.02_240/0.3),transparent)] dark:bg-[radial-gradient(ellipse_100%_60%_at_50%_40%,oklch(0.25_0.05_260/0.15),transparent)]" />
-        <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <div className="text-center mb-12">
+        <div className="relative mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <div className="text-center mb-10 sm:mb-12">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Everything you need
+              {t("featuresTitle")}
             </h2>
             <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
-              Read, learn, and track — all in one seamless flow
+              {t("featuresDesc")}
             </p>
           </div>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -226,7 +337,7 @@ export default async function LandingPage() {
       {/* ────────────── SHOWCASE ────────────── */}
       <section className="relative overflow-hidden border-y border-border bg-muted/20">
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_50%,oklch(0.92_0.02_240/0.2),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_50%,oklch(0.25_0.05_260/0.1),transparent)]" />
-        <div className="relative mx-auto max-w-6xl space-y-24 px-4 py-20 sm:px-6 md:py-28">
+        <div className="relative mx-auto max-w-6xl space-y-16 px-4 py-14 sm:px-6 sm:py-20 md:space-y-24 md:py-28">
           {showcases.map(({ title, desc, image, alt, reverse, priority, mobileSrc, accent }, i) => (
             <div
               key={title}
@@ -236,21 +347,23 @@ export default async function LandingPage() {
               )}
             >
               <div className={cn("space-y-4", reverse ? "md:text-right" : "")}>
-                <div className={cn(
-                  "inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br text-xs font-bold text-white shadow-md",
-                  gradients[i % gradients.length]
-                )}>
-                  0{i + 1}
+                <div className={cn("flex items-center gap-3", reverse ? "md:flex-row-reverse md:justify-end" : "")}>
+                  <div className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-xs font-bold text-white shadow-md",
+                    gradients[i % gradients.length]
+                  )}>
+                    0{i + 1}
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                    {title}
+                  </h2>
                 </div>
-                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                  {title}
-                </h2>
                 <p className="text-muted-foreground leading-relaxed max-w-lg mx-auto md:mx-0">
                   {desc}
                 </p>
               </div>
               <div className={cn(
-                "relative rounded-2xl bg-gradient-to-br p-1",
+                "relative mx-auto max-w-xs sm:max-w-sm md:max-w-none rounded-2xl bg-gradient-to-br p-1",
                 accent
               )}>
                 <LandingShowcaseImage
@@ -267,17 +380,19 @@ export default async function LandingPage() {
           {/* Leaderboard */}
           <div className="relative grid items-center gap-8 md:grid-cols-2 md:gap-16 md:[&>*:first-child]:order-2">
             <div className="space-y-4 md:text-right">
-              <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-sky-600 text-xs font-bold text-white shadow-md">
-                05
+              <div className="flex items-center gap-3 md:flex-row-reverse md:justify-end">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-sky-600 text-xs font-bold text-white shadow-md">
+                    06
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                    {t("showcaseLeaderboardTitle")}
+                  </h2>
               </div>
-              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                {t("showcaseLeaderboardTitle")}
-              </h2>
               <p className="text-muted-foreground leading-relaxed max-w-lg mx-auto md:mx-0 md:ml-auto">
                 {t("showcaseLeaderboardDesc")}
               </p>
             </div>
-            <div className="relative rounded-2xl bg-gradient-to-br from-cyan-500/10 to-sky-500/5 p-1">
+            <div className="relative mx-auto max-w-xs sm:max-w-sm md:max-w-none rounded-2xl bg-gradient-to-br from-cyan-500/10 to-sky-500/5 p-1">
               <LandingShowcaseImage
                 src="/landing/leaderboard.png"
                 alt={t("altLeaderboard")}
@@ -293,7 +408,7 @@ export default async function LandingPage() {
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="absolute top-1/2 left-1/4 h-80 w-80 rounded-full bg-gradient-to-r from-violet-500/10 to-purple-500/10 blur-3xl" />
         </div>
-        <div className="relative mx-auto max-w-4xl px-4 py-20 text-center sm:px-6 md:py-28">
+        <div className="relative mx-auto max-w-4xl px-4 py-14 text-center sm:px-6 sm:py-20 md:py-28">
           <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-200/50 dark:border-violet-800/50 px-3.5 py-1 text-xs font-medium text-violet-700 dark:text-violet-300 mb-4">
             <Brain className="h-3.5 w-3.5" />
             Ebbinghaus Curve
@@ -304,12 +419,12 @@ export default async function LandingPage() {
           <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
             {t("srsDesc")}
           </p>
-          <div className="mt-10 flex flex-wrap justify-center gap-2 sm:gap-3">
+          <div className="mt-10 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-center sm:gap-3">
             {srsStages.map(({ stage, days }, i) => (
               <div key={stage} className="flex items-center gap-2">
                 <div
                   className={cn(
-                    "rounded-full border px-3.5 py-2 text-sm sm:px-4 sm:py-2.5 transition-all duration-200 hover:scale-105 hover:shadow-md",
+                    "rounded-full border px-3 py-1.5 text-xs sm:px-4 sm:py-2.5 sm:text-sm w-full text-center transition-all duration-200 hover:scale-105 hover:shadow-md",
                     i === 0
                       ? "border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 to-emerald-100/50 dark:from-emerald-950/40 dark:to-emerald-900/20"
                       : i === srsStages.length - 1
@@ -326,10 +441,10 @@ export default async function LandingPage() {
                   >
                     {stage}
                   </span>
-                  <span className="ml-2 text-muted-foreground">→ {days}</span>
+                  <span className="ml-1.5 text-muted-foreground">→ {days}</span>
                 </div>
                 {i < srsStages.length - 1 ? (
-                  <ArrowRight className="hidden h-3.5 w-3.5 text-muted-foreground/40 sm:block" />
+                  <ArrowRight className="hidden h-3.5 w-3.5 text-muted-foreground/40 sm:block shrink-0" />
                 ) : null}
               </div>
             ))}
@@ -342,7 +457,7 @@ export default async function LandingPage() {
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_50%,oklch(0.92_0.05_240/0.3),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_50%,oklch(0.25_0.05_260/0.15),transparent)]" />
         </div>
-        <div className="relative mx-auto max-w-3xl px-4 py-20 text-center sm:px-6 md:py-28">
+        <div className="relative mx-auto max-w-3xl px-4 py-14 text-center sm:px-6 sm:py-20 md:py-28">
           <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 px-3.5 py-1 text-xs font-medium text-primary mb-4">
             <Zap className="h-3.5 w-3.5" />
             Get Started
@@ -366,8 +481,11 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      {/* ────────────── DOWNLOAD APP ────────────── */}
+      <DownloadAppSection />
+
       {/* ────────────── FOOTER ────────────── */}
-      <footer className="border-t border-border py-10 text-center">
+      <footer className="border-t border-border py-8 text-center sm:py-10">
         <div className="flex items-center justify-center gap-2">
           <Globe className="h-4 w-4 text-primary" />
           <span className="font-semibold">English Read</span>

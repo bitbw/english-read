@@ -10,6 +10,7 @@
     "reviewPlan": "Review Plan",
     "settings": "Settings",
     "leaderboard": "Leaderboard",
+    "downloadApp": "Download App",
     "github": "GitHub Repository"
   },
   "topbar": {
@@ -267,7 +268,12 @@
     "day4": "after 4 days",
     "day7": "after 7 days",
     "day15": "after 15 days",
-    "day30": "after 30 days → Mastered"
+    "day30": "after 30 days → Mastered",
+    "statsSrsStages": "SRS Stages",
+    "statsPublicBooks": "Public Books",
+    "statsAiPowered": "Powered",
+    "featuresTitle": "Everything you need",
+    "featuresDesc": "Read, learn, and track — all in one seamless flow"
   },
   "auth": {
     "login": "Sign In",

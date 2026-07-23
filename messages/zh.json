@@ -10,6 +10,7 @@
     "reviewPlan": "复习计划",
     "settings": "设置",
     "leaderboard": "排行榜",
+    "downloadApp": "下载 App",
     "github": "GitHub 开源仓库"
   },
   "topbar": {
@@ -267,7 +268,12 @@
     "day4": "4 天后",
     "day7": "7 天后",
     "day15": "15 天后",
-    "day30": "30 天后 → 掌握"
+    "day30": "30 天后 → 掌握",
+    "statsSrsStages": "SRS 复习阶段",
+    "statsPublicBooks": "公共书籍",
+    "statsAiPowered": "AI 驱动",
+    "featuresTitle": "你需要的一切",
+    "featuresDesc": "阅读、学习、追踪 — 一气呵成"
   },
   "auth": {
     "login": "登录",

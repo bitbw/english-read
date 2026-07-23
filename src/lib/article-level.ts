@@ -1,20 +1,25 @@
-export const ARTICLE_LEVEL_KEY = "english-read-article-level";
+export const ARTICLE_LEVEL_KEY = "article_level";
 
 export function getSavedArticleLevel(): number {
-  if (typeof window === "undefined") return 1;
-  try {
-    const v = localStorage.getItem(ARTICLE_LEVEL_KEY);
-    if (v) {
-      const n = Number(v);
-      if (n >= 1 && n <= 3) return n;
-    }
-  } catch {}
+  if (typeof document === "undefined") return 1;
+  const match = document.cookie.match(
+    new RegExp(`(?:^|;\\s*)${ARTICLE_LEVEL_KEY}=(\\d)`)
+  );
+  if (match) {
+    const n = Number(match[1]);
+    if (n >= 1 && n <= 3) return n;
+  }
   return 1;
 }
 
 export function saveArticleLevel(level: number): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(ARTICLE_LEVEL_KEY, String(level));
-  } catch {}
+  if (typeof document === "undefined") return;
+  document.cookie = `${ARTICLE_LEVEL_KEY}=${level}; path=/; max-age=31536000; SameSite=Lax`;
+}
+
+export function parseArticleLevel(value: string | undefined): number {
+  if (!value) return 1;
+  const n = Number(value);
+  if (n >= 1 && n <= 3) return n;
+  return 1;
 }

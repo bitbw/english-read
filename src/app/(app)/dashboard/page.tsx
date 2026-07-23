@@ -25,7 +25,9 @@ import { MiniReviewPlan } from "@/components/dashboard/mini-review-plan";
 import { DashboardDailyArticles } from "@/components/dashboard/dashboard-daily-articles";
 import { GuideBanner } from "@/components/dashboard/guide-banner";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
+import { parseArticleLevel } from "@/lib/article-level";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -117,6 +119,9 @@ export default async function DashboardPage() {
   const t = await getTranslations("dashboard");
   const ta = await getTranslations("articles");
   const isNewUser = recentBooks.length === 0 && totalVocab === 0;
+
+  const cookieStore = await cookies();
+  const defaultLevel = parseArticleLevel(cookieStore.get("article_level")?.value);
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -312,6 +317,7 @@ export default async function DashboardPage() {
 
       {/* ─── 每日文章 (Daily Articles with tabs) ─── */}
       <DashboardDailyArticles
+        defaultLevel={defaultLevel}
         level1={level1Articles}
         level2={level2Articles}
         level3={level3Articles}
