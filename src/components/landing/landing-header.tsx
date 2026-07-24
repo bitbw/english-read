@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BookOpen, Download } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -13,7 +14,12 @@ type LandingHeaderProps = {
 };
 
 export function LandingHeader({ loginLabel }: LandingHeaderProps) {
-  const inApp = isCapacitor();
+  // 首次渲染保持和服务端一致（false），挂载后再切换，避免 hydration mismatch
+  const [inApp, setInApp] = useState(false);
+
+  useEffect(() => {
+    setInApp(isCapacitor());
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">

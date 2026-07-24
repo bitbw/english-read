@@ -29,6 +29,7 @@ import {
   Trophy,
   Loader2,
   Newspaper,
+  Smartphone,
 } from "lucide-react";
 
 // const GITHUB_REPO_URL = "https://github.com/bitbw/english-read";
@@ -137,6 +138,17 @@ export function Topbar() {
       </Sheet>
 
       <div className="flex-1" />
+
+      {session?.user && (
+        <Link
+          href="/download"
+          className="inline-flex items-center gap-1.5 p-1.5 rounded-md hover:bg-accent transition-colors text-sm"
+          aria-label={tNav("downloadApp")}
+        >
+          <Smartphone className="h-5 w-5 shrink-0" />
+          <span className="hidden md:inline">{tNav("downloadApp")}</span>
+        </Link>
+      )}
 
       <ThemeToggle />
 

@@ -67,7 +67,7 @@ export default async function ArticlesPage({
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="flex flex-col gap-6 pb-20 md:pb-0">
+    <div className="max-w-6xl mx-auto flex flex-col gap-6 pb-20 md:pb-0">
       {/* Header */}
       <div className="flex items-center gap-3">
         <BackButton fallbackHref="/dashboard" />

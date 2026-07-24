@@ -11,7 +11,6 @@ import {
   Settings,
   Trophy,
   Newspaper,
-  Smartphone,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -37,7 +36,6 @@ export function Sidebar() {
     { href: "/library", label: t("myLibrary"), icon: BookOpen },
     { href: "/vocabulary", label: t("vocabulary"), icon: BookMarked },
     { href: "/leaderboard", label: t("leaderboard"), icon: Trophy },
-    { href: "/download", label: t("downloadApp"), icon: Smartphone },
     { href: "/settings", label: t("settings"), icon: Settings },
   ];
 

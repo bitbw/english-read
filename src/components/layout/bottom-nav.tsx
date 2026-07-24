@@ -9,6 +9,7 @@ import {
   Library,
   BookMarked,
   Newspaper,
+  Smartphone,
 } from "lucide-react";
 
 export function BottomNav() {
@@ -20,6 +21,7 @@ export function BottomNav() {
     { href: "/articles", label: t("dailyRead"), icon: Newspaper },
     { href: "/library", label: t("myLibrary"), icon: Library },
     { href: "/vocabulary", label: t("vocabulary"), icon: BookMarked },
+    { href: "/download", label: t("downloadApp"), icon: Smartphone },
   ];
 
   return (
