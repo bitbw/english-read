@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useCallback,
   useEffect,
   useState,
@@ -8,7 +9,7 @@ import {
   type SubmitEvent,
 } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -119,15 +120,9 @@ export function LoginForm({ className }: LoginFormProps) {
     setOauthPending(provider);
     try {
       if (isCapacitor()) {
-        const result = await signIn(provider, {
-          callbackUrl: "/dashboard",
-          redirect: false,
-        });
-        if (result?.url) {
-          await openOAuthUrl(result.url);
-        } else {
-          setOauthPending(null);
-        }
+        // Custom Tab 内打开 /login 页，由 MobileOAuthRelay 启动 signIn
+        await openOAuthUrl(`${window.location.origin}/login?mobileOAuthStart=${provider}`);
+        setOauthPending(null);
         return;
       }
       await signIn(provider, { callbackUrl: "/dashboard" });
@@ -245,6 +240,7 @@ export function LoginForm({ className }: LoginFormProps) {
   return (
     <div className={cn("flex flex-col gap-6", className)}>
       <FieldGroup>
+        <Suspense fallback={null}><MobileOAuthRelay /></Suspense>
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">{t("login")}</h1>
           <p className="text-sm text-balance text-muted-foreground">
@@ -482,3 +478,24 @@ export function LoginForm({ className }: LoginFormProps) {
     </div>
   );
 }
+
+/**
+ * 移动端 OAuth 中继：检测 URL 中 mobileOAuthStart 参数，
+ * 在 Custom Tab 内启动 signIn 流程（整个 OAuth 往返在同一 cookie 上下文）。
+ */
+function MobileOAuthRelay() {
+  const params = useSearchParams();
+
+  useEffect(() => {
+    const provider = params.get("mobileOAuthStart");
+    if (provider === "google" || provider === "github") {
+      void signIn(provider, {
+        callbackUrl: `/api/mobile-bridge/issue?next=${encodeURIComponent("/dashboard")}`,
+      });
+    }
+  }, [params]);
+
+  return null;
+}
+
+export { MobileOAuthRelay };

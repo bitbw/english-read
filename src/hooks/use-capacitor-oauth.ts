@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { isCapacitor } from "@/lib/is-capacitor";
 
-const AUTH_CALLBACK_PREFIX = "/api/auth/callback/";
+const BRIDGE_SCHEME_PREFIX = "com.englishread.app://oauth-bridge";
 
 /**
  * 在 Capacitor App 内用系统内嵌浏览器（Chrome Custom Tabs / SFSafariViewController）
@@ -18,24 +18,46 @@ export async function openOAuthUrl(url: string): Promise<void> {
 /**
  * Capacitor OAuth Deep Link 处理 Hook
  *
- * 当 Android App Link 将 OAuth 回调 URL 传回 App 时，
- * 关闭内嵌浏览器并导航 WebView 到该 URL 以完成 OAuth 流程（设置 session cookie）
+ * 新版流程：
+ * 1. 自定义 scheme（com.englishread.app://oauth-bridge）的深链接传回 App
+ * 2. 提取桥接令牌，调用 /api/mobile-bridge/consume 换取 session cookie
+ * 3. 关闭 Custom Tab 并导航到目标页面
  */
 export function useCapacitorOAuth() {
   const processingRef = useRef(false);
 
   const handleDeepLink = useCallback((url: string) => {
     if (processingRef.current) return;
-    if (!url.includes(AUTH_CALLBACK_PREFIX)) return;
+    if (!url.startsWith(BRIDGE_SCHEME_PREFIX)) return;
 
     processingRef.current = true;
-    import("@capacitor/browser")
-      .then(({ Browser }) => Browser.close())
-      .catch(() => {})
-      .finally(() => {
-        // 导航到回调 URL，让 next-auth 处理 code 交换和 session 设置
-        window.location.href = url;
-      });
+
+    const parsed = new URL(url);
+    const token = parsed.searchParams.get("token");
+    const next = parsed.searchParams.get("next") ?? "/dashboard";
+
+    void (async () => {
+      try {
+        if (token) {
+          const res = await fetch("/api/mobile-bridge/consume", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token }),
+          });
+          if (res.ok) {
+            const { Browser } = await import("@capacitor/browser");
+            await Browser.close().catch(() => {});
+            window.location.href = next;
+            return;
+          }
+        }
+        const { Browser } = await import("@capacitor/browser");
+        await Browser.close().catch(() => {});
+        window.location.href = "/error";
+      } finally {
+        processingRef.current = false;
+      }
+    })();
   }, []);
 
   useEffect(() => {

@@ -40,15 +40,9 @@ export function SignupForm({ className }: SignupFormProps) {
     setOauthPending(provider);
     try {
       if (isCapacitor()) {
-        const result = await signIn(provider, {
-          callbackUrl: "/dashboard",
-          redirect: false,
-        });
-        if (result?.url) {
-          await openOAuthUrl(result.url);
-        } else {
-          setOauthPending(null);
-        }
+        // Custom Tab 内打开 /signup 页，由 MobileOAuthRelay 启动 signIn
+        await openOAuthUrl(`${window.location.origin}/login?mobileOAuthStart=${provider}`);
+        setOauthPending(null);
         return;
       }
       await signIn(provider, { callbackUrl: "/dashboard" });

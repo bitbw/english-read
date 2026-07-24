@@ -27,6 +27,13 @@
                     android:scheme="https"
                     android:host="english-read.bitbw.top" />
             </intent-filter>
+            <!-- OAuth Bridge: 自定义 scheme 在 iOS / Android Custom Tab 回调后唤起 App -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.englishread.app" android:host="oauth-bridge" />
+            </intent-filter>
         </activity>
 
         <provider
