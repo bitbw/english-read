@@ -2,11 +2,8 @@
 
 import { BackButton } from "@/components/back-button";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { buttonVariants } from "@/components/ui/button-variants";
-import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {

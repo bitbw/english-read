@@ -1,7 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { BackButton } from "@/components/back-button";
 import { ChevronLeft, ChevronRight, List } from "lucide-react";

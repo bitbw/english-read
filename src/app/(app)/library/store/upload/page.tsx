@@ -1,5 +1,4 @@
 import { BackButton } from "@/components/back-button";
-import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { PublicLibraryUploadClient } from "@/components/library/public-library-upload-client";
