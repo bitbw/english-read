@@ -53,6 +53,7 @@ export function Topbar() {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileNavPending, setMobileNavPending] = useState(false);
+  const [isNative, setIsNative] = useState(true);
   const tNav = useTranslations("nav");
   const tTopbar = useTranslations("topbar");
 
@@ -69,6 +70,10 @@ export function Topbar() {
   useEffect(() => {
     setMobileNavPending(false);
   }, [pathname]);
+
+  useEffect(() => {
+    setIsNative(Capacitor.isNativePlatform());
+  }, []);
 
   const mobileNavLoadingOverlay =
     mobileNavPending && typeof document !== "undefined"
@@ -140,7 +145,7 @@ export function Topbar() {
 
       <div className="flex-1" />
 
-      {session?.user && !Capacitor.isNativePlatform() && (
+      {session?.user && !isNative && (
         <Link
           href="/download"
           className="inline-flex items-center gap-1.5 p-1.5 rounded-md hover:bg-accent transition-colors text-sm"
