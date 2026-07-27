@@ -120,8 +120,8 @@ export function LoginForm({ className }: LoginFormProps) {
     setOauthPending(provider);
     try {
       if (isCapacitor()) {
-        // Custom Tab 内打开 /login 页，由 MobileOAuthRelay 启动 signIn
-        await openOAuthUrl(`${window.location.origin}/login?mobileOAuthStart=${provider}`);
+        // Custom Tab 内打开独立中转页，显示 loading 后立即启动 signIn
+        await openOAuthUrl(`${window.location.origin}/mobile-oauth-redirect?provider=${provider}`);
         setOauthPending(null);
         return;
       }
