@@ -36,28 +36,15 @@ export function useCapacitorOAuth() {
     const token = parsed.searchParams.get("token");
     const next = parsed.searchParams.get("next") ?? "/dashboard";
 
-    void (async () => {
-      try {
-        if (token) {
-          const res = await fetch("/api/mobile-bridge/consume", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token }),
-          });
-          if (res.ok) {
-            const { Browser } = await import("@capacitor/browser");
-            await Browser.close().catch(() => {});
-            window.location.href = next;
-            return;
-          }
-        }
-        const { Browser } = await import("@capacitor/browser");
-        await Browser.close().catch(() => {});
-        window.location.href = "/error";
-      } finally {
-        processingRef.current = false;
-      }
-    })();
+    if (!token) {
+      window.location.href = "/error";
+      return;
+    }
+
+    // 立即导航到中转页（显示 loading），由中转页完成 bridge consume
+    sessionStorage.setItem("oauthBridgeToken", token);
+    sessionStorage.setItem("oauthBridgeNext", next);
+    window.location.href = "/mobile-oauth-redirect?bridging=true";
   }, []);
 
   useEffect(() => {
