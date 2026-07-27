@@ -68,7 +68,9 @@ export function PullToRefresh({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      style={{ touchAction: "pan-x" }}
+      style={{
+          touchAction: pullDistance > 0 ? "none" : "pan-y",
+        }}
     >
       {/* Pull indicator */}
       <div
