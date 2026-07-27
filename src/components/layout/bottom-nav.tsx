@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+import { Capacitor } from "@capacitor/core";
 import {
   LayoutDashboard,
   Library,
@@ -22,7 +23,7 @@ export function BottomNav() {
     { href: "/library", label: t("myLibrary"), icon: Library },
     { href: "/vocabulary", label: t("vocabulary"), icon: BookMarked },
     { href: "/download", label: t("downloadApp"), icon: Smartphone },
-  ];
+  ].filter((item) => item.href !== "/download" || !Capacitor.isNativePlatform());
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border flex items-stretch h-16 safe-area-inset-bottom">

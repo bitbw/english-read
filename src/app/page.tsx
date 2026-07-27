@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { getTranslations } from "next-intl/server";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { LandingShowcaseImage } from "@/components/landing/landing-showcase-image";
+import { DownloadAppGuard } from "@/components/landing/download-app-guard";
 import { list } from "@vercel/blob";
 
 function formatSize(bytes: number): string {
@@ -236,13 +237,15 @@ export default async function LandingPage() {
               >
                 {t("login")}
               </Link>
-              <Link
-                href="/download"
-                className={cn(buttonVariants({ size: "lg", variant: "outline" }), "gap-2")}
-              >
-                <Download className="h-4 w-4" />
-                App
-              </Link>
+              <DownloadAppGuard>
+                <Link
+                  href="/download"
+                  className={cn(buttonVariants({ size: "lg", variant: "outline" }), "gap-2")}
+                >
+                  <Download className="h-4 w-4" />
+                  App
+                </Link>
+              </DownloadAppGuard>
             </div>
 
             {/* Stats row - desktop only inside left column */}
@@ -482,7 +485,9 @@ export default async function LandingPage() {
       </section>
 
       {/* ────────────── DOWNLOAD APP ────────────── */}
-      <DownloadAppSection />
+      <DownloadAppGuard>
+        <DownloadAppSection />
+      </DownloadAppGuard>
 
       {/* ────────────── FOOTER ────────────── */}
       <footer className="border-t border-border py-8 text-center sm:py-10">

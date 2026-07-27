@@ -37,6 +37,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { Capacitor } from "@capacitor/core";
 
 function navItemIsActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
@@ -139,7 +140,7 @@ export function Topbar() {
 
       <div className="flex-1" />
 
-      {session?.user && (
+      {session?.user && !Capacitor.isNativePlatform() && (
         <Link
           href="/download"
           className="inline-flex items-center gap-1.5 p-1.5 rounded-md hover:bg-accent transition-colors text-sm"
