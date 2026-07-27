@@ -26,6 +26,7 @@ import { GuideBanner } from "@/components/dashboard/guide-banner";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
+import { DashboardPullToRefresh } from "@/components/dashboard/dashboard-pull-to-refresh";
 import { parseArticleLevel } from "@/lib/article-level";
 
 export default async function DashboardPage() {
@@ -123,6 +124,7 @@ export default async function DashboardPage() {
   const defaultLevel = parseArticleLevel(cookieStore.get("article_level")?.value);
 
   return (
+    <DashboardPullToRefresh>
     <div className="max-w-5xl mx-auto">
       {/* ─── Hero ─── */}
       <div className="relative pb-6 mb-6 border-b border-border/40">
@@ -470,5 +472,6 @@ export default async function DashboardPage() {
         )}
       </div>
     </div>
+    </DashboardPullToRefresh>
   );
 }
