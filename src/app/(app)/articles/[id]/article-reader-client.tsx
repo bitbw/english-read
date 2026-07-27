@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { format } from "date-fns";
 import { BackButton } from "@/components/back-button";
 import { ExternalLink, Eye, EyeOff } from "lucide-react";

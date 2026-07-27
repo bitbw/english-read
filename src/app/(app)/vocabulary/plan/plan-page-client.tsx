@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BackButton } from "@/components/back-button";
 import { ChevronLeft, ChevronRight } from "lucide-react";

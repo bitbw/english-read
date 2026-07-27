@@ -4,7 +4,7 @@ import { books, vocabulary, dailyArticles } from "@/lib/db/schema";
 import { eq, and, lte, desc, count } from "drizzle-orm";
 import { isAdmin } from "@/lib/role";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -14,7 +14,6 @@ import {
   ArrowRight,
   Timer,
   Shield,
-  BookOpenCheck,
   BarChart3,
   Trophy,
 } from "lucide-react";

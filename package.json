@@ -13,6 +13,7 @@
     "patch": "node scripts/bump-android-version.js",
     "build:android": "cap sync && cd android && gradlew assembleRelease && cd .. && npm run upload:apk",
     "build:android:debug": "cap sync && cd android && gradlew assembleDebug && cd .. && npm run upload:apk:debug",
+    "adb:logcat": "adb logcat --pid=$(adb shell pidof -s com.englishread.app)",
     "upload:apk": "node --env-file=.env.local scripts/upload-apk.mjs",
     "upload:apk:debug": "node --env-file=.env.local scripts/upload-apk.mjs --debug",
     "logo": "npx @capacitor/assets generate"

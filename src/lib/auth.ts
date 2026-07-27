@@ -8,7 +8,7 @@ import { eq, or } from "drizzle-orm";
 import { verifySmsCode } from "@/lib/aliyun-dypns";
 import { db } from "@/lib/db";
 import { users, accounts, sessions, verificationTokens } from "@/lib/db/schema";
-import type { Role } from "@/lib/role";
+import { toRole } from "@/lib/role";
 import { touchUserOnline } from "@/lib/user-presence";
 import {
   maskPhoneForDisplay,
@@ -235,7 +235,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             .from(users)
             .where(eq(users.id, token.sub))
             .limit(1);
-          token.role = userRow?.role ?? "user";
+          token.role = toRole(userRow?.role);
         }
       }
       if (trigger === "update" && token.sub) {
@@ -255,7 +255,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.email = row.email;
           token.picture = row.image;
           token.phone = row.phone;
-          token.role = row.role;
+          token.role = toRole(row.role);
         }
         mergeClientSessionIntoJwt(token, clientSession);
       }
@@ -266,7 +266,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.sub;
       }
       session.user.phone = (token.phone as string | null | undefined) ?? null;
-      session.user.role = (token.role as Role | undefined) ?? "user";
+      session.user.role = toRole(token.role);
       return session;
     },
   },

@@ -45,7 +45,12 @@ export function DownloadPageClient() {
     void load();
   }, [load]);
 
-  const inApp = isCapacitor();
+  // 首次渲染保持和服务端一致（false），挂载后再切换，避免 hydration mismatch
+  const [inApp, setInApp] = useState(false);
+
+  useEffect(() => {
+    setInApp(isCapacitor());
+  }, []);
 
   if (inApp) {
     return (
