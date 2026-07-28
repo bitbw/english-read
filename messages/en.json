@@ -568,6 +568,7 @@
     "progressLabel": "Mastered {remembered} / {total} this round",
     "reviewNth": "Review #{n}",
     "firstReview": "1st",
+    "remainingReview": "{count} more",
     "noContext": "No source excerpt saved",
     "loadingMeaning": "Loading meaning…",
     "noMeaningNote": "Could not retrieve a Chinese gloss for this word. Spelling only this round.",

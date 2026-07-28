@@ -568,6 +568,7 @@
     "progressLabel": "已掌握 {remembered} / 本轮共 {total} 词",
     "reviewNth": "第 {n} 次复习",
     "firstReview": "首次",
+    "remainingReview": "还需 {count} 次",
     "noContext": "暂无保存时的原文片段",
     "loadingMeaning": "正在加载中文释义…",
     "noMeaningNote": "暂时无法取得该词的中文翻译，本轮仅考查拼写。",
