@@ -5,9 +5,10 @@
  * 在浏览器中回退到 window.speechSynthesis。
  */
 
-import { registerPlugin } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 
 const isBrowser = typeof window !== "undefined";
+const isNative = isBrowser && Capacitor.isNativePlatform();
 
 interface TextToSpeechPlugin {
   speak(options: {
@@ -29,23 +30,25 @@ export async function speakText(text: string, lang = "en-US"): Promise<void> {
   const trimmed = text.trim();
   if (!trimmed || !isBrowser) return;
 
-  // 优先 Capacitor 原生 TTS
-  try {
-    await NativeTts.speak({
-      text: trimmed,
-      lang,
-      rate: 1.0,
-      pitch: 1.0,
-      volume: 1.0,
-      category: "ambient",
-      queueStrategy: 1,
-    });
-    return;
-  } catch (e) {
-    console.warn(
-      `[BOWEN_LOG] Capacitor TTS unavailable, fallback to browser speechSynthesis:`,
-      e,
-    );
+  // 仅原生平台才尝试 Capacitor TTS
+  if (isNative) {
+    try {
+      await NativeTts.speak({
+        text: trimmed,
+        lang,
+        rate: 1.0,
+        pitch: 1.0,
+        volume: 1.0,
+        category: "ambient",
+        queueStrategy: 1,
+      });
+      return;
+    } catch (e) {
+      console.warn(
+        `[BOWEN_LOG] Capacitor TTS unavailable, fallback to browser speechSynthesis:`,
+        e,
+      );
+    }
   }
 
   // 浏览器 speechSynthesis 回退
@@ -63,11 +66,13 @@ export async function speakText(text: string, lang = "en-US"): Promise<void> {
 export async function stopSpeaking(): Promise<void> {
   if (!isBrowser) return;
 
-  try {
-    await NativeTts.stop();
-    return;
-  } catch (e) {
-    console.warn("[BOWEN_LOG] Capacitor TTS stop unavailable:", e);
+  if (isNative) {
+    try {
+      await NativeTts.stop();
+      return;
+    } catch (e) {
+      console.warn("[BOWEN_LOG] Capacitor TTS stop unavailable:", e);
+    }
   }
 
   if ("speechSynthesis" in window) {
