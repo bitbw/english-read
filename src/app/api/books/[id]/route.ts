@@ -4,10 +4,11 @@ import { books } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { deleteBlob } from "@/lib/blob";
 import { NextResponse } from "next/server";
+import { validationError } from "@/lib/api-error";
 import { z } from "zod";
 
 const patchBookSchema = z.object({
-  coverUrl: z.union([z.string().url(), z.null()]),
+  coverUrl: z.union([z.string().url("Cover URL must be a valid URL"), z.null()]),
 });
 
 type IdParams = { params: Promise<{ id: string }> };
@@ -40,7 +41,7 @@ export async function PATCH(req: Request, { params }: IdParams) {
   const body = await req.json();
   const parsed = patchBookSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error);
   }
 
   const [existing] = await db

@@ -8,12 +8,16 @@ import { toast } from "sonner";
 import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
 import { toastConfirmAction } from "@/lib/toast-confirm";
 import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
-import { VOCAB_WORD_MAX_LENGTH } from "@/lib/vocabulary-limits";
+import {
+  VOCAB_CONTEXT_MAX_LENGTH,
+  VOCAB_WORD_MAX_LENGTH,
+} from "@/lib/vocabulary-limits";
 import { linkifyToReactNodes } from "@/components/linkified-text";
 import {
   playPronunciationMp3 as playPronunciationMp3Url,
   stopPronunciationAudio,
 } from "@/lib/pronunciation-audio";
+import { speakText, stopSpeaking } from "@/lib/tts";
 import { useTranslations } from "next-intl";
 
 interface Definition {
@@ -163,9 +167,7 @@ export function WordPopup({
     setAudioUs("");
     setSaved(false);
     stopPronunciationAudio();
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopSpeaking();
   }, [word]);
 
   // 是否已在生词本（与 POST 的 normalizedWord 规则一致）
@@ -263,11 +265,7 @@ export function WordPopup({
   ]);
 
   function speakTts() {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(word);
-    utterance.lang = "en-US";
-    window.speechSynthesis.speak(utterance);
+    speakText(word);
   }
 
   /** 优先用词典 CDN 的 mp3（可直连播放）；失败时退回 TTS（仅单词） */
@@ -281,11 +279,7 @@ export function WordPopup({
     const trimmedWord = word.trim();
     const url = audioUs.trim() || audioUk.trim();
     const speak = () => {
-      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(trimmedWord);
-      utterance.lang = "en-US";
-      window.speechSynthesis.speak(utterance);
+      speakText(trimmedWord);
     };
     const timer = window.setTimeout(() => {
       if (url) {
@@ -297,9 +291,7 @@ export function WordPopup({
     return () => {
       clearTimeout(timer);
       stopPronunciationAudio();
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopSpeaking();
     };
   }, [word, loading, audioUs, audioUk, autoPronunciation]);
 
@@ -314,13 +306,17 @@ export function WordPopup({
     try {
       const definitionStr = serializeVocabularyDefinition(definitions, translation);
 
+      const truncatedContext = context.length > VOCAB_CONTEXT_MAX_LENGTH
+        ? context.slice(0, VOCAB_CONTEXT_MAX_LENGTH)
+        : context;
+
       const res = await clientFetch("/api/vocabulary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           word,
           ...(bookId ? { bookId } : {}),
-          context,
+          context: truncatedContext,
           contextCfi,
           definition: definitionStr,
           phonetic,

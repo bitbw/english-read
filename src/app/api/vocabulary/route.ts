@@ -18,6 +18,7 @@ import {
 } from "@/lib/vocabulary-limits";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { validationError } from "@/lib/api-error";
 
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 100;
@@ -27,14 +28,32 @@ function escapeIlikePattern(raw: string) {
 }
 
 const addWordSchema = z.object({
-  word: z.string().min(1).max(VOCAB_WORD_MAX_LENGTH),
+  word: z
+    .string()
+    .min(1, "Word is required")
+    .max(VOCAB_WORD_MAX_LENGTH, `Word must not exceed ${VOCAB_WORD_MAX_LENGTH} characters`),
   bookId: z.string().optional(),
-  context: z.string().max(VOCAB_CONTEXT_MAX_LENGTH).optional(),
+  context: z
+    .string()
+    .max(VOCAB_CONTEXT_MAX_LENGTH, `Context must not exceed ${VOCAB_CONTEXT_MAX_LENGTH} characters`)
+    .optional(),
   contextCfi: z.string().optional(),
-  definition: z.string().max(VOCAB_DEFINITION_MAX_LENGTH).optional(),
-  phonetic: z.string().max(VOCAB_PHONETIC_MAX_LENGTH).optional(),
-  audioUk: z.string().max(VOCAB_AUDIO_URL_MAX_LENGTH).optional(),
-  audioUs: z.string().max(VOCAB_AUDIO_URL_MAX_LENGTH).optional(),
+  definition: z
+    .string()
+    .max(VOCAB_DEFINITION_MAX_LENGTH, `Definition must not exceed ${VOCAB_DEFINITION_MAX_LENGTH} characters`)
+    .optional(),
+  phonetic: z
+    .string()
+    .max(VOCAB_PHONETIC_MAX_LENGTH, `Phonetic must not exceed ${VOCAB_PHONETIC_MAX_LENGTH} characters`)
+    .optional(),
+  audioUk: z
+    .string()
+    .max(VOCAB_AUDIO_URL_MAX_LENGTH, `Audio URL must not exceed ${VOCAB_AUDIO_URL_MAX_LENGTH} characters`)
+    .optional(),
+  audioUs: z
+    .string()
+    .max(VOCAB_AUDIO_URL_MAX_LENGTH, `Audio URL must not exceed ${VOCAB_AUDIO_URL_MAX_LENGTH} characters`)
+    .optional(),
 });
 
 // GET /api/vocabulary?filter=all|pending|mastered&search=xxx&page=1&pageSize=10
@@ -123,7 +142,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = addWordSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error);
   }
 
   const normalizedWord = parsed.data.word.toLowerCase().trim();

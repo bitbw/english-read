@@ -6,30 +6,13 @@ import { calculateNextReview } from "@/lib/srs";
 import { resolveTimeZone } from "@/lib/user-timezone";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
-/* 
-Formula E: Electric Racing Innovation
-Thursday, 2026/04/16
-160 words
-2 minutes
-572 reads
-Formula E is an electric car racing championship that began in 2014. 
-The sport features 22 professional drivers competing in high-performance electric vehicles that can reach speeds over 320 kilometers per hour. 
-What started as an idea sketched on a napkin in Paris has grown into a major international sport with millions of viewers worldwide.
-The batteries powering these race cars face extreme challenges. They must deliver sustained high performance while remaining lightweight at just 284 kilograms.
- Unlike regular electric vehicle batteries, Formula E batteries cannot slow down as they lose charge. 
- They need elaborate cooling systems to prevent overheating during intense racing conditions.
-Only a handful of elite engineering companies can build batteries meeting these demanding specifications. 
-The technology developed for Formula E, including ultra-fast charging and immersion cooling systems, could eventually benefit everyday electric vehicles. 
-Experts believe innovations from the racetrack may help solve current challenges in the consumer EV market, 
-particularly in charging speed and battery performance.
-
-
-*/
+import { validationError } from "@/lib/api-error";
 
 const submitSchema = z.object({
-  vocabularyId: z.string().min(1),
-  result: z.enum(["remembered", "forgotten"]),
+  vocabularyId: z.string().min(1, "vocabularyId is required"),
+  result: z.enum(["remembered", "forgotten"], {
+    error: "result must be either 'remembered' or 'forgotten'",
+  }),
 });
 
 // POST /api/review/submit
@@ -41,7 +24,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = submitSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error);
   }
 
   const { vocabularyId, result } = parsed.data;

@@ -10,13 +10,14 @@ import { books } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { validationError } from "@/lib/api-error";
 
 const createBookSchema = z.object({
-  title: z.string().min(1),
+  title: z.string().min(1, "Title is required"),
   author: z.string().optional(),
-  coverUrl: z.string().url().optional(),
-  blobUrl: z.string().url(),
-  blobKey: z.string().min(1),
+  coverUrl: z.string().url("Cover URL must be a valid URL").optional(),
+  blobUrl: z.string().url("Blob URL is required and must be a valid URL"),
+  blobKey: z.string().min(1, "Blob key is required"),
   fileSize: z.number().optional(),
 });
 
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = createBookSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error);
   }
 
   const selfUploadedCount = await countSelfUploadedBooks(session.user.id);

@@ -32,6 +32,7 @@ const FEEDBACK_EMAIL = "mail.bitbw@gmail.com";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import APP_VERSION from "@/lib/version";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -447,7 +448,7 @@ export default function SettingsPage() {
             <p className="font-medium text-foreground">{t("aboutAuthorTitle")}</p>
             <p>{t("aboutAuthor")}</p>
           </div>
-          <p>{t("aboutVersion")}</p>
+          <p>English Read v{APP_VERSION}</p>
           <p>{t("aboutAlgo")}</p>
           <div className="space-y-2 pt-1 border-t border-border">
             <p className="font-medium text-foreground">{t("feedback")}</p>

@@ -166,11 +166,63 @@ export type SpellingTraySpec = {
   chunkCount: number;
 };
 
-/** 单词拆成若干连续大块（覆盖全词） */
-function chunkPartCount(wordLen: number): number {
-  if (wordLen <= 4) return 1;
-  if (wordLen <= 8) return 2;
-  return Math.min(5, Math.max(3, Math.ceil(wordLen / 4)));
+/** 单词拆成语义词块（前缀 + 词根 + 后缀），词根过长时再等分 */
+const COMMON_PREFIXES = [
+  "anti", "auto", "bi", "co", "counter", "de", "dis", "down", "extra",
+  "fore", "hyper", "il", "im", "in", "inter", "ir", "macro", "mal",
+  "micro", "mid", "mis", "mono", "multi", "non", "out", "over",
+  "poly", "post", "pre", "pro", "re", "semi", "sub", "super", "tele",
+  "trans", "tri", "ultra", "un", "under", "up",
+].sort((a, b) => b.length - a.length);
+
+const COMMON_SUFFIXES = [
+  "ability", "able", "ably", "acity", "ation", "ative", "atory",
+  "cious", "dom", "ence", "ency", "eous", "ology", "hood",
+  "ibility", "ible", "ical", "ification", "ious", "ization",
+  "less", "like", "ment", "ness", "proof", "ship", "sion",
+  "some", "tion", "tious", "ture", "ward", "wise", "worthy",
+  "ful", "ing", "ion", "ity", "ive", "ize", "ous", "ure",
+  "age", "ial", "ian", "iar", "ica", "ice", "ify", "ile",
+  "ine", "ish", "ism", "ist", "ite", "ory", "ous", "ual",
+  "al", "an", "ar", "ed", "en", "er", "es", "et", "ic",
+  "id", "il", "in", "is", "it", "ly", "or", "ry", "ty",
+].sort((a, b) => b.length - a.length);
+
+function semanticPartition(key: string): string[] {
+  const n = key.length;
+  if (n <= 6) return [key];
+
+  const parts: string[] = [];
+  let remaining = key;
+
+  // 提取前缀（最长匹配）
+  for (const p of COMMON_PREFIXES) {
+    if (remaining.startsWith(p) && remaining.length > p.length + 2) {
+      parts.push(p);
+      remaining = remaining.slice(p.length);
+      break;
+    }
+  }
+
+  // 提取后缀（最长匹配），剩余词根如果过长则等分
+  let suffixFound = false;
+  for (const s of COMMON_SUFFIXES) {
+    if (remaining.endsWith(s) && remaining.length > s.length + 2) {
+      const root = remaining.slice(0, remaining.length - s.length);
+      // 词根按 3-4 字母等分
+      const rootParts = balancedPartition(root, Math.max(1, Math.min(3, Math.ceil(root.length / 4))));
+      parts.push(...rootParts);
+      parts.push(s);
+      suffixFound = true;
+      break;
+    }
+  }
+
+  if (!suffixFound) {
+    parts.push(...balancedPartition(remaining, Math.min(5, Math.max(2, Math.ceil(remaining.length / 4)))));
+  }
+
+  return parts;
 }
 
 function balancedPartition(key: string, parts: number): string[] {
@@ -277,8 +329,8 @@ function buildSingleWordSpellingTray(targetWord: string, similarEnglish: string[
 
   const simKeys = similarEnglish.map(normalizeWordKey).filter(Boolean);
 
-  const parts = chunkPartCount(key.length);
-  const chunks = balancedPartition(key, parts);
+  const parts = semanticPartition(key);
+  const chunks = parts;
   const chunkDecoys = pickTwoDecoyChunks(chunks, simKeys);
   const chunkLabels = shuffle([...chunks, ...chunkDecoys]);
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { PullToRefresh } from "@/components/pull-to-refresh";
-import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 export function DashboardPullToRefresh({
@@ -9,7 +8,6 @@ export function DashboardPullToRefresh({
 }: {
   children: ReactNode;
 }) {
-  const router = useRouter();
 
   return (
     <PullToRefresh

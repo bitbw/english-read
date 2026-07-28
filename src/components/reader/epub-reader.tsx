@@ -28,7 +28,6 @@ import {
   chapterDisplayName,
   chapterPctFromDisplayed,
   estimateTotalChars,
-  excerptSentenceForVocabulary,
   getLocationsCharInterval,
   wholeBookPctFromLocations,
 } from "@/components/reader/epub-reader-location";
@@ -43,6 +42,8 @@ import {
 } from "@/components/reader/epub-rendition-tools";
 import { saveReadingProgressToServer } from "@/lib/reader-progress-save";
 import { wordsFromLocationIndexDelta } from "@/lib/reader-word-estimate";
+import { extractReadableContext } from "@/lib/extract-readable-context";
+import { VOCAB_CONTEXT_MAX_LENGTH } from "@/lib/vocabulary-limits";
 import {
   type ReaderLayoutMode,
   epubFlowForLayoutMode,
@@ -300,7 +301,10 @@ export function EpubReader({
         const anchorRect = wordPopupAnchorFromIframeSelection(sel, iframe);
         if (!anchorRect) return;
         const raw = paragraphSnippetFromSelection(sel);
-        const context = excerptSentenceForVocabulary(raw, text);
+        const wordStart = raw.indexOf(text);
+        const context = wordStart !== -1
+          ? extractReadableContext(raw, wordStart, wordStart + text.length, VOCAB_CONTEXT_MAX_LENGTH)
+          : raw.slice(0, VOCAB_CONTEXT_MAX_LENGTH);
         readerDebugLog("selected", {
           cfiRange,
           wordLen: text.length,
