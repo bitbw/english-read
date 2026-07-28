@@ -4,9 +4,10 @@ import { books, publicLibraryBooks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { validationError } from "@/lib/api-error";
 
 const bodySchema = z.object({
-  publicBookId: z.string().uuid(),
+  publicBookId: z.string().uuid("publicBookId must be a valid UUID"),
 });
 
 export async function POST(req: Request) {
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error);
   }
 
   const { publicBookId } = parsed.data;

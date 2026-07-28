@@ -6,11 +6,21 @@ import { resolveTimeZone } from "@/lib/user-timezone";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { validationError } from "@/lib/api-error";
 
 const postSchema = z.object({
-  seconds: z.number().int().min(1).max(120),
+  seconds: z
+    .number()
+    .int("Seconds must be an integer")
+    .min(1, "Seconds must be at least 1")
+    .max(120, "Seconds must not exceed 120"),
   /** 本会话区间内估算新增词数（仅 epubjs locations 生成后可统计） */
-  words: z.number().int().min(0).max(50_000).optional(),
+  words: z
+    .number()
+    .int("Words must be an integer")
+    .min(0, "Words must not be negative")
+    .max(50_000, "Words must not exceed 50,000")
+    .optional(),
 });
 
 // POST /api/reading/time — 累加当日（学习时区自然日）阅读秒数与估算阅读词数（locations 就绪后上报）
@@ -22,7 +32,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = postSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error);
   }
 
   const timeZone = await resolveTimeZone(session.user.id, req);

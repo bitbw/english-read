@@ -29,7 +29,14 @@ export function errorMessageFromApiBody(body: ApiErrorBody | null, status: numbe
   }
   // 常见：{ error: "Unauthorized" }
   if (typeof body.error === "string") return body.error;
-  // 常见：Zod safeParse 失败时的 { error: flatten 对象 }，不宜整段展示给用户
+  // 兼容：Zod safeParse 失败时的 { error: { fieldErrors: {...} } }，提取第一条字段错误
+  if (body.error && typeof body.error === "object") {
+    const fieldErrors = (body.error as Record<string, unknown>).fieldErrors;
+    if (fieldErrors && typeof fieldErrors === "object") {
+      const first = Object.values(fieldErrors as Record<string, unknown>).flat()[0];
+      if (typeof first === "string") return first;
+    }
+  }
   if (body.error) return "请求被拒绝，请刷新页面或重新登录后再试";
   return fallback;
 }

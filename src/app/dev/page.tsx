@@ -4,6 +4,7 @@ import {
   Search,
   AlertTriangle,
   Newspaper,
+  ShieldCheck,
   Code2,
   ChevronRight,
 } from "lucide-react";
@@ -46,6 +47,14 @@ const devTools = [
     icon: Newspaper,
     color: "text-violet-500",
     bg: "bg-violet-500/10",
+  },
+  {
+    href: "/dev/validation-test",
+    label: "validationError 统一测试",
+    description: "批量测试 11 个路由的校验失败响应是否返回具体错误原因",
+    icon: ShieldCheck,
+    color: "text-cyan-500",
+    bg: "bg-cyan-500/10",
   },
 ];
 

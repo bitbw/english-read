@@ -10,13 +10,31 @@ import {
 } from "@/lib/vocabulary-limits";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { validationError } from "@/lib/api-error";
 
 const updateWordSchema = z.object({
-  note: z.string().max(VOCAB_NOTE_MAX_LENGTH).optional(),
-  definition: z.string().max(VOCAB_DEFINITION_MAX_LENGTH).optional(),
-  phonetic: z.string().max(VOCAB_PHONETIC_MAX_LENGTH).optional(),
-  audioUk: z.string().max(VOCAB_AUDIO_URL_MAX_LENGTH).optional().nullable(),
-  audioUs: z.string().max(VOCAB_AUDIO_URL_MAX_LENGTH).optional().nullable(),
+  note: z
+    .string()
+    .max(VOCAB_NOTE_MAX_LENGTH, `Note must not exceed ${VOCAB_NOTE_MAX_LENGTH} characters`)
+    .optional(),
+  definition: z
+    .string()
+    .max(VOCAB_DEFINITION_MAX_LENGTH, `Definition must not exceed ${VOCAB_DEFINITION_MAX_LENGTH} characters`)
+    .optional(),
+  phonetic: z
+    .string()
+    .max(VOCAB_PHONETIC_MAX_LENGTH, `Phonetic must not exceed ${VOCAB_PHONETIC_MAX_LENGTH} characters`)
+    .optional(),
+  audioUk: z
+    .string()
+    .max(VOCAB_AUDIO_URL_MAX_LENGTH, `Audio URL must not exceed ${VOCAB_AUDIO_URL_MAX_LENGTH} characters`)
+    .optional()
+    .nullable(),
+  audioUs: z
+    .string()
+    .max(VOCAB_AUDIO_URL_MAX_LENGTH, `Audio URL must not exceed ${VOCAB_AUDIO_URL_MAX_LENGTH} characters`)
+    .optional()
+    .nullable(),
 });
 
 type IdParams = { params: Promise<{ id: string }> };
@@ -50,7 +68,7 @@ export async function PUT(req: Request, { params }: IdParams) {
   const body = await req.json();
   const parsed = updateWordSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error);
   }
 
   const [updated] = await db

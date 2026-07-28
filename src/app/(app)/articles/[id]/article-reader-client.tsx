@@ -7,7 +7,8 @@ import { BackButton } from "@/components/back-button";
 import { ExternalLink, Eye, EyeOff } from "lucide-react";
 import { WordPopup, type WordPopupAnchorRect } from "@/components/reader/word-popup";
 import { cn } from "@/lib/utils";
-import { VOCAB_WORD_MAX_LENGTH } from "@/lib/vocabulary-limits";
+import { extractReadableContext } from "@/lib/extract-readable-context";
+import { VOCAB_CONTEXT_MAX_LENGTH, VOCAB_WORD_MAX_LENGTH } from "@/lib/vocabulary-limits";
 import { useTranslations } from "next-intl";
 import { useReadingTimeTracker } from "@/hooks/use-reading-time-tracker";
 
@@ -93,7 +94,11 @@ export function ArticleReaderClient({ article }: { article: Article }) {
         return;
       }
 
-      const context = range.startContainer.textContent?.trim() ?? "";
+      // 智能上下文提取：优先整段，其次完整句，最后按词边界截断
+      const fullText = range.startContainer.textContent ?? "";
+      const startOffset = range.startOffset;
+      const wordEndOffset = startOffset + word.length;
+      const context = extractReadableContext(fullText, startOffset, wordEndOffset, VOCAB_CONTEXT_MAX_LENGTH);
 
       // Avoid re-triggering for the same word
       setPopup((prev) => {

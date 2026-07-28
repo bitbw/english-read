@@ -4,10 +4,15 @@ import { books } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { validationError } from "@/lib/api-error";
 
 const updateProgressSchema = z.object({
   currentCfi: z.string().optional(),
-  readingProgress: z.number().min(0).max(100).optional(),
+  readingProgress: z
+    .number()
+    .min(0, "Reading progress must be at least 0")
+    .max(100, "Reading progress must not exceed 100")
+    .optional(),
 });
 
 type IdParams = { params: Promise<{ id: string }> };
@@ -45,7 +50,7 @@ export async function PUT(req: Request, { params }: IdParams) {
   const body = await req.json();
   const parsed = updateProgressSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error);
   }
 
   await db

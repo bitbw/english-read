@@ -5,10 +5,16 @@ import { isValidIanaTimeZone } from "@/lib/user-timezone";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { validationError } from "@/lib/api-error";
 
 const patchSchema = z
   .object({
-    timeZone: z.union([z.string().min(1).max(120), z.null()]).optional(),
+    timeZone: z
+      .union([
+        z.string().min(1, "Time zone must not be empty").max(120, "Time zone must not exceed 120 characters"),
+        z.null(),
+      ])
+      .optional(),
     showOnLeaderboard: z.boolean().optional(),
   })
   .refine((v) => v.timeZone !== undefined || v.showOnLeaderboard !== undefined, {
@@ -45,7 +51,7 @@ export async function PATCH(req: Request) {
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error);
   }
 
   const updates: {

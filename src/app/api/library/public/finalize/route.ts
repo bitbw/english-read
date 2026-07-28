@@ -4,14 +4,22 @@ import { publicLibraryBooks } from "@/lib/db/schema";
 import { assignPublicReadingTier } from "@/lib/assign-public-tier";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { validationError } from "@/lib/api-error";
 
 const finalizeSchema = z.object({
-  blobUrl: z.string().url(),
-  blobKey: z.string().min(1),
-  fileSize: z.number().int().positive().max(50 * 1024 * 1024),
-  title: z.string().min(1).max(2000),
-  author: z.string().max(2000).optional(),
-  coverUrl: z.string().url().optional(),
+  blobUrl: z.string().url("Blob URL must be a valid URL"),
+  blobKey: z.string().min(1, "Blob key is required"),
+  fileSize: z
+    .number()
+    .int("File size must be an integer")
+    .positive("File size must be positive")
+    .max(50 * 1024 * 1024, "File size must not exceed 50MB"),
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(2000, "Title must not exceed 2,000 characters"),
+  author: z.string().max(2000, "Author must not exceed 2,000 characters").optional(),
+  coverUrl: z.string().url("Cover URL must be a valid URL").optional(),
 });
 
 /**
@@ -25,7 +33,7 @@ export async function POST(req: Request) {
   const json = await req.json();
   const parsed = finalizeSchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error);
   }
 
   const { blobUrl, blobKey, fileSize, title, author, coverUrl } = parsed.data;

@@ -6,11 +6,22 @@ import { resolveTimeZone } from "@/lib/user-timezone";
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { validationError } from "@/lib/api-error";
 
 const postSchema = z
   .object({
-    seconds: z.number().int().min(1).max(120).optional(),
-    errors: z.number().int().min(1).max(50).optional(),
+    seconds: z
+      .number()
+      .int("Seconds must be an integer")
+      .min(1, "Seconds must be at least 1")
+      .max(120, "Seconds must not exceed 120")
+      .optional(),
+    errors: z
+      .number()
+      .int("Errors must be an integer")
+      .min(1, "Errors must be at least 1")
+      .max(50, "Errors must not exceed 50")
+      .optional(),
   })
   .refine((v) => v.seconds != null || v.errors != null, {
     message: "At least one of seconds or errors is required",
@@ -25,7 +36,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = postSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error);
   }
 
   const timeZone = await resolveTimeZone(session.user.id, req);
