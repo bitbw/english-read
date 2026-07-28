@@ -45,17 +45,12 @@ import {
   playPronunciationMp3,
   stopPronunciationAudio,
 } from "@/lib/pronunciation-audio";
+import { speakText, stopSpeaking } from "@/lib/tts";
 import { useTranslations } from "next-intl";
 
 /** 浏览器语音合成读英文 */
 function speakReviewWordTts(word: string): void {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-  const w = word.trim();
-  if (!w) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(w);
-  utterance.lang = "en-US";
-  window.speechSynthesis.speak(utterance);
+  speakText(word);
 }
 
 function postReviewStats(payload: { seconds?: number; errors?: number }) {
@@ -417,9 +412,7 @@ export function ReviewSession({
     return () => {
       clearTimeout(timer);
       stopPronunciationAudio();
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopSpeaking();
     };
   }, [autoPronunciation, current, step]);
 
@@ -767,11 +760,35 @@ export function ReviewSession({
           <Progress value={progress} className="h-2" />
         </div>
 
-        <Badge variant="secondary" className="text-xs">
-          {current.reviewStage === 0
-            ? t("reviewNth", { n: t("firstReview") })
-            : t("reviewNth", { n: current.reviewStage })}
-        </Badge>
+        {(() => {
+          const stage = current.reviewStage;
+          const isMastered = stage >= 6;
+          const remaining = isMastered ? 0 : 6 - stage;
+          const stageColors = [
+            "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/25",
+            "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/25",
+            "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/25",
+            "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/25",
+            "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
+            "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/25",
+            "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/25",
+          ];
+          const badgeColor = stageColors[Math.min(stage, stageColors.length - 1)];
+          return (
+            <Badge variant="outline" className={cn("text-xs border", badgeColor)}>
+              {stage === 0
+                ? t("reviewNth", { n: t("firstReview") })
+                : isMastered
+                  ? t("mastered")
+                  : t("reviewNth", { n: stage })}
+              {!isMastered && remaining > 0 && (
+                <span className="ml-1.5 opacity-70">
+                  ({t("remainingReview", { count: remaining })})
+                </span>
+              )}
+            </Badge>
+          );
+        })()}
 
       {step === "meaning" && (
         <Card className="w-full p-6 space-y-5">

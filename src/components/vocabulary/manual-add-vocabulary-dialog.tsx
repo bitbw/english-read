@@ -21,6 +21,7 @@ import {
   playPronunciationMp3 as playPronunciationMp3Url,
   stopPronunciationAudio,
 } from "@/lib/pronunciation-audio";
+import { speakText } from "@/lib/tts";
 import {
   VOCAB_CONTEXT_MAX_LENGTH,
   VOCAB_WORD_MAX_LENGTH,
@@ -206,11 +207,7 @@ export function ManualAddVocabularyDialog({
   }, [open, word]);
 
   function speakTts() {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(trimmedWord);
-    utterance.lang = "en-US";
-    window.speechSynthesis.speak(utterance);
+    speakText(trimmedWord);
   }
 
   function playPronunciationMp3(url: string) {
