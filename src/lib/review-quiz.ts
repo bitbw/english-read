@@ -225,12 +225,6 @@ function semanticPartition(key: string): string[] {
   return parts;
 }
 
-function chunkPartCount(wordLen: number): number {
-  if (wordLen <= 4) return 1;
-  if (wordLen <= 8) return 2;
-  return Math.min(5, Math.max(3, Math.ceil(wordLen / 4)));
-}
-
 function balancedPartition(key: string, parts: number): string[] {
   const n = key.length;
   if (n === 0) return [];

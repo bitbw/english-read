@@ -9,7 +9,6 @@ import { clientFetch, CLIENT_FETCH_NETWORK_ERROR } from "@/lib/client-fetch";
 import { toastConfirmAction } from "@/lib/toast-confirm";
 import { serializeVocabularyDefinition } from "@/lib/vocabulary-definition";
 import {
-  VOCAB_AUDIO_URL_MAX_LENGTH,
   VOCAB_CONTEXT_MAX_LENGTH,
   VOCAB_WORD_MAX_LENGTH,
 } from "@/lib/vocabulary-limits";

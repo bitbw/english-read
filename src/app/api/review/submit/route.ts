@@ -11,7 +11,7 @@ import { validationError } from "@/lib/api-error";
 const submitSchema = z.object({
   vocabularyId: z.string().min(1, "vocabularyId is required"),
   result: z.enum(["remembered", "forgotten"], {
-    errorMap: () => ({ message: "result must be either 'remembered' or 'forgotten'" }),
+    error: "result must be either 'remembered' or 'forgotten'",
   }),
 });
 
