@@ -16,6 +16,7 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const gradlePath = path.resolve(__dirname, '../android/app/build.gradle')
 const pkgPath = path.resolve(__dirname, '../package.json')
+const versionTsPath = path.resolve(__dirname, '../src/lib/version.ts')
 
 // 1. 读取 build.gradle
 let content = fs.readFileSync(gradlePath, 'utf-8')
@@ -66,6 +67,11 @@ fs.writeFileSync(gradlePath, content, 'utf-8')
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
 pkg.version = newVersionName
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
+
+// 6. 同步更新 src/lib/version.ts
+let versionTs = fs.readFileSync(versionTsPath, 'utf-8')
+versionTs = versionTs.replace(/const APP_VERSION = "\d+\.\d+\.\d+"/, `const APP_VERSION = "${newVersionName}"`)
+fs.writeFileSync(versionTsPath, versionTs, 'utf-8')
 
 console.log(`[BOWEN_LOG] versionName 已更新: ${versionNameMatch[0].trim()} → ${newVersionName}`)
 console.log(`[BOWEN_LOG] versionCode 已更新: ${oldVersionCode} → ${newVersionCode}`)
