@@ -64,7 +64,7 @@ npm install
 
 ```env
 AUTH_SECRET=
-AUTH_URL=http://localhost:3000
+AUTH_URL=http://localhost:5000
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 GOOGLE_CLIENT_ID=
@@ -90,7 +90,7 @@ npx drizzle-kit studio     # 打开 Drizzle Studio
 ### 开发运行
 
 ```bash
-npm run dev       # 开发服务器 http://localhost:3000
+npm run dev       # 开发服务器 http://localhost:5000
 npm run build     # 生产构建（含 ESLint）
 npm run start     # 构建后启动生产服务
 npm run lint      # 仅 ESLint
@@ -193,7 +193,7 @@ messages/
 4. **Authorized redirect URIs** 同时添加本地与生产：
 
    ```
-   http://localhost:3000/api/auth/callback/google
+   http://localhost:5000/api/auth/callback/google
    https://你的域名.vercel.app/api/auth/callback/google
    ```
 
@@ -204,8 +204,8 @@ messages/
 1. GitHub → Settings → Developer settings → **OAuth Apps** → New OAuth App
 2. 本地开发：
 
-   - Homepage URL: `http://localhost:3000`
-   - Authorization callback URL: `http://localhost:3000/api/auth/callback/github`
+   - Homepage URL: `http://localhost:5000`
+   - Authorization callback URL: `http://localhost:5000/api/auth/callback/github`
 
 3. 生产环境：单独创建 OAuth App，或将 callback 改为 `https://你的域名.vercel.app/api/auth/callback/github`
 4. 复制 **Client ID**，并 **Generate a new client secret**
@@ -217,7 +217,7 @@ messages/
 ```env
 # Auth.js
 AUTH_SECRET=          # 运行下方命令生成
-AUTH_URL=http://localhost:3000
+AUTH_URL=http://localhost:5000
 
 # Google OAuth
 GOOGLE_CLIENT_ID=
@@ -265,7 +265,7 @@ npx auth secret
 npm run dev
 ```
 
-浏览器打开 [http://localhost:3000](http://localhost:3000)
+浏览器打开 [http://localhost:5000](http://localhost:5000)
 
 ### 6. 在 Vercel 上部署
 
@@ -282,7 +282,7 @@ vercel --prod     # 生产部署
 
 ### 7. 部署完成后
 
-1. **环境变量** — 在 Vercel → **Settings** → **Environment Variables** 中配置与 `.env.local` 对应的项；将 **`AUTH_URL`** 设为生产站点根地址（例如 `https://你的域名.vercel.app`），不要使用 `http://localhost:3000`。
+1. **环境变量** — 在 Vercel → **Settings** → **Environment Variables** 中配置与 `.env.local` 对应的项；将 **`AUTH_URL`** 设为生产站点根地址（例如 `https://你的域名.vercel.app`），不要使用 `http://localhost:5000`。
 2. **OAuth** — 在 Google Cloud Console 与 GitHub OAuth 中确认生产回调 URL（见 §2）。
 3. **可选业务能力** — 变量名与说明见 [`.env.example`](./.env.example)。**获取方式**如下：
 

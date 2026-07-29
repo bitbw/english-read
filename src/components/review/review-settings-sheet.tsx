@@ -11,6 +11,8 @@ export interface ReviewSettingsSheetProps {
   onOpenChange: (open: boolean) => void;
   autoPronunciation: boolean;
   onAutoPronunciationChange: (enabled: boolean) => void;
+  spellingChunkThreshold?: number;
+  onSpellingChunkThresholdChange?: (threshold: number) => void;
 }
 
 export function ReviewSettingsSheet({
@@ -18,6 +20,8 @@ export function ReviewSettingsSheet({
   onOpenChange,
   autoPronunciation,
   onAutoPronunciationChange,
+  spellingChunkThreshold = 3,
+  onSpellingChunkThresholdChange,
 }: ReviewSettingsSheetProps) {
   const t = useTranslations("review");
 
@@ -69,6 +73,39 @@ export function ReviewSettingsSheet({
                   <VolumeX className="h-4 w-4" />
                 )}
               </button>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{t("spellingChunkThreshold")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t("spellingChunkThresholdHint")}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-mono tabular-nums text-muted-foreground">
+                {spellingChunkThreshold}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={2}
+              max={6}
+              step={1}
+              value={spellingChunkThreshold}
+              onChange={(e) => onSpellingChunkThresholdChange?.(Number(e.target.value))}
+              className="w-full h-2 appearance-none cursor-pointer rounded-full bg-accent accent-primary
+                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4
+                [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm
+                [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110"
+              aria-label={t("spellingChunkThreshold")}
+            />
+            <div className="flex justify-between text-[11px] text-muted-foreground px-0.5 select-none">
+              <span>2</span>
+              <span>3</span>
+              <span>4</span>
+              <span>5</span>
+              <span>6</span>
             </div>
           </div>
         </div>

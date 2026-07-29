@@ -183,13 +183,15 @@ export function LoginForm({ className }: LoginFormProps) {
     }
     setPhoneLoginPending(true);
     try {
+      console.log("[BOWEN_LOG] phone signIn start");
       const res = await signIn("phone-otp", {
         countryCode: cc,
         phone,
         code,
         redirect: false,
       });
-      if (res?.error) {
+      console.log("[BOWEN_LOG] phone signIn result:", res);
+      if (!res) {
         setPhoneError(t("phoneOrCodeError"));
         return;
       }
@@ -217,12 +219,14 @@ export function LoginForm({ className }: LoginFormProps) {
     }
     setPending(true);
     try {
+      console.log("[BOWEN_LOG] credentials signIn start", { email });
       const res = await signIn("credentials", {
         email,
         password,
         redirect: false,
       });
-      if (res?.error) {
+      console.log("[BOWEN_LOG] credentials signIn result:", res);
+      if (!res) {
         setError(t("emailOrPasswordError"));
         return;
       }

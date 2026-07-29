@@ -20,6 +20,10 @@ import {
   readReviewAutoPronunciationFromStorage,
   writeReviewAutoPronunciationToStorage,
 } from "@/lib/review-auto-pronunciation";
+import {
+  readThresholdFromStorage,
+  writeThresholdToStorage,
+} from "@/lib/review-spelling-threshold";
 import { clientFetch } from "@/lib/client-fetch";
 import { useTranslations } from "next-intl";
 
@@ -57,6 +61,9 @@ export function ReviewPageClient() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [autoPronunciation, setAutoPronunciation] = useState(
     readReviewAutoPronunciationFromStorage,
+  );
+  const [spellingChunkThreshold, setSpellingChunkThreshold] = useState(
+    readThresholdFromStorage,
   );
   const fetchUrl = useMemo(() => buildFetchUrl(date, preview), [date, preview]);
   const reviewScopeDay = useMemo(() => getReviewScopeDay(date), [date]);
@@ -98,6 +105,11 @@ export function ReviewPageClient() {
     writeReviewAutoPronunciationToStorage(enabled);
   }
 
+  function changeSpellingChunkThreshold(threshold: number) {
+    setSpellingChunkThreshold(threshold);
+    writeThresholdToStorage(threshold);
+  }
+
   const title = !date
     ? t("todayTitle")
     : preview
@@ -118,6 +130,8 @@ export function ReviewPageClient() {
             onOpenChange={setSettingsOpen}
             autoPronunciation={autoPronunciation}
             onAutoPronunciationChange={changeAutoPronunciation}
+            spellingChunkThreshold={spellingChunkThreshold}
+            onSpellingChunkThresholdChange={changeSpellingChunkThreshold}
           />
         ) : null}
       </div>
@@ -133,6 +147,7 @@ export function ReviewPageClient() {
           distractorPool={pool}
           reviewScopeDay={reviewScopeDay}
           autoPronunciation={autoPronunciation}
+          spellingChunkThreshold={spellingChunkThreshold}
           onComplete={handleReviewComplete}
         />
       ) : showPreviewList ? (

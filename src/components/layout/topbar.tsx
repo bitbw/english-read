@@ -48,12 +48,12 @@ function navItemIsActive(pathname: string, href: string) {
   return pathname === href;
 }
 
-export function Topbar() {
+export function Topbar({ isApp }: { isApp?: boolean }) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileNavPending, setMobileNavPending] = useState(false);
-  const [isNative, setIsNative] = useState(true);
+  const [isNative, setIsNative] = useState(isApp ?? true);
   const tNav = useTranslations("nav");
   const tTopbar = useTranslations("topbar");
 
@@ -184,7 +184,16 @@ export function Topbar() {
               {tTopbar("settings")}
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={async () => {
+                console.log("[BOWEN_LOG] signOut start, callbackUrl: /login");
+                try {
+                  const res = await signOut({ callbackUrl: "/login", redirect: false });
+                  console.log("[BOWEN_LOG] signOut result:", res);
+                  window.location.href = "/login";
+                } catch (err) {
+                  console.error("[BOWEN_LOG] signOut error:", err);
+                }
+              }}
               variant="destructive"
             >
               <LogOut className="mr-2 h-4 w-4" />

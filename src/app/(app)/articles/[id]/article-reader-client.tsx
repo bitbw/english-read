@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { format } from "date-fns";
 import { BackButton } from "@/components/back-button";
-import { ExternalLink, Eye, EyeOff } from "lucide-react";
+import { ExternalLink, Eye, EyeOff, Settings, Volume2, VolumeX } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { buttonVariants } from "@/components/ui/button-variants";
+import {
+  readAutoPronunciationFromStorage,
+  writeAutoPronunciationToStorage,
+} from "@/lib/reader-auto-pronunciation";
+import { debounce } from "@/lib/debounce";
 import { WordPopup, type WordPopupAnchorRect } from "@/components/reader/word-popup";
 import { cn } from "@/lib/utils";
 import { extractReadableContext } from "@/lib/extract-readable-context";
@@ -39,12 +46,18 @@ const levelColor: Record<number, string> = {
   3: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
 };
 
+const ARTICLE_FONT_SIZE_KEY = "english-read-article-font-size";
+
 export function ArticleReaderClient({ article }: { article: Article }) {
   const t = useTranslations("articles");
+  const tReader = useTranslations("reader");
   const contentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const [popup, setPopup] = useState<PopupState | null>(null);
   const [showCover, setShowCover] = useState(true);
+  const [fontSize, setFontSize] = useState(17);
+  const [autoPronunciation, setAutoPronunciation] = useState(readAutoPronunciationFromStorage);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // 阅读时长追踪（页面可见时自动上报到 readingDailyTime）
   useReadingTimeTracker({ enabled: true });
@@ -53,6 +66,40 @@ export function ArticleReaderClient({ article }: { article: Article }) {
     setPopup(null);
     window.getSelection()?.removeAllRanges();
   }, []);
+
+  // 从 localStorage 加载字号
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(ARTICLE_FONT_SIZE_KEY);
+      if (saved) {
+        const n = parseInt(saved, 10);
+        if (n >= 14 && n <= 28) setFontSize(n);
+      }
+    } catch {
+      // 忽略，使用默认字号
+    }
+  }, []);
+
+  function changeFontSize(delta: number) {
+    setFontSize((prev) => {
+      const next = Math.max(14, Math.min(28, prev + delta));
+      return next;
+    });
+  }
+
+  // 字号变化时持久化
+  useEffect(() => {
+    try {
+      localStorage.setItem(ARTICLE_FONT_SIZE_KEY, String(fontSize));
+    } catch {
+      // 忽略
+    }
+  }, [fontSize]);
+
+  function changeAutoPronunciation(enabled: boolean) {
+    setAutoPronunciation(enabled);
+    writeAutoPronunciationToStorage(enabled);
+  }
 
   useEffect(() => {
     function handlePointerUp(e: MouseEvent | TouchEvent) {
@@ -70,7 +117,7 @@ export function ArticleReaderClient({ article }: { article: Article }) {
       }
     }
 
-    function handleSelectionChange() {
+    const debouncedSelect = debounce(() => {
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || !selection.rangeCount) {
         return;
@@ -116,15 +163,16 @@ export function ArticleReaderClient({ article }: { article: Article }) {
           },
         };
       });
-    }
+    }, 300);
 
     document.addEventListener("mouseup", handlePointerUp);
     document.addEventListener("touchend", handlePointerUp as EventListener);
-    document.addEventListener("selectionchange", handleSelectionChange);
+    document.addEventListener("selectionchange", debouncedSelect);
     return () => {
       document.removeEventListener("mouseup", handlePointerUp);
       document.removeEventListener("touchend", handlePointerUp as EventListener);
-      document.removeEventListener("selectionchange", handleSelectionChange);
+      document.removeEventListener("selectionchange", debouncedSelect);
+      debouncedSelect.cancel();
     };
   }, []);
 
@@ -133,11 +181,87 @@ export function ArticleReaderClient({ article }: { article: Article }) {
 
   return (
     <div className="flex flex-col gap-6 pb-20 md:pb-0 max-w-2xl mx-auto">
-      {/* Back button */}
-      <BackButton
-        fallbackHref="/articles"
-        label={t("backToList")}
-      />
+      {/* Back button + Settings */}
+      <div className="flex items-center justify-between">
+        <BackButton
+          fallbackHref="/articles"
+          label={t("backToList")}
+        />
+        <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <SheetTrigger
+            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 shrink-0")}
+          >
+            <Settings className="h-4 w-4" />
+          </SheetTrigger>
+          <SheetContent
+            side="right"
+            showCloseButton={false}
+            className="w-[min(100%,20rem)] sm:max-w-sm p-0 flex flex-col gap-0"
+          >
+            <div className="flex items-center gap-2 px-4 py-4 border-b border-border shrink-0">
+              <Settings className="h-5 w-5 text-primary" />
+              <span className="font-semibold text-base">{tReader("readerSettings")}</span>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-6">
+              {/* Font size */}
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{tReader("fontSize")}</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => changeFontSize(-2)}
+                    className="h-8 w-9 flex items-center justify-center rounded-md border border-border hover:bg-accent text-xs font-bold text-muted-foreground"
+                  >
+                    A-
+                  </button>
+                  <span className="text-sm text-muted-foreground w-8 text-center tabular-nums font-medium">
+                    {fontSize}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => changeFontSize(2)}
+                    className="h-8 w-9 flex items-center justify-center rounded-md border border-border hover:bg-accent font-bold text-muted-foreground"
+                    style={{ fontSize: "15px" }}
+                  >
+                    A+
+                  </button>
+                </div>
+              </div>
+              {/* Auto pronunciation */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{tReader("autoPronunciation")}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {tReader("autoPronunciationHint")}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => changeAutoPronunciation(!autoPronunciation)}
+                    className={cn(
+                      "shrink-0 flex h-9 w-9 items-center justify-center rounded-md border transition-colors",
+                      autoPronunciation
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:bg-accent",
+                    )}
+                    aria-pressed={autoPronunciation}
+                    aria-label={
+                      autoPronunciation ? tReader("autoPronunciationOn") : tReader("autoPronunciationOff")
+                    }
+                  >
+                    {autoPronunciation ? (
+                      <Volume2 className="h-4 w-4" />
+                    ) : (
+                      <VolumeX className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
 
       {/* Cover image — 右上角眼睛图标可切换显示/隐藏 */}
       {article.coverUrl && (
@@ -213,7 +337,8 @@ export function ArticleReaderClient({ article }: { article: Article }) {
           {paragraphs.map((para, i) => (
             <p
               key={i}
-              className="text-base md:text-[17px] leading-[1.85] text-foreground tracking-wide"
+              className="text-foreground tracking-wide"
+              style={{ fontSize: `${fontSize}px`, lineHeight: 1.85 }}
             >
               {para}
             </p>
@@ -234,6 +359,7 @@ export function ArticleReaderClient({ article }: { article: Article }) {
             anchorRect={popup.anchorRect}
             onClose={closePopup}
             onSaved={() => {}}
+            autoPronunciation={autoPronunciation}
           />
         </div>
       )}
