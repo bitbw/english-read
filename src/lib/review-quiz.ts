@@ -188,16 +188,16 @@ const COMMON_SUFFIXES = [
   "id", "il", "in", "is", "it", "ly", "or", "ry", "ty",
 ].sort((a, b) => b.length - a.length);
 
-function semanticPartition(key: string): string[] {
+function semanticPartition(key: string, minChunkLen = 3): string[] {
   const n = key.length;
-  if (n <= 6) return [key];
+  if (n <= minChunkLen) return [key];
 
   const parts: string[] = [];
   let remaining = key;
 
   // 提取前缀（最长匹配）
   for (const p of COMMON_PREFIXES) {
-    if (remaining.startsWith(p) && remaining.length > p.length + 2) {
+    if (remaining.startsWith(p) && remaining.length > p.length + minChunkLen - 1) {
       parts.push(p);
       remaining = remaining.slice(p.length);
       break;
@@ -207,10 +207,11 @@ function semanticPartition(key: string): string[] {
   // 提取后缀（最长匹配），剩余词根如果过长则等分
   let suffixFound = false;
   for (const s of COMMON_SUFFIXES) {
-    if (remaining.endsWith(s) && remaining.length > s.length + 2) {
+    if (remaining.endsWith(s) && remaining.length > s.length + minChunkLen - 1) {
       const root = remaining.slice(0, remaining.length - s.length);
-      // 词根按 3-4 字母等分
-      const rootParts = balancedPartition(root, Math.max(1, Math.min(3, Math.ceil(root.length / 4))));
+      // 词根按阈值等分
+      const desiredParts = Math.max(2, Math.min(4, Math.ceil(root.length / minChunkLen)));
+      const rootParts = balancedPartition(root, desiredParts);
       parts.push(...rootParts);
       parts.push(s);
       suffixFound = true;
@@ -219,7 +220,8 @@ function semanticPartition(key: string): string[] {
   }
 
   if (!suffixFound) {
-    parts.push(...balancedPartition(remaining, Math.min(5, Math.max(2, Math.ceil(remaining.length / 4)))));
+    const desiredParts = Math.max(2, Math.min(5, Math.ceil(remaining.length / minChunkLen)));
+    parts.push(...balancedPartition(remaining, desiredParts));
   }
 
   return parts;
@@ -323,7 +325,7 @@ function pickTwoLetterDecoys(targetKey: string, simKeys: string[]): string[] {
  * 单词：字块区 = 整词划成数段 + 2 个干扰块；字母区 = 每个字母一块 + 2 个干扰字母。
  * `labels` 先字块区后字母区，由 `chunkCount` 分界。
  */
-function buildSingleWordSpellingTray(targetWord: string, similarEnglish: string[]): SpellingTraySpec {
+function buildSingleWordSpellingTray(targetWord: string, similarEnglish: string[], chunkThreshold: number): SpellingTraySpec {
   const key = normalizeWordKey(targetWord);
   if (!key) return { labels: [], layout: "word", chunkCount: 0 };
 
@@ -437,11 +439,11 @@ function buildPhraseSpellingTray(targetWord: string, similarEnglish: string[]): 
 /**
  * 拼字托盘：单词 = 字块区（上）+ 字母区（下）合并为同一序列；词组 = 按空格分词 + 2 干扰词。
  */
-export function buildSpellingTray(targetWord: string, similarEnglish: string[]): SpellingTraySpec {
+export function buildSpellingTray(targetWord: string, similarEnglish: string[], chunkThreshold = 3): SpellingTraySpec {
   if (isPhraseSpellingTarget(targetWord)) {
     return buildPhraseSpellingTray(targetWord, similarEnglish);
   }
-  return buildSingleWordSpellingTray(targetWord, similarEnglish);
+  return buildSingleWordSpellingTray(targetWord, similarEnglish, chunkThreshold);
 }
 
 /** 翻面后展示：对应英文词 */

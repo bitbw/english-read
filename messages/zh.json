@@ -609,6 +609,8 @@
     "autoPronunciationHint": "进入每道题时自动播放读音",
     "autoPronunciationOn": "关闭自动发音",
     "autoPronunciationOff": "开启自动发音",
+    "spellingChunkThreshold": "拼写切分阈值",
+    "spellingChunkThresholdHint": "字母数 ≤ 此值时不拆分（值越小拆分越细）",
     "autoPlayOn": "关闭自动发音",
     "autoPlayOff": "开启自动发音",
     "wrongMoved": "选错了，本题已移到本轮最后再来一遍",

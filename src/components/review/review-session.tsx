@@ -82,6 +82,8 @@ interface ReviewSessionProps {
   /** 与复习页一致：URL `date` 或本地今日，用于本地缓存「本 scope 已过关」 */
   reviewScopeDay: string;
   autoPronunciation?: boolean;
+  /** 拼写切分阈值（2-6），字母数 <= 此值的不拆分，默认 3 */
+  spellingChunkThreshold?: number;
   onComplete: (results: { remembered: number; forgotten: number; requeued: number }) => void;
 }
 
@@ -293,6 +295,7 @@ export function ReviewSession({
   distractorPool = [],
   reviewScopeDay,
   autoPronunciation = true,
+  spellingChunkThreshold,
   onComplete,
 }: ReviewSessionProps) {
   const t = useTranslations("review");
@@ -430,7 +433,7 @@ export function ReviewSession({
       ...distractorPool,
     ];
     const similar = pickSimilarWords(current.word, others, current.id, 8);
-    const spellingTray = buildSpellingTray(current.word, similar.map((s) => s.word));
+    const spellingTray = buildSpellingTray(current.word, similar.map((s) => s.word), spellingChunkThreshold);
     void quizRegenKey;
     return { similar, spellingTray };
   }, [current, queue, distractorPool, quizRegenKey]);

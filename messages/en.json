@@ -609,6 +609,8 @@
     "autoPronunciationHint": "Play pronunciation when each question appears",
     "autoPronunciationOn": "Disable auto pronunciation",
     "autoPronunciationOff": "Enable auto pronunciation",
+    "spellingChunkThreshold": "Spelling chunk threshold",
+    "spellingChunkThresholdHint": "Words with length ≤ this value won't be split (lower = finer chunks)",
     "autoPlayOn": "Disable auto-play",
     "autoPlayOff": "Enable auto-play",
     "wrongMoved": "Wrong — moved to the end of this round",
