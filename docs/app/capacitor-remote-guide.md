@@ -603,7 +603,7 @@ chrome://inspect
 
 ```bash
 # 日常开发（Web）
-npm run dev                 # localhost:3000 正常开发
+npm run dev                 # localhost:5000 正常开发
 
 # 准备打包
 npm run build               # 构建 Next.js

@@ -24,7 +24,7 @@ npx drizzle-kit studio     # Open Drizzle Studio (DB browser)
 Required in `.env.local`:
 ```
 AUTH_SECRET=
-AUTH_URL=http://localhost:3000
+AUTH_URL=http://localhost:5000
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 GOOGLE_CLIENT_ID=

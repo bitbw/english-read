@@ -64,7 +64,7 @@ Create `.env.local` in the project root. **Minimum** for local auth + DB + uploa
 
 ```env
 AUTH_SECRET=
-AUTH_URL=http://localhost:3000
+AUTH_URL=http://localhost:5000
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 GOOGLE_CLIENT_ID=
@@ -90,7 +90,7 @@ npx drizzle-kit studio     # Open Drizzle Studio (DB browser)
 ### Development
 
 ```bash
-npm run dev       # Dev server at http://localhost:3000
+npm run dev       # Dev server at http://localhost:5000
 npm run build     # Production build (includes ESLint)
 npm run start     # Start production server after build
 npm run lint      # ESLint only
@@ -193,7 +193,7 @@ Link the database to your Vercel project so these variables appear under **Setti
 4. Under **Authorized redirect URIs**, add both local and production callbacks:
 
    ```
-   http://localhost:3000/api/auth/callback/google
+   http://localhost:5000/api/auth/callback/google
    https://your-domain.vercel.app/api/auth/callback/google
    ```
 
@@ -203,8 +203,8 @@ Link the database to your Vercel project so these variables appear under **Setti
 
 1. GitHub → Settings → Developer settings → **OAuth Apps** → New OAuth App.
 2. Local development:
-   - Homepage URL: `http://localhost:3000`
-   - Authorization callback URL: `http://localhost:3000/api/auth/callback/github`
+   - Homepage URL: `http://localhost:5000`
+   - Authorization callback URL: `http://localhost:5000/api/auth/callback/github`
 3. Production: use a separate OAuth app or change the callback to `https://your-domain.vercel.app/api/auth/callback/github`.
 4. Copy **Client ID** and generate a **Client Secret**.
 
@@ -215,7 +215,7 @@ In the project root, create `.env.local` (same keys as Vercel **Production** unl
 ```env
 # Auth.js
 AUTH_SECRET=          # run: npx auth secret
-AUTH_URL=http://localhost:3000
+AUTH_URL=http://localhost:5000
 
 # Google OAuth
 GOOGLE_CLIENT_ID=
@@ -257,7 +257,7 @@ Optional: `npx drizzle-kit studio` opens Drizzle Studio against the same connect
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:5000](http://localhost:5000).
 
 ### 6. Deploy on Vercel
 
@@ -274,7 +274,7 @@ vercel --prod     # production
 
 ### 7. After deployment
 
-1. **Environment variables** — Mirror `.env.local` in Vercel → **Settings** → **Environment Variables**. Set **`AUTH_URL`** to your production site origin (e.g. `https://your-domain.vercel.app`), not `http://localhost:3000`.
+1. **Environment variables** — Mirror `.env.local` in Vercel → **Settings** → **Environment Variables**. Set **`AUTH_URL`** to your production site origin (e.g. `https://your-domain.vercel.app`), not `http://localhost:5000`.
 2. **OAuth** — Add production redirect URIs in Google Cloud Console and GitHub OAuth App settings (see §2).
 3. **Optional product features** — Names and comments match [`.env.example`](./.env.example). Where to obtain:
 
