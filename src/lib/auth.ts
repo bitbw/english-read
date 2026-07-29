@@ -223,6 +223,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user, trigger, session: clientSession }) {
       if (user) {
+        console.log("[BOWEN_LOG] jwt callback: user set", { sub: user.id, email: user.email });
         token.sub = user.id ?? token.sub;
         token.email = user.email ?? undefined;
         token.name = user.name;
@@ -262,6 +263,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     session({ session, token }) {
+      console.log("[BOWEN_LOG] session callback", { sub: token.sub, role: token.role });
       if (token.sub) {
         session.user.id = token.sub;
       }
@@ -276,6 +278,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   events: {
     async signIn({ user }) {
+      console.log("[BOWEN_LOG] events.signIn", { userId: user.id, email: user.email });
       if (user.id) {
         await touchUserOnline(user.id);
       }

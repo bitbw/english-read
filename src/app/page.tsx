@@ -2,10 +2,12 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import {
   ArrowRight,
   BookMarked,
   BookOpen,
+  CalendarDays,
   GraduationCap,
   Library,
   Sparkles,
@@ -113,7 +115,16 @@ async function DownloadAppSection() {
 
 export default async function LandingPage() {
   const session = await auth();
-  if (session?.user) redirect("/dashboard");
+  if (session?.user) {
+    redirect("/dashboard");
+  }
+
+  const hdrs = await headers();
+  const userAgent = hdrs.get("user-agent") ?? "";
+  console.log("[BOWEN_LOG] User-Agent:", userAgent);
+
+  const isApp = userAgent.includes("EnglishRead-App");
+  if (isApp) redirect("/login");
 
   const t = await getTranslations("landing");
 
@@ -124,6 +135,7 @@ export default async function LandingPage() {
     { icon: BarChart3, title: t("feature4Title"), desc: t("feature4Desc") },
     { icon: Trophy, title: t("feature5Title"), desc: t("feature5Desc") },
     { icon: Library, title: t("feature6Title"), desc: t("feature6Desc") },
+    { icon: CalendarDays, title: t("feature7Title"), desc: t("feature7Desc") },
   ];
 
   const srsStages = [
