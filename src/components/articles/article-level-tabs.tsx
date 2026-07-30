@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
-import { getSavedArticleLevel, saveArticleLevel } from "@/lib/article-level";
+import { fetchArticleLevel, saveArticleLevel } from "@/lib/article-level";
 
 interface LevelTab {
   level: number;
@@ -20,12 +20,13 @@ export function ArticleLevelTabs({ levelTabs, currentLevel }: ArticleLevelTabsPr
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const saved = getSavedArticleLevel();
-    if (!searchParams?.get("level") && saved !== currentLevel) {
-      const url = new URL(window.location.href);
-      url.searchParams.set("level", String(saved));
-      window.location.replace(url.toString());
-    }
+    fetchArticleLevel().then((saved) => {
+      if (!searchParams?.get("level") && saved !== currentLevel) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("level", String(saved));
+        window.location.replace(url.toString());
+      }
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -34,7 +35,9 @@ export function ArticleLevelTabs({ levelTabs, currentLevel }: ArticleLevelTabsPr
         <Link
           key={lv}
           href={`/articles?level=${lv}`}
-          onClick={() => saveArticleLevel(lv)}
+          onClick={async (e) => {
+            await saveArticleLevel(lv);
+          }}
           className={cn(
             "flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
             currentLevel === lv

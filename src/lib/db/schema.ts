@@ -35,6 +35,8 @@ export const users = pgTable("users", {
   lastOnlineAt: timestamp("last_online_at", { mode: "date" }),
   /** 是否参与用户类排行榜（默认参与，用户可关闭） */
   showOnLeaderboard: boolean("show_on_leaderboard").notNull().default(true),
+  /** 每日文章阅读级别 1-3（L1/L2/L3） */
+  articleLevel: integer("article_level").notNull().default(1),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });

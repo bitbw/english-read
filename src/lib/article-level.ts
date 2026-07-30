@@ -1,25 +1,25 @@
-export const ARTICLE_LEVEL_KEY = "article_level";
+const API_PATH = "/api/user/preferences";
 
-export function getSavedArticleLevel(): number {
-  if (typeof document === "undefined") return 1;
-  const match = document.cookie.match(
-    new RegExp(`(?:^|;\\s*)${ARTICLE_LEVEL_KEY}=(\\d)`)
-  );
-  if (match) {
-    const n = Number(match[1]);
-    if (n >= 1 && n <= 3) return n;
+export async function fetchArticleLevel(): Promise<number> {
+  try {
+    const res = await fetch(API_PATH);
+    if (!res.ok) return 1;
+    const data = await res.json();
+    return data.articleLevel ?? 1;
+  } catch {
+    return 1;
   }
-  return 1;
 }
 
-export function saveArticleLevel(level: number): void {
-  if (typeof document === "undefined") return;
-  document.cookie = `${ARTICLE_LEVEL_KEY}=${level}; path=/; max-age=31536000; SameSite=Lax`;
-}
-
-export function parseArticleLevel(value: string | undefined): number {
-  if (!value) return 1;
-  const n = Number(value);
-  if (n >= 1 && n <= 3) return n;
-  return 1;
+export async function saveArticleLevel(level: number): Promise<boolean> {
+  try {
+    const res = await fetch(API_PATH, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ articleLevel: level }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }

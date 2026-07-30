@@ -16,9 +16,10 @@ const patchSchema = z
       ])
       .optional(),
     showOnLeaderboard: z.boolean().optional(),
+    articleLevel: z.number().int().min(1).max(3).optional(),
   })
-  .refine((v) => v.timeZone !== undefined || v.showOnLeaderboard !== undefined, {
-    message: "At least one of timeZone or showOnLeaderboard is required",
+  .refine((v) => v.timeZone !== undefined || v.showOnLeaderboard !== undefined || v.articleLevel !== undefined, {
+    message: "At least one of timeZone, showOnLeaderboard, or articleLevel is required",
   });
 
 export async function GET() {
@@ -31,6 +32,7 @@ export async function GET() {
     .select({
       timeZone: users.timeZone,
       showOnLeaderboard: users.showOnLeaderboard,
+      articleLevel: users.articleLevel,
     })
     .from(users)
     .where(eq(users.id, session.user.id))
@@ -39,6 +41,7 @@ export async function GET() {
   return NextResponse.json({
     timeZone: row?.timeZone ?? null,
     showOnLeaderboard: row?.showOnLeaderboard ?? true,
+    articleLevel: row?.articleLevel ?? 1,
   });
 }
 
@@ -57,6 +60,7 @@ export async function PATCH(req: Request) {
   const updates: {
     timeZone?: string | null;
     showOnLeaderboard?: boolean;
+    articleLevel?: number;
     updatedAt: Date;
   } = { updatedAt: new Date() };
 
@@ -72,12 +76,17 @@ export async function PATCH(req: Request) {
     updates.showOnLeaderboard = parsed.data.showOnLeaderboard;
   }
 
+  if (parsed.data.articleLevel !== undefined) {
+    updates.articleLevel = parsed.data.articleLevel;
+  }
+
   await db.update(users).set(updates).where(eq(users.id, session.user.id));
 
   const [row] = await db
     .select({
       timeZone: users.timeZone,
       showOnLeaderboard: users.showOnLeaderboard,
+      articleLevel: users.articleLevel,
     })
     .from(users)
     .where(eq(users.id, session.user.id))
@@ -87,5 +96,6 @@ export async function PATCH(req: Request) {
     ok: true,
     timeZone: row?.timeZone ?? null,
     showOnLeaderboard: row?.showOnLeaderboard ?? true,
+    articleLevel: row?.articleLevel ?? 1,
   });
 }
