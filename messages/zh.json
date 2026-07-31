@@ -351,6 +351,7 @@
     "invalidRange": "请选择有效日期，且跨度不超过 90 天",
     "readingSection": "阅读",
     "reviewSection": "复习",
+    "dailyBreakdown": "每日明细",
     "readingTime": "阅读时长",
     "avgDailyReadingTime": "日均阅读",
     "avgWpm": "平均阅读速度",
@@ -376,7 +377,15 @@
     "vocabAdded": "新增词汇",
     "avgDailyAdded": "日均新增",
     "vocabSection": "新增词汇",
-    "colVocabAdded": "新增词数"
+    "colVocabAdded": "新增词数",
+    "aiAnalysis": "AI 学习分析",
+    "aiAnalysisDesc": "基于以上数据，由 AI 生成个性化学习建议",
+    "aiAnalysisBtn": "生成分析",
+    "aiAnalysisError": "分析生成失败，请稍后重试",
+    "aiAnalysisRetry": "重新生成",
+    "aiAnalysisEmpty": "暂无足够数据进行分析",
+    "aiAnalysisCacheHint": "上次分析结果（{time} 生成）",
+    "aiSuggestions": "改进建议"
   },
   "leaderboard": {
     "title": "排行榜",
