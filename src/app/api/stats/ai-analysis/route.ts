@@ -6,7 +6,7 @@ import { generateText } from "ai";
 import { NextResponse } from "next/server";
 
 /** AI 分析使用的模型，可直接修改此值切换模型 */
-const AI_ANALYSIS_MODEL = "moonshotai/kimi-k2.7-code";
+const AI_ANALYSIS_MODEL = "google/gemma-4-26b-a4b-it";
 
 function buildDigest(
   days: number,
