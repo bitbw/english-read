@@ -223,7 +223,7 @@ export function StudyStatsPanel({
     } finally {
       setAiLoading(false);
     }
-  }, [rangeMode, customDraftStart, customDraftEnd, buildAiCacheKey, t]);
+  }, [rangeMode, customDraftStart, customDraftEnd, buildAiCacheKey, t, locale]);
 
   // Clear AI result when range changes, and auto-load from cache
   useEffect(() => {
@@ -390,7 +390,7 @@ export function StudyStatsPanel({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={loadAiAnalysis}
+                    onClick={() => loadAiAnalysis()}
                     className="shrink-0 gap-1"
                     disabled={!hasAnyData}
                   >

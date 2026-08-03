@@ -325,7 +325,7 @@ function pickTwoLetterDecoys(targetKey: string, simKeys: string[]): string[] {
  * 单词：字块区 = 整词划成数段 + 2 个干扰块；字母区 = 每个字母一块 + 2 个干扰字母。
  * `labels` 先字块区后字母区，由 `chunkCount` 分界。
  */
-function buildSingleWordSpellingTray(targetWord: string, similarEnglish: string[], chunkThreshold: number): SpellingTraySpec {
+function buildSingleWordSpellingTray(targetWord: string, similarEnglish: string[]): SpellingTraySpec {
   const key = normalizeWordKey(targetWord);
   if (!key) return { labels: [], layout: "word", chunkCount: 0 };
 
@@ -439,11 +439,11 @@ function buildPhraseSpellingTray(targetWord: string, similarEnglish: string[]): 
 /**
  * 拼字托盘：单词 = 字块区（上）+ 字母区（下）合并为同一序列；词组 = 按空格分词 + 2 干扰词。
  */
-export function buildSpellingTray(targetWord: string, similarEnglish: string[], chunkThreshold = 3): SpellingTraySpec {
+export function buildSpellingTray(targetWord: string, similarEnglish: string[]): SpellingTraySpec {
   if (isPhraseSpellingTarget(targetWord)) {
     return buildPhraseSpellingTray(targetWord, similarEnglish);
   }
-  return buildSingleWordSpellingTray(targetWord, similarEnglish, chunkThreshold);
+  return buildSingleWordSpellingTray(targetWord, similarEnglish);
 }
 
 /** 翻面后展示：对应英文词 */

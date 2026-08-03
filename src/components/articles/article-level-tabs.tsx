@@ -35,7 +35,7 @@ export function ArticleLevelTabs({ levelTabs, currentLevel }: ArticleLevelTabsPr
         <Link
           key={lv}
           href={`/articles?level=${lv}`}
-          onClick={async (e) => {
+          onClick={async () => {
             await saveArticleLevel(lv);
           }}
           className={cn(
