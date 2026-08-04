@@ -24,48 +24,13 @@ import { getTranslations } from "next-intl/server";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { LandingShowcaseImage } from "@/components/landing/landing-showcase-image";
 import { DownloadAppGuard } from "@/components/landing/download-app-guard";
-import { list } from "@vercel/blob";
+import APP_VERSION from "@/lib/version";
 
-function formatSize(bytes: number): string {
-  if (bytes >= 1024 * 1024 * 1024) {
-    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
-  }
-  if (bytes >= 1024 * 1024) {
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  }
-  if (bytes >= 1024) {
-    return (bytes / 1024).toFixed(0) + " KB";
-  }
-  return bytes + " B";
-}
+const APK_BLOB_BASE = "https://bpjalfnicj8nnzo2.public.blob.vercel-storage.com";
 
 async function DownloadAppSection() {
-  let latestName = "";
-  let latestUrl = "";
-  let latestSize = "";
-  let totalVersions = 0;
-
-  try {
-    const { blobs } = await list({ prefix: "apks/" });
-    const apks = blobs
-      .filter((b) => {
-        const n = b.pathname.split("/").pop() ?? "";
-        return n.startsWith("EnglishRead") && n.endsWith(".apk");
-      })
-      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-
-    if (apks.length > 0) {
-      latestName = apks[0].pathname.split("/").pop() ?? "";
-      latestUrl = apks[0].url;
-      latestSize = formatSize(apks[0].size);
-      totalVersions = apks.length;
-    }
-  } catch {
-    // Blob list 失败时静默降级，不显示下载区块
-    return null;
-  }
-
-  if (!latestUrl) return null;
+  const name = `EnglishRead-v${APP_VERSION}-release.apk`;
+  const url = `${APK_BLOB_BASE}/apks/${name}`;
 
   return (
     <section className="relative overflow-hidden border-y border-border bg-muted/20">
@@ -85,7 +50,7 @@ async function DownloadAppSection() {
         </p>
         <div className="mt-10 flex flex-col items-center gap-4">
           <a
-            href={latestUrl}
+            href={url}
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
@@ -97,15 +62,7 @@ async function DownloadAppSection() {
             Download Latest
           </a>
           <p className="text-xs text-muted-foreground">
-            {latestName} &middot; {latestSize}
-            {totalVersions > 1 && (
-              <>
-                {" "}&middot;{" "}
-                <Link href="/download" className="underline underline-offset-2 hover:text-foreground">
-                  View all {totalVersions} versions
-                </Link>
-              </>
-            )}
+            {name}
           </p>
         </div>
       </div>

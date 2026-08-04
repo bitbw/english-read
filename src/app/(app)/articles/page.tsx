@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { dailyArticles } from "@/lib/db/schema";
+import { dailyArticles, users } from "@/lib/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { BackButton } from "@/components/back-button";
 import { auth } from "@/lib/auth";
@@ -33,7 +33,17 @@ export default async function ArticlesPage({
   }));
 
   const sp = await searchParams;
-  const level = Math.max(1, Math.min(3, parseInt(sp.level ?? "1", 10)));
+  let level: number;
+  if (sp.level) {
+    level = Math.max(1, Math.min(3, parseInt(sp.level, 10)));
+  } else {
+    const [userRow] = await db
+      .select({ articleLevel: users.articleLevel })
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .limit(1);
+    level = userRow?.articleLevel ?? 1;
+  }
   const page = Math.max(1, parseInt(sp.page ?? "1", 10));
   const offset = (page - 1) * PAGE_SIZE;
 

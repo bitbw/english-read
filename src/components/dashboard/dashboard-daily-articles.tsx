@@ -51,9 +51,9 @@ export function DashboardDailyArticles({
   const [activeLevel, setActiveLevel] = useState(defaultLevel);
   const currentArticles = levels.find((l) => l.level === activeLevel)?.articles ?? [];
 
-  function handleLevelChange(level: number) {
+  async function handleLevelChange(level: number) {
     setActiveLevel(level);
-    saveArticleLevel(level);
+    await saveArticleLevel(level);
   }
 
   function formatDate(d: Date | null): string {

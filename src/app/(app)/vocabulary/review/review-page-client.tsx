@@ -147,7 +147,6 @@ export function ReviewPageClient() {
           distractorPool={pool}
           reviewScopeDay={reviewScopeDay}
           autoPronunciation={autoPronunciation}
-          spellingChunkThreshold={spellingChunkThreshold}
           onComplete={handleReviewComplete}
         />
       ) : showPreviewList ? (

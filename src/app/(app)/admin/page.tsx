@@ -3,7 +3,7 @@ import { AdminUsersClient } from "./admin-users-client";
 import { requireAdminSession } from "@/lib/require-admin";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Code2 } from "lucide-react";
+import { Code2, MegaphoneIcon } from "lucide-react";
 
 export default async function AdminPage() {
   await requireAdminSession();
@@ -24,6 +24,22 @@ export default async function AdminPage() {
                 <CardDescription>
                   clientFetch 调试、Similar Words API、Sentry 上报测试、文章爬取
                 </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+      </Link>
+
+      <Link href="/admin/announcements" className="group block">
+        <Card className="transition-all duration-200 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2 ring-1 ring-foreground/5">
+                <MegaphoneIcon className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle>公告管理</CardTitle>
+                <CardDescription>管理系统公告，支持中英文双语，可设置发布/过期时间</CardDescription>
               </div>
             </div>
           </CardHeader>

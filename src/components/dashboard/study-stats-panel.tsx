@@ -1,6 +1,7 @@
 "use client";
 
 import { BackButton } from "@/components/back-button";
+import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +22,8 @@ import { dayWpmFromPoint } from "@/lib/reading-wpm";
 import { readingSpeedTierFromWpm } from "@/lib/reading-speed-tier";
 import type { StudyStatsResponse } from "@/lib/study-stats";
 import { useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
+import { Lightbulb, RefreshCw, Sparkles } from "lucide-react";
 
 type RangeMode = "7" | "14" | "30" | "custom";
 
@@ -66,6 +69,7 @@ export function StudyStatsPanel({
 }: StudyStatsPanelProps) {
   const t = useTranslations("stats");
   const tTier = useTranslations("readingSpeedTier");
+  const locale = useLocale();
 
   const [narrow, setNarrow] = useState(false);
   const [rangeMode, setRangeMode] = useState<RangeMode>("14");
@@ -74,6 +78,10 @@ export function StudyStatsPanel({
   const [data, setData] = useState<StudyStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [rangeError, setRangeError] = useState<string | null>(null);
+  const [aiResult, setAiResult] = useState<{ analysis: string; suggestions: string[] } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiCacheTime, setAiCacheTime] = useState<string | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
@@ -147,6 +155,102 @@ export function StudyStatsPanel({
     }
     void load("custom", customDraftStart, customDraftEnd);
   };
+
+  const AI_CACHE_PREFIX = "english-read-ai-analysis-";
+
+  const buildAiCacheKey = useCallback(() => {
+    const mode = rangeMode;
+    if (mode === "custom") return `${AI_CACHE_PREFIX}custom-${customDraftStart}-${customDraftEnd}`;
+    return `${AI_CACHE_PREFIX}${mode}`;
+  }, [rangeMode, customDraftStart, customDraftEnd]);
+
+  const loadAiAnalysis = useCallback(async (skipCache = false) => {
+    setAiLoading(true);
+    setAiError(null);
+
+    // Check cache first (skip if regenerating)
+    const cacheKey = buildAiCacheKey();
+    if (!skipCache) {
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          // New format: { data: { analysis, suggestions }, time: "ISO" }
+          if (parsed?.data?.analysis && parsed?.time) {
+            const age = Date.now() - new Date(parsed.time).getTime();
+            if (age < 3600000) {
+              setAiResult(parsed.data);
+              setAiCacheTime(parsed.time);
+              setAiLoading(false);
+              return;
+            }
+            // Expired — delete it
+            localStorage.removeItem(cacheKey);
+          }
+        }
+      } catch {
+        localStorage.removeItem(cacheKey);
+      }
+    }
+
+    try {
+      const days = rangeMode === "custom"
+        ? Math.round(
+            (new Date(customDraftEnd).getTime() - new Date(customDraftStart).getTime()) /
+              86400000,
+          ) + 1
+        : parseInt(rangeMode, 10);
+      const r = await clientFetch("/api/stats/ai-analysis", {
+        method: "POST",
+        body: JSON.stringify({ days, locale }),
+        showErrorToast: false,
+      });
+      if (!r.ok) {
+        const body = (await r.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "AI analysis failed");
+      }
+      const data = (await r.json()) as { analysis: string; suggestions: string[] };
+      setAiResult(data);
+      const now = new Date().toISOString();
+      setAiCacheTime(now);
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify({ data, time: now }));
+      } catch {
+        /* ignore */
+      }
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : t("aiAnalysisError"));
+    } finally {
+      setAiLoading(false);
+    }
+  }, [rangeMode, customDraftStart, customDraftEnd, buildAiCacheKey, t, locale]);
+
+  // Clear AI result when range changes, and auto-load from cache
+  useEffect(() => {
+    setAiResult(null);
+    setAiError(null);
+    setAiCacheTime(null);
+
+    // Auto-load cached AI analysis
+    const cacheKey = buildAiCacheKey();
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.data?.analysis && parsed?.time) {
+          const age = Date.now() - new Date(parsed.time).getTime();
+          if (age < 3600000) {
+            setAiResult(parsed.data);
+            setAiCacheTime(parsed.time);
+          } else {
+            localStorage.removeItem(cacheKey);
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [rangeMode, buildAiCacheKey]);
 
   const hasAnyData = useMemo(() => {
     if (!data) return false;
@@ -273,7 +377,98 @@ export function StudyStatsPanel({
         </div>
       ) : data ? (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {/* AI Analysis — 放在最上面 */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-row items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Sparkles className="h-5 w-5 text-primary shrink-0" />
+                  <CardTitle className="text-base truncate">{t("aiAnalysis")}</CardTitle>
+                </div>
+                {!aiLoading && !aiResult && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadAiAnalysis()}
+                    className="shrink-0 gap-1"
+                    disabled={!hasAnyData}
+                  >
+                    <Lightbulb className="h-4 w-4" />
+                    {t("aiAnalysisBtn")}
+                  </Button>
+                )}
+                {aiResult && !aiLoading && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => loadAiAnalysis(true)}
+                    className="shrink-0 gap-1"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    {t("aiAnalysisRetry")}
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("aiAnalysisDesc")}
+              </p>
+            </CardHeader>
+            <CardContent>
+              {aiLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-[90%]" />
+                  <Skeleton className="h-4 w-[75%]" />
+                  <div className="pt-2 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-4 w-[85%]" />
+                  </div>
+                </div>
+              ) : aiError ? (
+                <div className="space-y-3 py-2">
+                  <p className="text-sm text-destructive">{aiError}</p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => loadAiAnalysis(true)} className="gap-1">
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    {t("aiAnalysisRetry")}
+                  </Button>
+                </div>
+              ) : aiResult ? (
+                <div className="space-y-4">
+                  {aiCacheTime && (
+                    <p className="text-xs text-muted-foreground">
+                      {t("aiAnalysisCacheHint", { time: format(new Date(aiCacheTime), "HH:mm") })}
+                    </p>
+                  )}
+                  <div className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
+                    {aiResult.analysis}
+                  </div>
+                  {aiResult.suggestions?.length > 0 && (
+                    <div className="space-y-2 pt-2">
+                      <p className="text-sm font-medium text-foreground">{t("aiSuggestions")}</p>
+                      <ul className="space-y-1.5">
+                        {aiResult.suggestions.map((s, i) => (
+                          <li key={i} className="text-sm text-muted-foreground flex gap-2">
+                            <span className="text-primary mt-0.5 shrink-0">•</span>
+                            <span>{s}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : !hasAnyData ? (
+                <p className="text-sm text-muted-foreground py-2">
+                  {t("aiAnalysisEmpty")}
+                </p>
+              ) : null
+              }
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             <Card>
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">{t("readingTime")}</p>

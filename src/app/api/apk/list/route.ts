@@ -1,5 +1,5 @@
-import { list } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import APP_VERSION from "@/lib/version";
 
 export type ApkItem = {
   name: string;
@@ -14,50 +14,21 @@ export type ApkListResponse = {
   latest: ApkItem | null;
 };
 
-// GET /api/apk/list — 列出 Vercel Blob 中所有 EnglishRead 开头的 APK
+const BLOB_BASE = "https://bpjalfnicj8nnzo2.public.blob.vercel-storage.com";
+
+// GET /api/apk/list — 返回硬编码的 APK 下载信息（基于当前 APP_VERSION）
 export async function GET() {
-  try {
-    const { blobs } = await list({ prefix: "apks/" });
+  const name = `EnglishRead-v${APP_VERSION}-release.apk`;
+  const url = `${BLOB_BASE}/apks/${name}`;
+  const sizeLabel = "~35 MB";
 
-    const apks = blobs
-      .filter((b) => {
-        const name = b.pathname.split("/").pop() ?? "";
-        return name.startsWith("EnglishRead") && name.endsWith(".apk");
-      })
-      .map((b) => {
-        const name = b.pathname.split("/").pop() ?? "";
-        return {
-          name,
-          url: b.url,
-          size: b.size,
-          sizeLabel: formatSize(b.size),
-          uploadedAt: b.uploadedAt instanceof Date ? b.uploadedAt.toISOString() : String(b.uploadedAt),
-        };
-      })
-      .sort(
-        (a, b) =>
-          new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime(),
-      );
+  const item: ApkItem = {
+    name,
+    url,
+    size: 0,
+    sizeLabel,
+    uploadedAt: new Date().toISOString(),
+  };
 
-    return NextResponse.json({ apks, latest: apks[0] ?? null } satisfies ApkListResponse);
-  } catch (error) {
-    console.error("[BOWEN_LOG] Failed to list APKs:", error);
-    return NextResponse.json(
-      { error: "Failed to list APKs" },
-      { status: 500 },
-    );
-  }
-}
-
-function formatSize(bytes: number): string {
-  if (bytes >= 1024 * 1024 * 1024) {
-    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
-  }
-  if (bytes >= 1024 * 1024) {
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  }
-  if (bytes >= 1024) {
-    return (bytes / 1024).toFixed(0) + " KB";
-  }
-  return bytes + " B";
+  return NextResponse.json({ apks: [item], latest: item } satisfies ApkListResponse);
 }

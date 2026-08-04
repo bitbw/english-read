@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { books, vocabulary, dailyArticles } from "@/lib/db/schema";
+import { books, users, vocabulary, dailyArticles } from "@/lib/db/schema";
 import { eq, and, lte, desc, count } from "drizzle-orm";
 import { isAdmin } from "@/lib/role";
 import Link from "next/link";
@@ -24,10 +24,8 @@ import { MiniReviewPlan } from "@/components/dashboard/mini-review-plan";
 import { DashboardDailyArticles } from "@/components/dashboard/dashboard-daily-articles";
 import { GuideBanner } from "@/components/dashboard/guide-banner";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { DashboardPullToRefresh } from "@/components/dashboard/dashboard-pull-to-refresh";
-import { parseArticleLevel } from "@/lib/article-level";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -120,8 +118,12 @@ export default async function DashboardPage() {
   const ta = await getTranslations("articles");
   const isNewUser = recentBooks.length === 0 && totalVocab === 0;
 
-  const cookieStore = await cookies();
-  const defaultLevel = parseArticleLevel(cookieStore.get("article_level")?.value);
+  const [userRow] = await db
+    .select({ articleLevel: users.articleLevel })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const defaultLevel = userRow?.articleLevel ?? 1;
 
   return (
     <DashboardPullToRefresh>

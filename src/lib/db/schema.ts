@@ -35,6 +35,8 @@ export const users = pgTable("users", {
   lastOnlineAt: timestamp("last_online_at", { mode: "date" }),
   /** 是否参与用户类排行榜（默认参与，用户可关闭） */
   showOnLeaderboard: boolean("show_on_leaderboard").notNull().default(true),
+  /** 每日文章阅读级别 1-3（L1/L2/L3） */
+  articleLevel: integer("article_level").notNull().default(1),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
@@ -340,6 +342,59 @@ export const readingDailyTimeRelations = relations(readingDailyTime, ({ one }) =
 
 export const reviewDailyStatsRelations = relations(reviewDailyStats, ({ one }) => ({
   user: one(users, { fields: [reviewDailyStats.userId], references: [users.id] }),
+}));
+
+// ─────────────────────────────────────────────
+// Announcements（系统公告）
+// ─────────────────────────────────────────────
+
+export const announcements = pgTable(
+  "announcements",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    /** 公告标题（zh） */
+    titleZh: text("title_zh").notNull(),
+    /** 公告标题（en） */
+    titleEn: text("title_en"),
+    /** 公告内容 Markdown（zh） */
+    contentZh: text("content_zh").notNull(),
+    /** 公告内容 Markdown（en） */
+    contentEn: text("content_en"),
+    /** 链接 URL（可选） */
+    linkUrl: text("link_url"),
+    /** 链接文字（zh），如 "查看详情" */
+    linkLabelZh: text("link_label_zh"),
+    /** 链接文字（en），如 "Learn more" */
+    linkLabelEn: text("link_label_en"),
+    /** 优先级（数字越大越靠前） */
+    priority: integer("priority").notNull().default(0),
+    /** 状态：draft | published | archived */
+    status: text("status", { enum: ["draft", "published", "archived"] })
+      .notNull()
+      .default("draft"),
+    /** 创建者 */
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** 发布时间（为空则不展示） */
+    publishedAt: timestamp("published_at", { mode: "date" }),
+    /** 过期时间（过期后自动归档） */
+    expiresAt: timestamp("expires_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => ({
+    statusIdx: index("announcements_status_idx").on(t.status),
+    priorityIdx: index("announcements_priority_idx").on(t.priority, t.status),
+    publishedAtIdx: index("announcements_published_at_idx").on(t.publishedAt),
+    createdByIdx: index("announcements_created_by_idx").on(t.createdBy),
+  })
+);
+
+export const announcementsRelations = relations(announcements, ({ one }) => ({
+  creator: one(users, { fields: [announcements.createdBy], references: [users.id] }),
 }));
 
 // ─────────────────────────────────────────────

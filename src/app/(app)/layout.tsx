@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { AnnouncementBar } from "@/components/announcement/announcement-bar";
 // import { BottomNav } from "@/components/layout/bottom-nav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -13,6 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar />
       <div className="flex flex-col flex-1 overflow-hidden">
         <Topbar isApp={isApp} />
+        <AnnouncementBar />
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
