@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "lint": "next lint",
     "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
     "run:android": "cap run android --live-reload --port 5000 --host localhost --forwardPorts 5000:5000",
     "patch": "node scripts/bump-android-version.js",
     "build:android": "cap sync && cd android && gradlew assembleRelease && cd .. && npm run upload:apk",
