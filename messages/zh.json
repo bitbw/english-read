@@ -760,5 +760,31 @@
     "storeUploadDesc": "上传后所有用户可见，系统将自动识别书名并分级。完成后会返回书库列表。",
     "noEpubHint": "还没有 EPUB？可先到外部站点查找。",
     "downloadEbook": "去下载电子书"
+  },
+  "announcement": {
+    "title": "公告管理",
+    "create": "创建公告",
+    "edit": "编辑公告",
+    "delete": "删除公告",
+    "deleteConfirm": "确定删除此公告？",
+    "titleZh": "标题（中文）",
+    "titleEn": "标题（英文）",
+    "contentZh": "内容（中文）",
+    "contentEn": "内容（英文）",
+    "linkUrl": "链接 URL",
+    "linkLabelZh": "链接文字（中文）",
+    "linkLabelEn": "链接文字（英文）",
+    "priority": "优先级",
+    "status": "状态",
+    "publishedAt": "发布时间",
+    "expiresAt": "过期时间",
+    "draft": "草稿",
+    "published": "已发布",
+    "archived": "已归档",
+    "empty": "暂无公告",
+    "loadError": "加载失败",
+    "saveSuccess": "保存成功",
+    "deleteSuccess": "删除成功",
+    "close": "关闭"
   }
 }
