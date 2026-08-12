@@ -48,3 +48,5 @@ next-env.d.ts
 android/keystore.properties
 android/app/*.keystore
 android/app/build/outputs/
+# other
+logs

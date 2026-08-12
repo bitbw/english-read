@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * extractReadableContext 效果演示脚本（纯 Node.js 版，无需 tsx）
  *

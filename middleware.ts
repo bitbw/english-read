@@ -13,6 +13,7 @@ const protectedRoutes = [
   "/leaderboard",
   "/admin",
   "/articles",
+  "/textreader",
 ];
 
 export default auth((req) => {
