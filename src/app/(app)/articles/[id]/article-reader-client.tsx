@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { format } from "date-fns";
 import { BackButton } from "@/components/back-button";
@@ -11,11 +11,9 @@ import {
   readAutoPronunciationFromStorage,
   writeAutoPronunciationToStorage,
 } from "@/lib/reader-auto-pronunciation";
-import { debounce } from "@/lib/debounce";
-import { WordPopup, type WordPopupAnchorRect } from "@/components/reader/word-popup";
+import { WordPopup } from "@/components/reader/word-popup";
+import { useWordSelectionPopup } from "@/hooks/use-word-selection-popup";
 import { cn } from "@/lib/utils";
-import { extractReadableContext } from "@/lib/extract-readable-context";
-import { VOCAB_CONTEXT_MAX_LENGTH, VOCAB_WORD_MAX_LENGTH } from "@/lib/vocabulary-limits";
 import { useTranslations } from "next-intl";
 import { useReadingTimeTracker } from "@/hooks/use-reading-time-tracker";
 
@@ -33,12 +31,6 @@ interface Article {
   sourceUrl: string;
 }
 
-interface PopupState {
-  word: string;
-  context: string;
-  anchorRect: WordPopupAnchorRect;
-}
-
 const levelLabel: Record<number, string> = { 1: "Level 1", 2: "Level 2", 3: "Level 3" };
 const levelColor: Record<number, string> = {
   1: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
@@ -53,7 +45,7 @@ export function ArticleReaderClient({ article }: { article: Article }) {
   const tReader = useTranslations("reader");
   const contentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
-  const [popup, setPopup] = useState<PopupState | null>(null);
+  const { popup, closePopup } = useWordSelectionPopup([contentRef, headerRef]);
   const [showCover, setShowCover] = useState(true);
   const [fontSize, setFontSize] = useState(17);
   const [autoPronunciation, setAutoPronunciation] = useState(readAutoPronunciationFromStorage);
@@ -61,11 +53,6 @@ export function ArticleReaderClient({ article }: { article: Article }) {
 
   // 阅读时长追踪（页面可见时自动上报到 readingDailyTime）
   useReadingTimeTracker({ enabled: true });
-
-  const closePopup = useCallback(() => {
-    setPopup(null);
-    window.getSelection()?.removeAllRanges();
-  }, []);
 
   // 从 localStorage 加载字号
   useEffect(() => {
@@ -100,81 +87,6 @@ export function ArticleReaderClient({ article }: { article: Article }) {
     setAutoPronunciation(enabled);
     writeAutoPronunciationToStorage(enabled);
   }
-
-  useEffect(() => {
-    function handlePointerUp(e: MouseEvent | TouchEvent) {
-      const target = e.target as Node;
-      const popupEl = document.querySelector("[data-word-popup]");
-      if (popupEl?.contains(target)) return;
-
-      // On mobile, touchend fires before selection is committed.
-      // We still clear popup on touchend when there's no selection.
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed || !selection.rangeCount) {
-        if (!(e.target as HTMLElement)?.closest?.("[data-word-popup]")) {
-          setPopup(null);
-        }
-      }
-    }
-
-    const debouncedSelect = debounce(() => {
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed || !selection.rangeCount) {
-        return;
-      }
-
-      const word = selection.toString().trim();
-      if (!word || word.length > VOCAB_WORD_MAX_LENGTH) {
-        return;
-      }
-
-      const range = selection.getRangeAt(0);
-      const isInContent = contentRef.current?.contains(range.commonAncestorContainer) ?? false;
-      const isInHeader = headerRef.current?.contains(range.commonAncestorContainer) ?? false;
-      if (!isInContent && !isInHeader) {
-        return;
-      }
-
-      const rect = range.getBoundingClientRect();
-      // getBoundingClientRect may return zero rect before selection is fully rendered
-      if (rect.width === 0 && rect.height === 0) {
-        return;
-      }
-
-      // 智能上下文提取：优先整段，其次完整句，最后按词边界截断
-      const fullText = range.startContainer.textContent ?? "";
-      const startOffset = range.startOffset;
-      const wordEndOffset = startOffset + word.length;
-      const context = extractReadableContext(fullText, startOffset, wordEndOffset, VOCAB_CONTEXT_MAX_LENGTH);
-
-      // Avoid re-triggering for the same word
-      setPopup((prev) => {
-        if (prev?.word === word) return prev;
-        return {
-          word,
-          context,
-          anchorRect: {
-            top: rect.top,
-            left: rect.left,
-            right: rect.right,
-            bottom: rect.bottom,
-            width: rect.width,
-            height: rect.height,
-          },
-        };
-      });
-    }, 300);
-
-    document.addEventListener("mouseup", handlePointerUp);
-    document.addEventListener("touchend", handlePointerUp as EventListener);
-    document.addEventListener("selectionchange", debouncedSelect);
-    return () => {
-      document.removeEventListener("mouseup", handlePointerUp);
-      document.removeEventListener("touchend", handlePointerUp as EventListener);
-      document.removeEventListener("selectionchange", debouncedSelect);
-      debouncedSelect.cancel();
-    };
-  }, []);
 
   const displayDate = article.publishedAt ?? article.createdAt;
   const paragraphs = article.content.split("\n\n").filter(Boolean);

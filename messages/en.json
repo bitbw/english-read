@@ -786,5 +786,18 @@
     "saveSuccess": "Saved successfully",
     "deleteSuccess": "Deleted successfully",
     "close": "Close"
+  },
+  "textreader": {
+    "title": "Text Practice",
+    "textareaLabel": "Input text",
+    "inputPlaceholder": "Paste or type an English paragraph, then click Start Reading",
+    "wordCount": "{count} words",
+    "startReading": "Start Reading",
+    "editOriginal": "Edit original",
+    "emptyError": "Please enter or paste some text",
+    "clearDraft": "Clear",
+    "selectHint": "Select a word to look it up and add it to your vocabulary",
+    "autoPronunciationOn": "Auto pronunciation on",
+    "autoPronunciationOff": "Auto pronunciation off"
   }
 }

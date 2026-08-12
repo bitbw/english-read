@@ -786,5 +786,18 @@
     "saveSuccess": "保存成功",
     "deleteSuccess": "删除成功",
     "close": "关闭"
+  },
+  "textreader": {
+    "title": "文本练习",
+    "textareaLabel": "输入文本",
+    "inputPlaceholder": "在这里粘贴或输入一段英文，然后点击「开始阅读」",
+    "wordCount": "{count} 个单词",
+    "startReading": "开始阅读",
+    "editOriginal": "编辑原文",
+    "emptyError": "请输入或粘贴文本",
+    "clearDraft": "清空",
+    "selectHint": "划词查看释义，点击可加入生词本",
+    "autoPronunciationOn": "自动发音已开启",
+    "autoPronunciationOff": "自动发音已关闭"
   }
 }
