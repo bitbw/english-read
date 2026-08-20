@@ -92,3 +92,11 @@ EPUB files uploaded to Vercel Blob via `src/lib/blob.ts`. The `blobUrl` is store
 
 ### Public Library
 Community book sharing system with tiered ratings. Upload flow: upload EPUB to Vercel Blob (`/api/library/public/blob`), then finalize with metadata (`/api/library/public/finalize`). Browse at `/library/store`, detail at `/library/store/[publicBookId]`.
+
+## 文档输出规范
+
+产出方案、实施或输出类文档时,统一遵守以下规则:
+
+1. 文档写入当前项目 `docs/<分类>/` 目录,禁止写到项目根目录或其他位置。
+2. 优先复用 `docs/` 下已有的分类文件夹;仅当现有分类都不合适时才新建分类。
+3. 同一主题的相关文档(方案、实施、输出等)应集中在同一分类文件夹下。

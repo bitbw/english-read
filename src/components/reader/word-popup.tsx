@@ -152,6 +152,7 @@ export function WordPopup({
   const [audioUk, setAudioUk] = useState("");
   const [audioUs, setAudioUs] = useState("");
   const [existingEntryId, setExistingEntryId] = useState<string | null>(null);
+  const [reviewCount, setReviewCount] = useState<number | null>(null);
   const [lookupLoading, setLookupLoading] = useState(true);
   const [removing, setRemoving] = useState(false);
 
@@ -177,6 +178,7 @@ export function WordPopup({
     async function fetchLookup() {
       setLookupLoading(true);
       setExistingEntryId(null);
+      setReviewCount(null);
       if (!key) {
         if (!cancelled) setLookupLoading(false);
         return;
@@ -187,11 +189,18 @@ export function WordPopup({
           { showErrorToast: false },
         );
         if (!res.ok || cancelled) return;
-        const data = (await res.json()) as { entry?: { id: string } | null };
+        const data = (await res.json()) as {
+          entry?: { id: string } | null;
+          reviewCount?: number | null;
+        };
         if (cancelled) return;
         setExistingEntryId(data.entry?.id ?? null);
+        setReviewCount(data.reviewCount ?? null);
       } catch {
-        if (!cancelled) setExistingEntryId(null);
+        if (!cancelled) {
+          setExistingEntryId(null);
+          setReviewCount(null);
+        }
       } finally {
         if (!cancelled) setLookupLoading(false);
       }
@@ -260,6 +269,7 @@ export function WordPopup({
     audioUk,
     audioUs,
     existingEntryId,
+    reviewCount,
     lookupLoading,
     removing,
   ]);
@@ -398,6 +408,11 @@ export function WordPopup({
           </div>
           {phonetic ? (
             <span className="shrink-0 text-xs text-muted-foreground">{phonetic}</span>
+          ) : null}
+          {existingEntryId && reviewCount !== null ? (
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {reviewCount > 0 ? t("reviewCount", { count: reviewCount }) : t("notReviewed")}
+            </span>
           ) : null}
         </div>
         <div className="flex items-center gap-1 shrink-0">

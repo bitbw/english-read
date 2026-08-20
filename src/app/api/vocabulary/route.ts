@@ -1,6 +1,6 @@
 import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
-import { vocabulary } from "@/lib/db/schema";
+import { vocabulary, reviewLogs } from "@/lib/db/schema";
 import { eq, and, desc, gte, lt, count, ilike, sql } from "drizzle-orm";
 import { getInitialReviewDate } from "@/lib/srs";
 import {
@@ -73,7 +73,13 @@ export async function GET(req: Request) {
         and(eq(vocabulary.userId, session.user.id), eq(vocabulary.normalizedWord, normalizedWord))
       )
       .limit(1);
-    return NextResponse.json({ entry: row ?? null });
+    if (!row) return NextResponse.json({ entry: null, reviewCount: null });
+    // 复习次数 = 该生词的 review_logs 条数
+    const [reviewCountRow] = await db
+      .select({ count: count() })
+      .from(reviewLogs)
+      .where(eq(reviewLogs.vocabularyId, row.id));
+    return NextResponse.json({ entry: row, reviewCount: reviewCountRow?.count ?? 0 });
   }
 
   const filter = searchParams.get("filter") ?? "all";
