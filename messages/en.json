@@ -676,7 +676,9 @@
     "wordTooLongHint": "Selected text exceeds {max} characters — shorten it to add to vocabulary",
     "usAccent": "US",
     "ukAccent": "UK",
-    "ttsPronunciation": "Pronounce (TTS)"
+    "ttsPronunciation": "Pronounce (TTS)",
+    "reviewCount": "Reviewed {count} times",
+    "notReviewed": "Not reviewed yet"
   },
   "signup": {
     "title": "Sign Up",

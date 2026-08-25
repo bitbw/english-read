@@ -676,7 +676,9 @@
     "wordTooLongHint": "选中的词超过 {max} 个字符，请缩短后再加入生词本",
     "usAccent": "美音",
     "ukAccent": "英音",
-    "ttsPronunciation": "发音（语音合成）"
+    "ttsPronunciation": "发音（语音合成）",
+    "reviewCount": "已复习 {count} 次",
+    "notReviewed": "尚未复习"
   },
   "signup": {
     "title": "注册",
