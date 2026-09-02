@@ -42,7 +42,7 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border bg-card h-screen sticky top-0">
       {/* Logo */}
-      <div className="flex items-center gap-2 px-4 py-5 border-b border-border">
+      <div className="flex items-center justify-center gap-2 border-b border-border p-[13.5px]">
         <BookOpen className="h-6 w-6 text-primary" />
         <span className="font-bold text-lg">English Read</span>
       </div>

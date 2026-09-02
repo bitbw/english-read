@@ -17,6 +17,7 @@ export type FreeDictEntry = {
 
 const MAX_SHORT = 4;
 const MAX_FULL = 24;
+const FREE_DICTIONARY_TIMEOUT_MS = 1000;
 
 /**
  * 从 API 的 phonetics[] 提取英/美音频链接（依赖官方 mp3 命名里的 -uk / -us）。
@@ -79,7 +80,10 @@ export async function fetchFreeDictionaryEn(
   try {
     const res = await fetch(
       `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanWord)}`,
-      { next: { revalidate: 86400 } }
+      {
+        next: { revalidate: 86400 },
+        signal: AbortSignal.timeout(FREE_DICTIONARY_TIMEOUT_MS),
+      }
     );
     if (!res.ok) return null;
     const data = await res.json();
