@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, ImageIcon, Loader2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
-import { upload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 import { clientFetch } from "@/lib/client-fetch";
 import type { ReadingTierId } from "@/lib/reading-tiers";
 import {
@@ -139,7 +139,7 @@ export function PublicLibraryUploadClient() {
       const safeName = file.name.replace(/\s+/g, "-").replace(/[^\w\-_.]/g, "") || "book.epub";
       const pathname = `epubs/public/${Date.now()}-${safeName}`;
 
-      const blobResult = await upload(pathname, file, {
+      const blobResult = await uploadPresigned(pathname, file, {
         access: "public",
         handleUploadUrl: "/api/library/public/blob",
         contentType: "application/epub+zip",
