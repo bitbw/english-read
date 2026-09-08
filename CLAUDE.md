@@ -100,3 +100,12 @@ Community book sharing system with tiered ratings. Upload flow: upload EPUB to V
 1. 文档写入当前项目 `docs/<分类>/` 目录,禁止写到项目根目录或其他位置。
 2. 优先复用 `docs/` 下已有的分类文件夹;仅当现有分类都不合适时才新建分类。
 3. 同一主题的相关文档(方案、实施、输出等)应集中在同一分类文件夹下。
+## 提交、合并与发布推送规范
+
+- 使用简洁的 Conventional Commit 风格提交信息，例如 `feat: add recurring ledger entries`、`fix: ...` 或 `docs: ...`。保持每次提交聚焦。
+- Pull Request 应说明行为变更、数据库/迁移影响、所需环境变量和验证命令；涉及 UI 变更时附上截图，并明确 Preview/production 的迁移步骤。
+- `main` 是生产分支，`preview` 是预览、测试和验证分支。
+- 用户要求“发布 prod”或生产发布时：先检查工作区；如有未提交改动，使用清晰命名的 stash 保存。切换到 `main`，拉取最新远程代码，将当前开发分支合并到 `main` 并推送；完成后返回原开发分支，恢复 stash（如有）并推送原分支。
+- 用户要求“发布 test”“发布预览”“发布测试分支”等时，按上述流程操作，但目标分支改为 `preview`。
+- 如果开发工作本来就在 `preview`，且用户只要求推送/测试预览分支，直接提交并推送 `preview`，不要执行自合并。
+- 任何分支切换前都必须先执行 `git status`。不得丢失未提交工作；所有 stash 必须在分支操作完成后恢复。
