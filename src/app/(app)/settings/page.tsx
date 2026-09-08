@@ -9,6 +9,7 @@ import { BackButton } from "@/components/back-button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Select,
   SelectContent,
@@ -48,11 +49,39 @@ export default function SettingsPage() {
   const [savingName, setSavingName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [removingAvatar, setRemovingAvatar] = useState(false);
+  const [credentialEmail, setCredentialEmail] = useState("");
+  const [credentialPassword, setCredentialPassword] = useState("");
+  const [credentialConfirm, setCredentialConfirm] = useState("");
+  const [savingCredentials, setSavingCredentials] = useState(false);
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setDraftDisplayName(session?.user?.name ?? "");
-  }, [session?.user?.name]);
+    setCredentialEmail(session?.user?.email ?? "");
+  }, [session?.user?.email, session?.user?.name]);
+
+  async function saveCredentials() {
+    setSavingCredentials(true);
+    try {
+      const r = await clientFetch("/api/user/credentials", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: credentialEmail,
+          password: credentialPassword,
+          confirmPassword: credentialConfirm,
+        }),
+      });
+      if (!r.ok) return;
+      const data = (await r.json()) as { email?: string };
+      setCredentialEmail(data.email ?? credentialEmail);
+      setCredentialPassword("");
+      setCredentialConfirm("");
+      toast.success(t("credentialsSaved"));
+    } finally {
+      setSavingCredentials(false);
+    }
+  }
 
   const loadPrefs = useCallback(async () => {
     setPrefsLoading(true);
@@ -264,6 +293,50 @@ export default function SettingsPage() {
               {savingName ? t("savingName") : t("saveDisplayName")}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* 邮箱密码登录 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("loginCredentials")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">{t("loginCredentialsHint")}</p>
+          <div className="space-y-2">
+            <label htmlFor="settings-login-email" className="text-sm font-medium">{t("loginEmail")}</label>
+            <Input
+              id="settings-login-email"
+              type="email"
+              value={credentialEmail}
+              onChange={(e) => setCredentialEmail(e.target.value)}
+              disabled={Boolean(session?.user?.email) || savingCredentials}
+              autoComplete="email"
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="settings-login-password" className="text-sm font-medium">{t("loginPassword")}</label>
+            <PasswordInput
+              id="settings-login-password"
+              value={credentialPassword}
+              onChange={(e) => setCredentialPassword(e.target.value)}
+              disabled={savingCredentials}
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="settings-login-password-confirm" className="text-sm font-medium">{t("confirmLoginPassword")}</label>
+            <PasswordInput
+              id="settings-login-password-confirm"
+              value={credentialConfirm}
+              onChange={(e) => setCredentialConfirm(e.target.value)}
+              disabled={savingCredentials}
+              autoComplete="new-password"
+            />
+          </div>
+          <Button type="button" onClick={() => void saveCredentials()} disabled={savingCredentials}>
+            {savingCredentials ? t("saving") : t("saveLoginCredentials")}
+          </Button>
         </CardContent>
       </Card>
 
@@ -515,3 +588,6 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+
+
