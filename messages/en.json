@@ -725,6 +725,12 @@
     "loadingBook": "Loading book…",
     "chapterDefault": "Chapter {n}",
     "readerSettings": "Reader Settings",
+    "theme": "Theme",
+    "themeOptions": {
+      "soft-dark": "Soft Dark (Default)",
+      "vscode-dark-modern": "VS Code Dark Modern",
+      "vscode-light-modern": "VS Code Light Modern"
+    },
     "fontSize": "Font Size",
     "autoPronunciation": "Auto pronunciation",
     "autoPronunciationHint": "Play pronunciation when the word popup opens",

@@ -725,6 +725,12 @@
     "loadingBook": "加载书籍中…",
     "chapterDefault": "第 {n} 章",
     "readerSettings": "阅读设置",
+    "theme": "主题",
+    "themeOptions": {
+      "soft-dark": "柔和深色（默认）",
+      "vscode-dark-modern": "VS Code Dark Modern",
+      "vscode-light-modern": "VS Code Light Modern"
+    },
     "fontSize": "字号",
     "autoPronunciation": "自动发音",
     "autoPronunciationHint": "打开查词弹窗后自动播放读音",
