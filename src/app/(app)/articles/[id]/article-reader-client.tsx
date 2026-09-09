@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { BackButton } from "@/components/back-button";
 import { ExternalLink, Eye, EyeOff, Settings, Volume2, VolumeX } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { buttonVariants } from "@/components/ui/button-variants";
 import {
   readAutoPronunciationFromStorage,
@@ -39,6 +40,9 @@ const levelColor: Record<number, string> = {
 };
 
 const ARTICLE_FONT_SIZE_KEY = "english-read-article-font-size";
+const ARTICLE_THEME_KEY = "english-read-article-theme";
+const ARTICLE_THEMES = ["soft-dark", "vscode-dark-modern", "vscode-light-modern"] as const;
+type ArticleTheme = (typeof ARTICLE_THEMES)[number];
 
 export function ArticleReaderClient({ article }: { article: Article }) {
   const t = useTranslations("articles");
@@ -48,6 +52,7 @@ export function ArticleReaderClient({ article }: { article: Article }) {
   const { popup, closePopup } = useWordSelectionPopup([contentRef, headerRef]);
   const [showCover, setShowCover] = useState(true);
   const [fontSize, setFontSize] = useState(17);
+  const [theme, setTheme] = useState<ArticleTheme>("soft-dark");
   const [autoPronunciation, setAutoPronunciation] = useState(readAutoPronunciationFromStorage);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -57,6 +62,10 @@ export function ArticleReaderClient({ article }: { article: Article }) {
   // 从 localStorage 加载字号
   useEffect(() => {
     try {
+      const savedTheme = localStorage.getItem(ARTICLE_THEME_KEY);
+      if (savedTheme && ARTICLE_THEMES.includes(savedTheme as ArticleTheme)) {
+        setTheme(savedTheme as ArticleTheme);
+      }
       const saved = localStorage.getItem(ARTICLE_FONT_SIZE_KEY);
       if (saved) {
         const n = parseInt(saved, 10);
@@ -66,6 +75,14 @@ export function ArticleReaderClient({ article }: { article: Article }) {
       // 忽略，使用默认字号
     }
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ARTICLE_THEME_KEY, theme);
+    } catch {
+      // 忽略
+    }
+  }, [theme]);
 
   function changeFontSize(delta: number) {
     setFontSize((prev) => {
@@ -92,7 +109,8 @@ export function ArticleReaderClient({ article }: { article: Article }) {
   const paragraphs = article.content.split("\n\n").filter(Boolean);
 
   return (
-    <div className="article-reader flex flex-col gap-6 pb-20 md:pb-0 max-w-2xl mx-auto dark:rounded-2xl dark:bg-[#202124] dark:px-4 dark:py-4 sm:dark:px-6">
+    <div data-reader-theme={theme} className="article-reader -m-6 min-h-full px-4 py-4 sm:px-6">
+      <div className="mx-auto flex max-w-2xl flex-col gap-6 pb-20 md:pb-0">
       {/* Back button + Settings */}
       <div className="flex items-center justify-between">
         <BackButton
@@ -115,6 +133,27 @@ export function ArticleReaderClient({ article }: { article: Article }) {
               <span className="font-semibold text-base">{tReader("readerSettings")}</span>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-6">
+              {/* Theme */}
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{tReader("theme")}</p>
+                <Select value={theme} onValueChange={(value) => {
+                  if (typeof value === "string" && ARTICLE_THEMES.includes(value as ArticleTheme)) {
+                    setTheme(value as ArticleTheme);
+                  }
+                }}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ARTICLE_THEMES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {tReader(`themeOptions.${value}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Font size */}
               <div className="space-y-3">
                 <p className="text-sm font-medium">{tReader("fontSize")}</p>
@@ -213,11 +252,11 @@ export function ArticleReaderClient({ article }: { article: Article }) {
           >
             {levelLabel[article.level] ?? "Level 1"}
           </span>
-          <span className="text-xs text-muted-foreground dark:text-[#aaa69e]">
+          <span className="text-xs text-muted-foreground">
             {format(displayDate, "yyyy/MM/dd")}
           </span>
           {article.wordCount && (
-            <span className="text-xs text-muted-foreground dark:text-[#aaa69e]">{article.wordCount} words</span>
+            <span className="text-xs text-muted-foreground">{article.wordCount} words</span>
           )}
           <a
             href={article.sourceUrl}
@@ -229,15 +268,15 @@ export function ArticleReaderClient({ article }: { article: Article }) {
             <ExternalLink className="h-3 w-3" />
           </a>
         </div>
-        <h1 className="text-xl md:text-2xl font-bold leading-snug text-foreground dark:text-[#ebe7df]">
+        <h1 className="text-xl md:text-2xl font-bold leading-snug text-foreground">
           {article.title}
         </h1>
         {article.description && (
-          <p className="text-sm text-muted-foreground leading-relaxed dark:text-[#aaa69e]">{article.description}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">{article.description}</p>
         )}
       </div>
 
-      <hr className="border-border dark:border-[#3a3a3d]" />
+      <hr className="border-border" />
 
       {/* Article content — 可选词区域 */}
       <div
@@ -249,14 +288,14 @@ export function ArticleReaderClient({ article }: { article: Article }) {
           {paragraphs.map((para, i) => (
             <p
               key={i}
-              className="text-foreground tracking-wide dark:text-[#d7d3cb]"
+              className="text-foreground tracking-wide"
               style={{ fontSize: `${fontSize}px`, lineHeight: 1.85 }}
             >
               {para}
             </p>
           ))}
         </div>
-        <p className="mt-6 text-xs text-muted-foreground/50 select-none dark:text-[#88857e]">
+        <p className="mt-6 text-xs text-muted-foreground/50 select-none">
           {t("selectHint")}
         </p>
       </div>
@@ -275,6 +314,7 @@ export function ArticleReaderClient({ article }: { article: Article }) {
           />
         </div>
       )}
+      </div>
     </div>
   );
 }
