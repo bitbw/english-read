@@ -92,7 +92,7 @@ export function ArticleReaderClient({ article }: { article: Article }) {
   const paragraphs = article.content.split("\n\n").filter(Boolean);
 
   return (
-    <div className="flex flex-col gap-6 pb-20 md:pb-0 max-w-2xl mx-auto">
+    <div className="article-reader flex flex-col gap-6 pb-20 md:pb-0 max-w-2xl mx-auto dark:rounded-2xl dark:bg-[#202124] dark:px-4 dark:py-4 sm:dark:px-6">
       {/* Back button + Settings */}
       <div className="flex items-center justify-between">
         <BackButton
@@ -213,11 +213,11 @@ export function ArticleReaderClient({ article }: { article: Article }) {
           >
             {levelLabel[article.level] ?? "Level 1"}
           </span>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground dark:text-[#aaa69e]">
             {format(displayDate, "yyyy/MM/dd")}
           </span>
           {article.wordCount && (
-            <span className="text-xs text-muted-foreground">{article.wordCount} words</span>
+            <span className="text-xs text-muted-foreground dark:text-[#aaa69e]">{article.wordCount} words</span>
           )}
           <a
             href={article.sourceUrl}
@@ -229,15 +229,15 @@ export function ArticleReaderClient({ article }: { article: Article }) {
             <ExternalLink className="h-3 w-3" />
           </a>
         </div>
-        <h1 className="text-xl md:text-2xl font-bold leading-snug text-foreground">
+        <h1 className="text-xl md:text-2xl font-bold leading-snug text-foreground dark:text-[#ebe7df]">
           {article.title}
         </h1>
         {article.description && (
-          <p className="text-sm text-muted-foreground leading-relaxed">{article.description}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed dark:text-[#aaa69e]">{article.description}</p>
         )}
       </div>
 
-      <hr className="border-border" />
+      <hr className="border-border dark:border-[#3a3a3d]" />
 
       {/* Article content — 可选词区域 */}
       <div
@@ -249,14 +249,14 @@ export function ArticleReaderClient({ article }: { article: Article }) {
           {paragraphs.map((para, i) => (
             <p
               key={i}
-              className="text-foreground tracking-wide"
+              className="text-foreground tracking-wide dark:text-[#d7d3cb]"
               style={{ fontSize: `${fontSize}px`, lineHeight: 1.85 }}
             >
               {para}
             </p>
           ))}
         </div>
-        <p className="mt-6 text-xs text-muted-foreground/50 select-none">
+        <p className="mt-6 text-xs text-muted-foreground/50 select-none dark:text-[#88857e]">
           {t("selectHint")}
         </p>
       </div>
