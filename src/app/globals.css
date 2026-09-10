@@ -137,43 +137,13 @@
     animation: spelling-shake 0.45s ease-in-out;
   }
 }
-/* Article reader themes stay local to the reading surface. */
-.article-reader[data-reader-theme="soft-dark"] {
-  --background: #202124;
-  --foreground: #d7d3cb;
-  --muted-foreground: #aaa69e;
-  --border: #3a3a3d;
-  background: var(--background);
-  color: var(--foreground);
-}
-
-.article-reader[data-reader-theme="vscode-dark-modern"] {
-  --background: #1f1f1f;
-  --foreground: #d4d4d4;
-  --muted-foreground: #9d9d9d;
-  --border: #3c3c3c;
-  background: var(--background);
-  color: var(--foreground);
-}
-
-.article-reader[data-reader-theme="vscode-light-modern"] {
-  --background: #ffffff;
-  --foreground: #3b3b3b;
-  --muted-foreground: #6a6a6a;
-  --border: #d6d6d6;
-  background: var(--background);
-  color: var(--foreground);
-}
-
-.article-reader[data-reader-theme] .text-foreground {
-  color: var(--foreground);
-}
-
+/* Daily article reader themes follow the app's light/dark mode. */
+.article-reader[data-reader-theme="normal"][data-app-theme="light"] { --reader-bg: #ffffff; --reader-fg: #3b3b3b; --reader-muted: #777777; --reader-border: #dedede; }
+.article-reader[data-reader-theme="normal"][data-app-theme="dark"] { --reader-bg: #202124; --reader-fg: #d7d3cb; --reader-muted: #aaa69e; --reader-border: #3a3a3d; }
+.article-reader[data-reader-theme="vscode"][data-app-theme="light"] { --reader-bg: #f3f3f3; --reader-fg: #3b3b3b; --reader-muted: #6a6a6a; --reader-border: #d6d6d6; }
+.article-reader[data-reader-theme="vscode"][data-app-theme="dark"] { --reader-bg: #1f1f1f; --reader-fg: #d4d4d4; --reader-muted: #9d9d9d; --reader-border: #3c3c3c; }
+.article-reader[data-reader-theme] { background: var(--reader-bg); color: var(--reader-fg); }
+.article-reader[data-reader-theme] .text-foreground { color: var(--reader-fg); }
 .article-reader[data-reader-theme] .text-muted-foreground,
-.article-reader[data-reader-theme] .text-muted-foreground\/50 {
-  color: var(--muted-foreground);
-}
-
-.article-reader[data-reader-theme] .border-border {
-  border-color: var(--border);
-}
+.article-reader[data-reader-theme] .text-muted-foreground\/50 { color: var(--reader-muted); }
+.article-reader[data-reader-theme] .border-border { border-color: var(--reader-border); }

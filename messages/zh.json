@@ -634,6 +634,13 @@
     "wrongMoved": "选错了，本题已移到本轮最后再来一遍",
     "spellingWrong": "拼写不正确，请修改后再提交",
     "originalText": "原文",
+    "deleteWord": "删除单词",
+    "deleteConfirm": "确定从生词本删除「{word}」？",
+    "deleteDescription": "删除后需在阅读中重新添加才会回到生词本。",
+    "cancelDelete": "取消",
+    "confirmDelete": "确认删除",
+    "deleting": "删除中…",
+    "deleteSuccess": "已从生词本删除",
     "noZhDefinition": "暂无中文释义"
   },
   "dialog": {
@@ -727,9 +734,8 @@
     "readerSettings": "阅读设置",
     "theme": "主题",
     "themeOptions": {
-      "soft-dark": "柔和深色（默认）",
-      "vscode-dark-modern": "VS Code Dark Modern",
-      "vscode-light-modern": "VS Code Light Modern"
+      "normal": "正常主题",
+      "vscode": "VS Code 主题"
     },
     "fontSize": "字号",
     "autoPronunciation": "自动发音",

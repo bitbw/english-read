@@ -16,6 +16,7 @@ import { WordPopup } from "@/components/reader/word-popup";
 import { useWordSelectionPopup } from "@/hooks/use-word-selection-popup";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+import { useTheme } from "next-themes";
 import { useReadingTimeTracker } from "@/hooks/use-reading-time-tracker";
 
 interface Article {
@@ -41,18 +42,19 @@ const levelColor: Record<number, string> = {
 
 const ARTICLE_FONT_SIZE_KEY = "english-read-article-font-size";
 const ARTICLE_THEME_KEY = "english-read-article-theme";
-const ARTICLE_THEMES = ["soft-dark", "vscode-dark-modern", "vscode-light-modern"] as const;
+const ARTICLE_THEMES = ["normal", "vscode"] as const;
 type ArticleTheme = (typeof ARTICLE_THEMES)[number];
 
 export function ArticleReaderClient({ article }: { article: Article }) {
   const t = useTranslations("articles");
   const tReader = useTranslations("reader");
+  const { resolvedTheme } = useTheme();
   const contentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const { popup, closePopup } = useWordSelectionPopup([contentRef, headerRef]);
   const [showCover, setShowCover] = useState(true);
   const [fontSize, setFontSize] = useState(17);
-  const [theme, setTheme] = useState<ArticleTheme>("soft-dark");
+  const [theme, setTheme] = useState<ArticleTheme>("normal");
   const [autoPronunciation, setAutoPronunciation] = useState(readAutoPronunciationFromStorage);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -109,7 +111,7 @@ export function ArticleReaderClient({ article }: { article: Article }) {
   const paragraphs = article.content.split("\n\n").filter(Boolean);
 
   return (
-    <div data-reader-theme={theme} className="article-reader -m-6 min-h-full px-4 py-4 sm:px-6">
+    <div data-reader-theme={theme} data-app-theme={resolvedTheme === "dark" ? "dark" : "light"} className="article-reader -m-6 min-h-full p-6">
       <div className="mx-auto flex max-w-2xl flex-col gap-6 pb-20 md:pb-0">
       {/* Back button + Settings */}
       <div className="flex items-center justify-between">
@@ -288,8 +290,8 @@ export function ArticleReaderClient({ article }: { article: Article }) {
           {paragraphs.map((para, i) => (
             <p
               key={i}
-              className="text-foreground tracking-wide"
-              style={{ fontSize: `${fontSize}px`, lineHeight: 1.85 }}
+              className="text-foreground"
+              style={{ fontSize: `${fontSize}px`, lineHeight: 1.72, letterSpacing: "-0.005em" }}
             >
               {para}
             </p>
