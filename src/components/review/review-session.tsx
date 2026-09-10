@@ -18,6 +18,7 @@ import {
   Delete,
   Lightbulb,
   Loader2,
+  Trash2,
   Undo2,
   Volume2,
 } from "lucide-react";
@@ -47,6 +48,7 @@ import {
 } from "@/lib/pronunciation-audio";
 import { speakText, stopSpeaking } from "@/lib/tts";
 import { useTranslations } from "next-intl";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 /** 浏览器语音合成读英文 */
 function speakReviewWordTts(word: string): void {
@@ -318,6 +320,8 @@ export function ReviewSession({
   const [meaningLoading, setMeaningLoading] = useState(false);
   const [meaningPhase, setMeaningPhase] = useState<"pick" | "revealed">("pick");
   const [pickMeta, setPickMeta] = useState<{ index: number; correct: boolean } | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const glossCacheRef = useRef<Map<string, string>>(new Map());
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -684,6 +688,27 @@ export function ReviewSession({
     setStep("meaning");
   };
 
+  const deleteCurrentWord = async () => {
+    if (!current || deleting) return;
+    setDeleting(true);
+    setDeleteOpen(false);
+    try {
+      const res = await clientFetch(`/api/vocabulary/${current.id}`, { method: "DELETE" });
+      if (!res.ok) return;
+      setQueue((q) => {
+        const next = q.slice(1);
+        if (next.length === 0) setFinished(true);
+        return next;
+      });
+      setStep("meaning");
+      setManualSpelling("");
+      setSpelling((state) => ({ ...state, usedIds: [] }));
+      toast.success(t("deleteSuccess"));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   useEffect(() => {
     if (!finished) return;
     onCompleteRef.current({
@@ -793,7 +818,12 @@ export function ReviewSession({
       {step === "meaning" && (
         <Card className="w-full p-6 space-y-5">
           <div className="text-center space-y-2">
-            <h2 className="text-4xl font-bold tracking-tight">{current.word}</h2>
+            <div className="flex items-center justify-center gap-2">
+              <h2 className="text-4xl font-bold tracking-tight">{current.word}</h2>
+              <Button type="button" variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive" aria-label={t("deleteWord")} title={t("deleteWord")} onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
             <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
               {current.phonetic ? (
                 <p className="text-muted-foreground text-sm">{current.phonetic}</p>
@@ -1158,6 +1188,21 @@ export function ReviewSession({
         {t("reviewInfo")}
       </p>
       </div>
+
+      {deleteOpen ? (
+        <Dialog open onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("deleteConfirm", { word: current.word })}</DialogTitle>
+            <DialogDescription>{t("deleteDescription")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>{t("cancelDelete")}</Button>
+            <Button variant="destructive" onClick={() => void deleteCurrentWord()} disabled={deleting}>{deleting ? t("deleting") : t("confirmDelete")}</Button>
+          </DialogFooter>
+        </DialogContent>
+        </Dialog>
+      ) : null}
     </div>
   );
 }

@@ -634,6 +634,13 @@
     "wrongMoved": "Wrong — moved to the end of this round",
     "spellingWrong": "Incorrect spelling, please fix and resubmit",
     "originalText": "Source",
+    "deleteWord": "Delete word",
+    "deleteConfirm": "Remove \"{word}\" from vocabulary?",
+    "deleteDescription": "You'll need to re-add it while reading to get it back.",
+    "cancelDelete": "Cancel",
+    "confirmDelete": "Remove",
+    "deleting": "Removing…",
+    "deleteSuccess": "Removed from vocabulary",
     "noZhDefinition": "No Chinese definition available"
   },
   "dialog": {
@@ -727,9 +734,8 @@
     "readerSettings": "Reader Settings",
     "theme": "Theme",
     "themeOptions": {
-      "soft-dark": "Soft Dark (Default)",
-      "vscode-dark-modern": "VS Code Dark Modern",
-      "vscode-light-modern": "VS Code Light Modern"
+      "normal": "Normal",
+      "vscode": "VS Code"
     },
     "fontSize": "Font Size",
     "autoPronunciation": "Auto pronunciation",
