@@ -816,14 +816,20 @@ export function ReviewSession({
         })()}
 
       {step === "meaning" && (
-        <Card className="w-full p-6 space-y-5">
+        <Card className="relative w-full p-6 space-y-5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="absolute right-3 top-3 text-muted-foreground hover:text-destructive"
+            aria-label={t("deleteWord")}
+            title={t("deleteWord")}
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
           <div className="text-center space-y-2">
-            <div className="flex items-center justify-center gap-2">
-              <h2 className="text-4xl font-bold tracking-tight">{current.word}</h2>
-              <Button type="button" variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive" aria-label={t("deleteWord")} title={t("deleteWord")} onClick={() => setDeleteOpen(true)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+            <h2 className="text-4xl font-bold tracking-tight">{current.word}</h2>
             <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
               {current.phonetic ? (
                 <p className="text-muted-foreground text-sm">{current.phonetic}</p>
