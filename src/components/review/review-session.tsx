@@ -887,19 +887,21 @@ export function ReviewSession({
 
                   return (
                     <div key={opt.key} className="w-full" style={{ perspective: "1000px" }}>
-                      <button
-                        type="button"
+                      <div
+                        role={flipped ? undefined : "button"}
                         aria-disabled={flipped}
                         tabIndex={flipped ? -1 : 0}
                         onClick={() => onMeaningOptionClick(i, opt.correct)}
                         onKeyDown={(e) => {
-                          if (!flipped) return;
-                          if (e.key === "Enter" || e.key === " ") e.preventDefault();
+                          if (flipped) return;
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onMeaningOptionClick(i, opt.correct);
+                          }
                         }}
                         className={cn(
                           "relative w-full text-left outline-none rounded-xl",
-                          meaningPhase === "pick" &&
-                            "cursor-pointer focus-visible:ring-2 focus-visible:ring-ring",
+                          meaningPhase === "pick" && "cursor-pointer focus-visible:ring-2 focus-visible:ring-ring",
                           flipped && "cursor-text"
                         )}
                       >
@@ -937,7 +939,7 @@ export function ReviewSession({
                             ) : null}
                           </div>
                         </div>
-                      </button>
+                      </div>
                     </div>
                   );
                 })}
