@@ -2,7 +2,7 @@ import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
 import { vocabulary, reviewLogs } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { calculateNextReview } from "@/lib/srs";
+import { calculateReviewTransition, type ReviewAction } from "@/lib/srs";
 import { resolveTimeZone } from "@/lib/user-timezone";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -10,9 +10,11 @@ import { validationError } from "@/lib/api-error";
 
 const submitSchema = z.object({
   vocabularyId: z.string().min(1, "vocabularyId is required"),
-  result: z.enum(["remembered", "forgotten"], {
-    error: "result must be either 'remembered' or 'forgotten'",
-  }),
+  action: z.enum(["advance", "remembered", "forgotten", "mastered"]).optional(),
+  // 兼容旧客户端；新客户端使用 action。
+  result: z.enum(["remembered", "forgotten"]).optional(),
+}).refine((v) => v.action || v.result, {
+  message: "action or result is required",
 });
 
 // POST /api/review/submit
@@ -27,7 +29,8 @@ export async function POST(req: Request) {
     return validationError(parsed.error);
   }
 
-  const { vocabularyId, result } = parsed.data;
+  const { vocabularyId } = parsed.data;
+  const action = (parsed.data.action ?? parsed.data.result) as ReviewAction;
 
   const [wordRows, timeZone] = await Promise.all([
     db
@@ -46,13 +49,23 @@ export async function POST(req: Request) {
   if (!word) {
     return NextResponse.json({ error: "Word not found" }, { status: 404 });
   }
-  const { nextStage, nextReviewAt, isMastered } = calculateNextReview(
-    word.reviewStage,
-    result,
-    timeZone
-  );
+  let transition;
+  try {
+    transition = calculateReviewTransition(
+      word.reviewStage,
+      word.isMastered,
+      action,
+      timeZone,
+    );
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Invalid review action" },
+      { status: 400 },
+    );
+  }
+  const { nextStage, nextReviewAt, isMastered } = transition;
+  const result = action === "mastered" ? "mastered" : action === "forgotten" ? "forgotten" : "remembered";
 
-  // neon-http 不支持 transaction；先更新词汇，写日志失败则回滚词汇，避免重试导致阶段连加
   const previous = {
     reviewStage: word.reviewStage,
     nextReviewAt: word.nextReviewAt,

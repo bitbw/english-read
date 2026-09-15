@@ -155,6 +155,7 @@ export function WordPopup({
   const [reviewCount, setReviewCount] = useState<number | null>(null);
   const [lookupLoading, setLookupLoading] = useState(true);
   const [removing, setRemoving] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
 
   /** 多词为词组：无词典 mp3，仍可提供系统 TTS 朗读整段 */
   const isPhrase = word.trim().split(/\s+/).length > 1;
@@ -272,6 +273,7 @@ export function WordPopup({
     reviewCount,
     lookupLoading,
     removing,
+    statusUpdating,
   ]);
 
   function speakTts() {
@@ -385,6 +387,23 @@ export function WordPopup({
         }
       },
     });
+  }
+
+  async function handleForgotten() {
+    if (!existingEntryId || statusUpdating) return;
+    setStatusUpdating(true);
+    try {
+      const res = await clientFetch(`/api/vocabulary/${existingEntryId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "forgotten" }),
+        showErrorToast: false,
+      });
+      if (!res.ok) return;
+      toast.success(t("forgottenSuccess"));
+    } finally {
+      setStatusUpdating(false);
+    }
   }
 
   return (
@@ -532,20 +551,32 @@ export function WordPopup({
 
       {/* 生词本：已收录可移除；未收录须等释义加载完成且有可保存内容 */}
       {existingEntryId ? (
-        <Button
-          size="sm"
-          className="h-7 w-full shrink-0 text-xs"
-          onClick={handleRemoveClick}
-          disabled={removing}
-          variant="outline"
-        >
-          {removing ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-          ) : (
-            <BookmarkMinus className="h-3.5 w-3.5 mr-1" />
-          )}
-          {t("removeFromVocab")}
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          <Button
+            size="sm"
+            className="h-7 min-w-0 flex-1 text-xs"
+            onClick={() => void handleForgotten()}
+            disabled={statusUpdating || removing}
+            variant="secondary"
+          >
+            {statusUpdating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+            {t("markForgotten")}
+          </Button>
+          <Button
+            size="sm"
+            className="h-7 min-w-0 flex-1 text-xs"
+            onClick={handleRemoveClick}
+            disabled={removing || statusUpdating}
+            variant="outline"
+          >
+            {removing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+            ) : (
+              <BookmarkMinus className="h-3.5 w-3.5 mr-1" />
+            )}
+            {t("removeFromVocab")}
+          </Button>
+        </div>
       ) : (
         <Button
           size="sm"

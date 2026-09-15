@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import {
   CheckCircle2,
+  ChevronDown,
   Delete,
   Lightbulb,
   Loader2,
@@ -49,6 +50,7 @@ import {
 import { speakText, stopSpeaking } from "@/lib/tts";
 import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EXTRA_START_STAGE } from "@/lib/srs";
 
 /** 浏览器语音合成读英文 */
 function speakReviewWordTts(word: string): void {
@@ -72,6 +74,7 @@ export interface ReviewWord {
   definition: string | null;
   context: string | null;
   reviewStage: number;
+  isMastered: boolean;
   /** 词典 CDN mp3，可能为空 */
   audioUk?: string | null;
   audioUs?: string | null;
@@ -88,6 +91,7 @@ interface ReviewSessionProps {
 }
 
 type Step = "meaning" | "spelling";
+type ReviewDecision = "advance" | "remembered" | "forgotten" | "mastered";
 
 /** 拼字托盘：rankById 固定格子顺序；已选 id 记入 usedIds，格子上仍显示但禁用 */
 type SpellingTrayState = {
@@ -313,6 +317,7 @@ export function ReviewSession({
   const [manualSpelling, setManualSpelling] = useState("");
   const [spellGlossDisplay, setSpellGlossDisplay] = useState("");
   const [rememberedCount, setRememberedCount] = useState(0);
+  const [forgottenCount, setForgottenCount] = useState(0);
   const [requeuedCount, setRequeuedCount] = useState(0);
   const [finished, setFinished] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -322,6 +327,7 @@ export function ReviewSession({
   const [pickMeta, setPickMeta] = useState<{ index: number; correct: boolean } | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [selectedReviewAction, setSelectedReviewAction] = useState<ReviewDecision>("advance");
   const glossCacheRef = useRef<Map<string, string>>(new Map());
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -331,9 +337,11 @@ export function ReviewSession({
     setStep("meaning");
     setFinished(false);
     setRememberedCount(0);
+    setForgottenCount(0);
     setRequeuedCount(0);
     setFailVersions({});
     setSpellingAssemblyError(false);
+    setSelectedReviewAction("advance");
     setSpellingShakePlay(false);
     if (spellingShakeTimerRef.current) {
       clearTimeout(spellingShakeTimerRef.current);
@@ -561,6 +569,7 @@ export function ReviewSession({
     if (step !== "spelling") {
       clearSpellingAssemblyError();
       setManualSpelling("");
+      setSelectedReviewAction("advance");
     }
   }, [step, clearSpellingAssemblyError]);
 
@@ -635,7 +644,7 @@ export function ReviewSession({
     }
   };
 
-  const confirmSpelling = async () => {
+  const confirmSpelling = () => {
     if (!current || !quizBase) return;
     const manual = manualSpelling.trim();
     const built =
@@ -654,12 +663,17 @@ export function ReviewSession({
     }
 
     clearSpellingAssemblyError();
+    void submitReviewAction(selectedReviewAction);
+  };
+
+  const submitReviewAction = async (action: ReviewDecision) => {
+    if (!current || submitting) return;
     setSubmitting(true);
     try {
       const res = await clientFetch("/api/review/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vocabularyId: current.id, result: "remembered" }),
+        body: JSON.stringify({ vocabularyId: current.id, action }),
       });
       if (!res.ok) {
         setSubmitting(false);
@@ -674,7 +688,8 @@ export function ReviewSession({
 
     markReviewClearedForScope(reviewScopeDay, current.id);
 
-    setRememberedCount((c) => c + 1);
+    if (action === "forgotten") setForgottenCount((c) => c + 1);
+    else setRememberedCount((c) => c + 1);
 
     setQueue((q) => {
       const next = q.slice(1);
@@ -685,6 +700,7 @@ export function ReviewSession({
     });
     setManualSpelling("");
     setSpelling((s) => ({ ...s, usedIds: [] }));
+    setSelectedReviewAction("advance");
     setStep("meaning");
   };
 
@@ -701,6 +717,7 @@ export function ReviewSession({
         return next;
       });
       setStep("meaning");
+      setSelectedReviewAction("advance");
       setManualSpelling("");
       setSpelling((state) => ({ ...state, usedIds: [] }));
       toast.success(t("deleteSuccess"));
@@ -713,10 +730,10 @@ export function ReviewSession({
     if (!finished) return;
     onCompleteRef.current({
       remembered: rememberedCount,
-      forgotten: 0,
+      forgotten: forgottenCount,
       requeued: requeuedCount,
     });
-  }, [finished, rememberedCount, requeuedCount]);
+  }, [finished, rememberedCount, forgottenCount, requeuedCount]);
 
   if (finished) {
     return (
@@ -746,7 +763,7 @@ export function ReviewSession({
     return null;
   }
 
-  const totalInRound = rememberedCount + queue.length;
+  const totalInRound = rememberedCount + forgottenCount + queue.length;
   const progress = totalInRound > 0 ? (rememberedCount / totalInRound) * 100 : 0;
   const phraseSpelling = current ? isPhraseSpellingTarget(current.word) : false;
   /** 单词：字块区在 labels 前段的长度；词组为 0 */
@@ -787,8 +804,8 @@ export function ReviewSession({
 
         {(() => {
           const stage = current.reviewStage;
-          const isMastered = stage >= 6;
-          const remaining = isMastered ? 0 : 6 - stage;
+          const isMastered = current.isMastered;
+          const remaining = isMastered ? 0 : stage < EXTRA_START_STAGE ? EXTRA_START_STAGE - stage : 0;
           const stageColors = [
             "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/25",
             "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/25",
@@ -805,7 +822,9 @@ export function ReviewSession({
                 ? t("reviewNth", { n: t("firstReview") })
                 : isMastered
                   ? t("mastered")
-                  : t("reviewNth", { n: stage })}
+                  : stage >= EXTRA_START_STAGE
+                    ? t("extraReviewNth", { n: stage - EXTRA_START_STAGE + 1 })
+                    : t("reviewNth", { n: stage })}
               {!isMastered && remaining > 0 && (
                 <span className="ml-1.5 opacity-70">
                   ({t("remainingReview", { count: remaining })})
@@ -1177,6 +1196,54 @@ export function ReviewSession({
               {t("clearSpelling")}
             </Button>
           </div>
+
+          <details className="group rounded-lg border border-border/70 bg-muted/20">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-xs text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              <span>{t("reviewStateOptional")}</span>
+              <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="space-y-2 border-t border-border/60 p-3">
+              <div className="grid gap-2 sm:grid-cols-3">
+              <Button
+                type="button"
+                variant={selectedReviewAction === "advance" ? "secondary" : "outline"}
+                disabled={submitting}
+                onClick={() => setSelectedReviewAction("advance")}
+              >
+                {current.reviewStage >= EXTRA_START_STAGE ? t("continueExtra") : t("continueBasic")}
+              </Button>
+              {current.reviewStage < EXTRA_START_STAGE ? (
+                <Button
+                  type="button"
+                  variant={selectedReviewAction === "remembered" ? "secondary" : "outline"}
+                  disabled={submitting}
+                  onClick={() => setSelectedReviewAction("remembered")}
+                >
+                  {t("rememberedSkip")}
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant={selectedReviewAction === "forgotten" ? "destructive" : "outline"}
+                disabled={submitting}
+                onClick={() => setSelectedReviewAction("forgotten")}
+              >
+                {t("markForgotten")}
+              </Button>
+              {current.reviewStage >= EXTRA_START_STAGE ? (
+                <Button
+                  type="button"
+                  variant={selectedReviewAction === "mastered" ? "default" : "outline"}
+                  className={selectedReviewAction === "mastered" ? "bg-green-600 text-white hover:bg-green-700 sm:col-span-3" : "sm:col-span-3"}
+                  disabled={submitting}
+                  onClick={() => setSelectedReviewAction("mastered")}
+                >
+                  {t("markMastered")}
+                </Button>
+              ) : null}
+              </div>
+            </div>
+          </details>
 
           <Button
             className="w-full bg-green-600 hover:bg-green-700 text-white"

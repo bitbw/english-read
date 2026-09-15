@@ -273,7 +273,7 @@ export const reviewLogs = pgTable(
       .notNull()
       .references(() => vocabulary.id, { onDelete: "cascade" }),
     stageBeforeReview: integer("stage_before_review").notNull(),
-    result: text("result", { enum: ["remembered", "forgotten"] }).notNull(),
+    result: text("result", { enum: ["remembered", "forgotten", "mastered"] }).notNull(),
     stageAfterReview: integer("stage_after_review").notNull(),
     nextReviewAt: timestamp("next_review_at", { mode: "date" }).notNull(),
     reviewedAt: timestamp("reviewed_at", { mode: "date" }).defaultNow().notNull(),

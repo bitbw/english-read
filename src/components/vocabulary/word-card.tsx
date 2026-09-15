@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getStageName, getStageColor } from "@/lib/srs";
 import { Trash2 } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN, enUS } from "date-fns/locale";
 import { linkifyToReactNodes } from "@/components/linkified-text";
@@ -26,9 +28,10 @@ interface VocabWord {
 interface WordCardProps {
   word: VocabWord;
   onDelete?: (id: string) => void;
+  onStatusChange?: (id: string, status: "remembered" | "forgotten" | "mastered") => void;
 }
 
-export function WordCard({ word, onDelete }: WordCardProps) {
+export function WordCard({ word, onDelete, onStatusChange }: WordCardProps) {
   const t = useTranslations("vocabulary");
   const locale = useLocale();
   const dateFnsLocale = locale === "zh" ? zhCN : enUS;
@@ -45,8 +48,8 @@ export function WordCard({ word, onDelete }: WordCardProps) {
             {word.phonetic && (
               <span className="text-sm text-muted-foreground">{word.phonetic}</span>
             )}
-            <Badge className={`text-xs px-1.5 py-0 ${getStageColor(word.reviewStage)}`}>
-              {getStageName(word.reviewStage)}
+            <Badge className={`text-xs px-1.5 py-0 ${getStageColor(word.reviewStage, word.isMastered)}`}>
+              {getStageName(word.reviewStage, word.isMastered)}
             </Badge>
             {isPastDue && (
               <Badge variant="destructive" className="text-xs px-1.5 py-0">
@@ -79,17 +82,43 @@ export function WordCard({ word, onDelete }: WordCardProps) {
           )}
         </div>
 
-        {/* 删除按钮 */}
-        {onDelete && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-            onClick={() => onDelete(word.id)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        )}
+        <div className="flex shrink-0 items-center gap-1">
+          {onStatusChange ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label={t("statusActions")}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {word.isMastered || word.reviewStage < 6 ? (
+                  <DropdownMenuItem onClick={() => onStatusChange(word.id, "remembered")}>
+                    {t("statusRemembered")}
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem onClick={() => onStatusChange(word.id, "forgotten")}>
+                  {t("statusForgotten")}
+                </DropdownMenuItem>
+                {!word.isMastered && word.reviewStage >= 6 ? (
+                  <DropdownMenuItem onClick={() => onStatusChange(word.id, "mastered")}>
+                    {t("statusMastered")}
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              onClick={() => onDelete(word.id)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
     </Card>
   );
