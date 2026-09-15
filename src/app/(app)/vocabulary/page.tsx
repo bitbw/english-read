@@ -221,6 +221,30 @@ export default function VocabularyPage() {
     });
   }
 
+  async function handleStatusChange(
+    id: string,
+    status: "remembered" | "forgotten" | "mastered",
+  ) {
+    const res = await clientFetch(`/api/vocabulary/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+      showErrorToast: false,
+    });
+    if (!res.ok) {
+      toast.error(t("statusUpdateFailed"));
+      return;
+    }
+    setListTick((prev) => prev + 1);
+    await fetchDueCount();
+    const successKey = status === "remembered"
+      ? "statusRememberedSuccess"
+      : status === "forgotten"
+        ? "statusForgottenSuccess"
+        : "statusMasteredSuccess";
+    toast.success(t(successKey));
+  }
+
   const filters: { value: FilterType; label: string }[] = [
     { value: "all", label: t("filterAll") },
     { value: "pending", label: t("filterPending") },
@@ -396,7 +420,7 @@ export default function VocabularyPage() {
         )
       ) : words.length > 0 ? (
         viewMode === "table" ? (
-          <VocabularyWordTable words={words} onDelete={handleDelete} />
+          <VocabularyWordTable words={words} onDelete={handleDelete} onStatusChange={handleStatusChange} />
         ) : (
           <div className="space-y-3">
             {words.map((word) => (
@@ -404,6 +428,7 @@ export default function VocabularyPage() {
                 key={word.id}
                 word={{ ...word, nextReviewAt: new Date(word.nextReviewAt), createdAt: new Date(word.createdAt) }}
                 onDelete={handleDelete}
+                onStatusChange={handleStatusChange}
               />
             ))}
           </div>

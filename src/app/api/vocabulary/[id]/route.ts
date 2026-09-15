@@ -1,6 +1,6 @@
 import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
-import { vocabulary } from "@/lib/db/schema";
+import { reviewLogs, vocabulary } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import {
   VOCAB_AUDIO_URL_MAX_LENGTH,
@@ -11,8 +11,11 @@ import {
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { validationError } from "@/lib/api-error";
+import { calculateReviewTransition, type ReviewAction } from "@/lib/srs";
+import { resolveTimeZone } from "@/lib/user-timezone";
 
 const updateWordSchema = z.object({
+  status: z.enum(["remembered", "forgotten", "mastered"]).optional(),
   note: z
     .string()
     .max(VOCAB_NOTE_MAX_LENGTH, `Note must not exceed ${VOCAB_NOTE_MAX_LENGTH} characters`)
@@ -71,9 +74,77 @@ export async function PUT(req: Request, { params }: IdParams) {
     return validationError(parsed.error);
   }
 
+  const { status, ...wordPatch } = parsed.data;
+  if (status) {
+    const [word, timeZone] = await Promise.all([
+      db
+        .select()
+        .from(vocabulary)
+        .where(and(eq(vocabulary.id, id), eq(vocabulary.userId, session.user.id))),
+      resolveTimeZone(session.user.id, req),
+    ]);
+    const current = word[0];
+    if (!current) {
+      return NextResponse.json({ error: "Word not found" }, { status: 404 });
+    }
+
+    let transition;
+    try {
+      transition = calculateReviewTransition(
+        current.reviewStage,
+        current.isMastered,
+        status as ReviewAction,
+        timeZone,
+      );
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Invalid vocabulary status" },
+        { status: 400 },
+      );
+    }
+
+    const [updated] = await db
+      .update(vocabulary)
+      .set({
+        reviewStage: transition.nextStage,
+        nextReviewAt: transition.nextReviewAt,
+        isMastered: transition.isMastered,
+        masteredAt: transition.isMastered ? new Date() : null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(vocabulary.id, id), eq(vocabulary.userId, session.user.id)))
+      .returning();
+
+    try {
+      await db.insert(reviewLogs).values({
+        userId: session.user.id,
+        vocabularyId: id,
+        stageBeforeReview: current.reviewStage,
+        result: status === "mastered" ? "mastered" : status,
+        stageAfterReview: transition.nextStage,
+        nextReviewAt: transition.nextReviewAt,
+      });
+    } catch (error) {
+      await db
+        .update(vocabulary)
+        .set({
+          reviewStage: current.reviewStage,
+          nextReviewAt: current.nextReviewAt,
+          isMastered: current.isMastered,
+          masteredAt: current.masteredAt,
+          updatedAt: current.updatedAt,
+        })
+        .where(and(eq(vocabulary.id, id), eq(vocabulary.userId, session.user.id)));
+      console.error("[vocabulary/status] review_logs insert failed, vocabulary reverted", error);
+      return NextResponse.json({ error: "Failed to save status" }, { status: 500 });
+    }
+
+    return NextResponse.json(updated);
+  }
+
   const [updated] = await db
     .update(vocabulary)
-    .set({ ...parsed.data, updatedAt: new Date() })
+    .set({ ...wordPatch, updatedAt: new Date() })
     .where(and(eq(vocabulary.id, id), eq(vocabulary.userId, session.user.id)))
     .returning();
 

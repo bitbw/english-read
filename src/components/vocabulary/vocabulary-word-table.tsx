@@ -16,8 +16,10 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN, enUS } from "date-fns/locale";
 import { Trash2 } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useLocale } from "next-intl";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface VocabWord {
   id: string;
@@ -34,9 +36,10 @@ interface VocabWord {
 interface VocabularyWordTableProps {
   words: VocabWord[];
   onDelete: (id: string) => void;
+  onStatusChange: (id: string, status: "remembered" | "forgotten" | "mastered") => void;
 }
 
-export function VocabularyWordTable({ words, onDelete }: VocabularyWordTableProps) {
+export function VocabularyWordTable({ words, onDelete, onStatusChange }: VocabularyWordTableProps) {
   const t = useTranslations("vocabulary");
   const locale = useLocale();
   const dateFnsLocale = locale === "zh" ? zhCN : enUS;
@@ -85,8 +88,8 @@ export function VocabularyWordTable({ words, onDelete }: VocabularyWordTableProp
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className={cn("px-1.5 py-0 text-[10px] font-normal", getStageColor(word.reviewStage))}>
-                    {getStageName(word.reviewStage)}
+                  <Badge className={cn("px-1.5 py-0 text-[10px] font-normal", getStageColor(word.reviewStage, word.isMastered))}>
+                    {getStageName(word.reviewStage, word.isMastered)}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
@@ -109,15 +112,40 @@ export function VocabularyWordTable({ words, onDelete }: VocabularyWordTableProp
                   {word.phonetic ?? "—"}
                 </TableCell>
                 <TableCell className="pr-3 text-right">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    onClick={() => onDelete(word.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <div className="flex justify-end gap-1">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label={t("statusActions")}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {word.isMastered || word.reviewStage < 6 ? (
+                          <DropdownMenuItem onClick={() => onStatusChange(word.id, "remembered")}>
+                            {t("statusRemembered")}
+                          </DropdownMenuItem>
+                        ) : null}
+                        <DropdownMenuItem onClick={() => onStatusChange(word.id, "forgotten")}>
+                          {t("statusForgotten")}
+                        </DropdownMenuItem>
+                        {!word.isMastered && word.reviewStage >= 6 ? (
+                          <DropdownMenuItem onClick={() => onStatusChange(word.id, "mastered")}>
+                            {t("statusMastered")}
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => onDelete(word.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             );
