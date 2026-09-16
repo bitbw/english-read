@@ -551,10 +551,10 @@ export function WordPopup({
 
       {/* 生词本：已收录可移除；未收录须等释义加载完成且有可保存内容 */}
       {existingEntryId ? (
-        <div className="flex shrink-0 gap-2">
+        <div className="grid shrink-0 grid-cols-1 gap-1.5">
           <Button
             size="sm"
-            className="h-7 min-w-0 flex-1 text-xs"
+            className="h-auto min-h-7 w-full whitespace-normal break-words px-2 py-1 text-[11px] leading-tight"
             onClick={() => void handleForgotten()}
             disabled={statusUpdating || removing}
             variant="secondary"
@@ -564,7 +564,7 @@ export function WordPopup({
           </Button>
           <Button
             size="sm"
-            className="h-7 min-w-0 flex-1 text-xs"
+            className="h-auto min-h-7 w-full whitespace-normal break-words px-2 py-1 text-[11px] leading-tight"
             onClick={handleRemoveClick}
             disabled={removing || statusUpdating}
             variant="outline"
@@ -572,7 +572,7 @@ export function WordPopup({
             {removing ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
             ) : (
-              <BookmarkMinus className="h-3.5 w-3.5 mr-1" />
+              <BookmarkMinus className="mr-1 h-3.5 w-3.5 shrink-0" />
             )}
             {t("removeFromVocab")}
           </Button>
