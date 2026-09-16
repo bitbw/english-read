@@ -19,6 +19,7 @@ import {
 } from "@/lib/pronunciation-audio";
 import { speakText, stopSpeaking } from "@/lib/tts";
 import { useTranslations } from "next-intl";
+import { getVocabularyState, type VocabularyState } from "@/lib/srs";
 
 interface Definition {
   partOfSpeech: string;
@@ -153,6 +154,7 @@ export function WordPopup({
   const [audioUs, setAudioUs] = useState("");
   const [existingEntryId, setExistingEntryId] = useState<string | null>(null);
   const [reviewCount, setReviewCount] = useState<number | null>(null);
+  const [vocabularyState, setVocabularyState] = useState<VocabularyState | null>(null);
   const [lookupLoading, setLookupLoading] = useState(true);
   const [removing, setRemoving] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
@@ -180,6 +182,7 @@ export function WordPopup({
       setLookupLoading(true);
       setExistingEntryId(null);
       setReviewCount(null);
+      setVocabularyState(null);
       if (!key) {
         if (!cancelled) setLookupLoading(false);
         return;
@@ -191,16 +194,18 @@ export function WordPopup({
         );
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as {
-          entry?: { id: string } | null;
+          entry?: { id: string; reviewStage: number; isMastered: boolean } | null;
           reviewCount?: number | null;
         };
         if (cancelled) return;
         setExistingEntryId(data.entry?.id ?? null);
         setReviewCount(data.reviewCount ?? null);
+        setVocabularyState(data.entry ? getVocabularyState(data.entry.reviewStage, data.entry.isMastered) : null);
       } catch {
         if (!cancelled) {
           setExistingEntryId(null);
           setReviewCount(null);
+          setVocabularyState(null);
         }
       } finally {
         if (!cancelled) setLookupLoading(false);
@@ -400,6 +405,7 @@ export function WordPopup({
         showErrorToast: false,
       });
       if (!res.ok) return;
+      setVocabularyState("forgotten");
       toast.success(t("forgottenSuccess"));
     } finally {
       setStatusUpdating(false);
@@ -429,9 +435,20 @@ export function WordPopup({
             <span className="shrink-0 text-xs text-muted-foreground">{phonetic}</span>
           ) : null}
           {existingEntryId && reviewCount !== null ? (
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {reviewCount > 0 ? t("reviewCount", { count: reviewCount }) : t("notReviewed")}
-            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {reviewCount > 0 ? t("reviewCount", { count: reviewCount }) : t("notReviewed")}
+              </span>
+              {vocabularyState ? (
+                <Badge variant="outline" className="px-1.5 py-0 text-[11px] leading-4">
+                  {vocabularyState === "forgotten"
+                    ? t("stateForgotten")
+                    : vocabularyState === "remembered"
+                      ? t("stateRemembered")
+                      : t("stateMastered")}
+                </Badge>
+              ) : null}
+            </div>
           ) : null}
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -552,16 +569,18 @@ export function WordPopup({
       {/* 生词本：已收录可移除；未收录须等释义加载完成且有可保存内容 */}
       {existingEntryId ? (
         <div className="grid shrink-0 grid-cols-1 gap-1.5">
-          <Button
-            size="sm"
-            className="h-auto min-h-7 w-full whitespace-normal break-words px-2 py-1 text-[11px] leading-tight"
-            onClick={() => void handleForgotten()}
-            disabled={statusUpdating || removing}
-            variant="secondary"
-          >
-            {statusUpdating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
-            {t("markForgotten")}
-          </Button>
+          {vocabularyState !== "forgotten" ? (
+            <Button
+              size="sm"
+              className="h-auto min-h-7 w-full whitespace-normal break-words px-2 py-1 text-[11px] leading-tight"
+              onClick={() => void handleForgotten()}
+              disabled={statusUpdating || removing}
+              variant="secondary"
+            >
+              {statusUpdating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+              {t("markForgotten")}
+            </Button>
+          ) : null}
           <Button
             size="sm"
             className="h-auto min-h-7 w-full whitespace-normal break-words px-2 py-1 text-[11px] leading-tight"

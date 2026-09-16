@@ -709,7 +709,10 @@
     "ukAccent": "英音",
     "ttsPronunciation": "发音（语音合成）",
     "reviewCount": "已复习 {count} 次",
-    "notReviewed": "尚未复习"
+    "notReviewed": "尚未复习",
+    "stateForgotten": "忘记了 / 新词",
+    "stateRemembered": "加练中",
+    "stateMastered": "掌握"
   },
   "signup": {
     "title": "注册",

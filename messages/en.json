@@ -709,7 +709,10 @@
     "ukAccent": "UK",
     "ttsPronunciation": "Pronounce (TTS)",
     "reviewCount": "Reviewed {count} times",
-    "notReviewed": "Not reviewed yet"
+    "notReviewed": "Not reviewed yet",
+    "stateForgotten": "Forgotten / New",
+    "stateRemembered": "Extra practice",
+    "stateMastered": "Mastered"
   },
   "signup": {
     "title": "Sign Up",
