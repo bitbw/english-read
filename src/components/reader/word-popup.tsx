@@ -415,7 +415,7 @@ export function WordPopup({
   return (
     <div
       ref={rootRef}
-      className="fixed z-[100] flex min-h-0 w-[min(18rem,calc(100vw-1rem))] flex-col gap-2 overflow-hidden rounded-xl border border-border bg-popover p-3 text-sm shadow-xl h-[22vh] md:h-auto md:max-h-[65vh]"
+      className="fixed z-[100] flex min-h-0 w-[min(18rem,calc(100vw-1rem))] flex-col gap-2 overflow-hidden rounded-xl border border-border bg-popover p-3 text-sm shadow-xl h-auto max-h-[45vh] md:max-h-[65vh]"
       style={{
         ...(position
           ? { top: position.top, left: position.left, right: "auto", visibility: "visible" as const }
@@ -513,7 +513,7 @@ export function WordPopup({
         </div>
       </div>
 
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="min-h-[3rem] min-w-0 flex-1 overflow-y-auto overscroll-contain">
         {/* 查询中 */}
         {loading ? (
           <div className="flex items-center gap-2 py-2 text-muted-foreground">
