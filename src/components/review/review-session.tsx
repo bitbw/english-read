@@ -919,7 +919,7 @@ export function ReviewSession({
                           }
                         }}
                         className={cn(
-                          "relative w-full text-left outline-none rounded-xl",
+                          "relative w-full select-text text-left outline-none rounded-xl",
                           meaningPhase === "pick" && "cursor-pointer focus-visible:ring-2 focus-visible:ring-ring",
                           flipped && "cursor-text"
                         )}
@@ -934,7 +934,7 @@ export function ReviewSession({
                           <div
                             className={cn(
                               "absolute inset-0 flex flex-col justify-center rounded-xl border bg-card p-4 shadow-sm [backface-visibility:hidden]",
-                              "border-border"
+                              "border-border select-text"
                             )}
                           >
                             <p className="text-base font-medium text-foreground leading-snug">
