@@ -12,7 +12,6 @@ const protectedRoutes = [
   "/settings",
   "/leaderboard",
   "/admin",
-  "/articles",
   "/textreader",
 ];
 

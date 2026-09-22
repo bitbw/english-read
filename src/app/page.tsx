@@ -191,7 +191,7 @@ export default async function LandingPage() {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3 md:justify-start">
               <Link
-                href="/login"
+                href="/articles"
                 className={cn(
                   buttonVariants({ size: "lg" }),
                   "gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/30 hover:-translate-y-0.5"
@@ -441,7 +441,7 @@ export default async function LandingPage() {
             {t("ctaDesc")}
           </p>
           <Link
-            href="/login"
+            href="/articles"
             className={cn(
               buttonVariants({ size: "lg" }),
               "mt-8 inline-flex gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/30 hover:-translate-y-0.5"

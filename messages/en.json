@@ -11,6 +11,8 @@
     "settings": "Settings",
     "leaderboard": "Leaderboard",
     "downloadApp": "Download App",
+    "login": "Sign in",
+    "signup": "Sign up",
     "github": "GitHub Repository"
   },
   "topbar": {

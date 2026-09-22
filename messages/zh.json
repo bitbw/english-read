@@ -11,6 +11,8 @@
     "settings": "设置",
     "leaderboard": "排行榜",
     "downloadApp": "下载 App",
+    "login": "登录",
+    "signup": "注册",
     "github": "GitHub 开源仓库"
   },
   "topbar": {

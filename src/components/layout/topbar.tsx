@@ -57,7 +57,7 @@ export function Topbar({ isApp }: { isApp?: boolean }) {
   const tNav = useTranslations("nav");
   const tTopbar = useTranslations("topbar");
 
-  const navItems = [
+  const allNavItems = [
     { href: "/dashboard", label: tNav("home"), icon: LayoutDashboard },
     { href: "/articles", label: tNav("dailyRead"), icon: Newspaper },
     { href: "/library/store", label: tNav("publicLibrary"), icon: Library },
@@ -66,6 +66,9 @@ export function Topbar({ isApp }: { isApp?: boolean }) {
     { href: "/leaderboard", label: tNav("leaderboard"), icon: Trophy },
     { href: "/settings", label: tNav("settings"), icon: Settings },
   ];
+  const navItems = session?.user
+    ? allNavItems
+    : allNavItems.filter((item) => item.href === "/articles");
 
   useEffect(() => {
     setMobileNavPending(false);
@@ -157,6 +160,17 @@ export function Topbar({ isApp }: { isApp?: boolean }) {
       )}
 
       <ThemeToggle />
+
+      {!session?.user && (
+        <div className="flex items-center gap-2 text-sm">
+          <Link href="/login" className="text-muted-foreground hover:text-foreground">
+            {tNav("login")}
+          </Link>
+          <Link href="/signup" className="font-medium text-primary hover:underline">
+            {tNav("signup")}
+          </Link>
+        </div>
+      )}
 
       {session?.user && (
         <DropdownMenu>
