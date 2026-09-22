@@ -38,6 +38,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Capacitor } from "@capacitor/core";
+import { toast } from "sonner";
 
 function navItemIsActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
@@ -49,7 +50,7 @@ function navItemIsActive(pathname: string, href: string) {
 }
 
 export function Topbar({ isApp }: { isApp?: boolean }) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileNavPending, setMobileNavPending] = useState(false);
@@ -57,7 +58,7 @@ export function Topbar({ isApp }: { isApp?: boolean }) {
   const tNav = useTranslations("nav");
   const tTopbar = useTranslations("topbar");
 
-  const navItems = [
+  const allNavItems = [
     { href: "/dashboard", label: tNav("home"), icon: LayoutDashboard },
     { href: "/articles", label: tNav("dailyRead"), icon: Newspaper },
     { href: "/library/store", label: tNav("publicLibrary"), icon: Library },
@@ -66,10 +67,41 @@ export function Topbar({ isApp }: { isApp?: boolean }) {
     { href: "/leaderboard", label: tNav("leaderboard"), icon: Trophy },
     { href: "/settings", label: tNav("settings"), icon: Settings },
   ];
+  const navItems = session?.user
+    ? allNavItems
+    : allNavItems.filter((item) => item.href === "/articles");
 
   useEffect(() => {
     setMobileNavPending(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const isGuestDailyReading =
+      status === "unauthenticated" && pathname.startsWith("/articles");
+    if (!isGuestDailyReading) return;
+
+    const showLoginReminder = () => {
+      toast.info(tTopbar("guestLoginPrompt"), {
+        id: "guest-login-reminder",
+        duration: 10000,
+        action: {
+          label: tNav("loginAllFeatures"),
+          onClick: () => {
+            window.location.href = "/login";
+          },
+        },
+      });
+    };
+
+    const initialReminder = window.setTimeout(showLoginReminder, 800);
+    const reminderInterval = window.setInterval(showLoginReminder, 5 * 60 * 1000);
+
+    return () => {
+      window.clearTimeout(initialReminder);
+      window.clearInterval(reminderInterval);
+      toast.dismiss("guest-login-reminder");
+    };
+  }, [pathname, status, tNav, tTopbar]);
 
   useEffect(() => {
     setIsNative(Capacitor.isNativePlatform());
@@ -157,6 +189,17 @@ export function Topbar({ isApp }: { isApp?: boolean }) {
       )}
 
       <ThemeToggle />
+
+      {!session?.user && (
+        <div className="flex items-center gap-2 text-sm">
+          <Link href="/login" className="text-muted-foreground hover:text-foreground">
+            {tNav("loginAllFeatures")}
+          </Link>
+          <Link href="/signup" className="font-medium text-primary hover:underline">
+            {tNav("signup")}
+          </Link>
+        </div>
+      )}
 
       {session?.user && (
         <DropdownMenu>

@@ -11,12 +11,16 @@
     "settings": "设置",
     "leaderboard": "排行榜",
     "downloadApp": "下载 App",
+    "login": "登录",
+    "loginAllFeatures": "登录体验所有功能",
+    "signup": "注册",
     "github": "GitHub 开源仓库"
   },
   "topbar": {
     "loading": "加载中",
     "logout": "退出登录",
-    "settings": "设置"
+    "settings": "设置",
+    "guestLoginPrompt": "当前为游客模式，登录后可体验全部功能"
   },
   "dashboard": {
     "greeting": "你好，{name} 👋",

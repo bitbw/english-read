@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useLocale } from "next-intl";
 import { clientFetch } from "@/lib/client-fetch";
 import { XIcon, InfoIcon, ExternalLinkIcon } from "lucide-react";
@@ -31,13 +32,16 @@ function dismiss(id: string) {
 
 export function AnnouncementBar() {
   const locale = useLocale();
+  const { data: session } = useSession();
   const [items, setItems] = useState<AnnouncementItem[]>([]);
 
   useEffect(() => {
+    if (!session?.user) return;
+
     let cancelled = false;
     (async () => {
       try {
-        const r = await clientFetch("/api/announcements", { showErrorToast: false });
+        const r = await clientFetch("/api/announcements", { showErrorToast: false, redirectOn401: false });
         if (!r.ok) return;
         const json = (await r.json()) as { announcements: AnnouncementItem[] };
         if (!cancelled) {
@@ -50,7 +54,7 @@ export function AnnouncementBar() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [session?.user]);
 
   const handleDismiss = (id: string) => {
     dismiss(id);

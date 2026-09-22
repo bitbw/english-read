@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { format } from "date-fns";
 import { BackButton } from "@/components/back-button";
@@ -46,6 +47,7 @@ const ARTICLE_THEMES = ["normal", "vscode"] as const;
 type ArticleTheme = (typeof ARTICLE_THEMES)[number];
 
 export function ArticleReaderClient({ article }: { article: Article }) {
+  const { data: session } = useSession();
   const t = useTranslations("articles");
   const tReader = useTranslations("reader");
   const { resolvedTheme } = useTheme();
@@ -59,7 +61,7 @@ export function ArticleReaderClient({ article }: { article: Article }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // 阅读时长追踪（页面可见时自动上报到 readingDailyTime）
-  useReadingTimeTracker({ enabled: true });
+  useReadingTimeTracker({ enabled: !!session?.user?.id });
 
   // 从 localStorage 加载字号
   useEffect(() => {

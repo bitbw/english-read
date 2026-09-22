@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
   BookOpen,
@@ -27,9 +28,10 @@ function navItemIsActive(pathname: string, href: string) {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const t = useTranslations("nav");
 
-  const navItems = [
+  const allNavItems = [
     { href: "/dashboard", label: t("home"), icon: LayoutDashboard },
     { href: "/articles", label: t("dailyRead"), icon: Newspaper },
     { href: "/library/store", label: t("publicLibrary"), icon: Library },
@@ -38,6 +40,9 @@ export function Sidebar() {
     { href: "/leaderboard", label: t("leaderboard"), icon: Trophy },
     { href: "/settings", label: t("settings"), icon: Settings },
   ];
+  const navItems = session?.user
+    ? allNavItems
+    : allNavItems.filter((item) => item.href === "/articles");
 
   return (
     <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border bg-card h-screen sticky top-0">
@@ -68,6 +73,17 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {!session?.user && (
+        <div className="border-t border-border p-3 space-y-1">
+          <Link href="/login" className="block rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+            {t("loginAllFeatures")}
+          </Link>
+          <Link href="/signup" className="block rounded-md px-3 py-2 text-sm font-medium text-primary hover:bg-accent">
+            {t("signup")}
+          </Link>
+        </div>
+      )}
 
       {/* <div className="shrink-0 border-t border-border p-4">
         <a

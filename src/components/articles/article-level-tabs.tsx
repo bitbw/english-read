@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { fetchArticleLevel, saveArticleLevel } from "@/lib/article-level";
 
 interface LevelTab {
@@ -18,8 +19,11 @@ interface ArticleLevelTabsProps {
 
 export function ArticleLevelTabs({ levelTabs, currentLevel }: ArticleLevelTabsProps) {
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
 
   useEffect(() => {
+    if (!session?.user) return;
+
     fetchArticleLevel().then((saved) => {
       if (!searchParams?.get("level") && saved !== currentLevel) {
         const url = new URL(window.location.href);
@@ -36,7 +40,7 @@ export function ArticleLevelTabs({ levelTabs, currentLevel }: ArticleLevelTabsPr
           key={lv}
           href={`/articles?level=${lv}`}
           onClick={async () => {
-            await saveArticleLevel(lv);
+            if (session?.user) await saveArticleLevel(lv);
           }}
           className={cn(
             "flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",

@@ -1,4 +1,3 @@
-import { requireSessionApi } from "@/lib/api-session";
 import { db } from "@/lib/db";
 import { dailyArticles } from "@/lib/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -6,9 +5,6 @@ import { NextResponse } from "next/server";
 
 // GET /api/articles?level=1&page=1&pageSize=12
 export async function GET(req: Request) {
-  const authResult = await requireSessionApi();
-  if ("error" in authResult) return authResult.error;
-
   const { searchParams } = new URL(req.url);
   const level = Math.max(1, Math.min(3, parseInt(searchParams.get("level") ?? "1", 10)));
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));

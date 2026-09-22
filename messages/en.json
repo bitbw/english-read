@@ -11,12 +11,16 @@
     "settings": "Settings",
     "leaderboard": "Leaderboard",
     "downloadApp": "Download App",
+    "login": "Sign in",
+    "loginAllFeatures": "Sign in for all features",
+    "signup": "Sign up",
     "github": "GitHub Repository"
   },
   "topbar": {
     "loading": "Loading",
     "logout": "Sign Out",
-    "settings": "Settings"
+    "settings": "Settings",
+    "guestLoginPrompt": "You are browsing as a guest. Sign in to unlock all features"
   },
   "dashboard": {
     "greeting": "Hello, {name} 👋",

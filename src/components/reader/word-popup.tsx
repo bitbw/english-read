@@ -190,7 +190,7 @@ export function WordPopup({
       try {
         const res = await clientFetch(
           `/api/vocabulary?lookup=${encodeURIComponent(key)}`,
-          { showErrorToast: false },
+          { showErrorToast: false, redirectOn401: false },
         );
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as {
