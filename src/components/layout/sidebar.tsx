@@ -77,7 +77,7 @@ export function Sidebar() {
       {!session?.user && (
         <div className="border-t border-border p-3 space-y-1">
           <Link href="/login" className="block rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-            {t("login")}
+            {t("loginAllFeatures")}
           </Link>
           <Link href="/signup" className="block rounded-md px-3 py-2 text-sm font-medium text-primary hover:bg-accent">
             {t("signup")}
