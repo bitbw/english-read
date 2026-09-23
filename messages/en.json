@@ -700,6 +700,7 @@
     "forgottenSuccess": "Reset to basic review; review again tomorrow",
     "alreadyIn": "\"{word}\" is already in vocabulary",
     "addedSuccess": "\"{word}\" added to vocabulary",
+    "loginToAdd": "Sign in to add words to your vocabulary",
     "removedSuccess": "Removed \"{word}\" from vocabulary",
     "deleteConfirm": "Remove \"{word}\" from vocabulary?",
     "deleteDescription": "You'll need to re-add it while reading to get it back.",

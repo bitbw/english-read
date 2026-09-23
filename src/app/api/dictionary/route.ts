@@ -1,4 +1,3 @@
-import { auth } from "@/lib/auth";
 import { fetchFreeDictionaryEn } from "@/lib/free-dictionary";
 import { fetchGoogleTranslateEnToZh } from "@/lib/google-translate";
 import { fetchYoudaoExplain } from "@/lib/youdao-suggest";
@@ -42,11 +41,6 @@ function shouldFetchFreeDictionary(trimmed: string): boolean {
  * - 响应按 revalidate 缓存 24h，减轻外网压力。
  */
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { searchParams } = new URL(req.url);
   const word = searchParams.get("word");
   /** 复习翻面等需要更多义项时传 full=1；默认 short 条数较少 */
