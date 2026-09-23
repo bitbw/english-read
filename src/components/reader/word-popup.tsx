@@ -330,6 +330,8 @@ export function WordPopup({
       const res = await clientFetch("/api/vocabulary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        showErrorToast: false,
+        redirectOn401: false,
         body: JSON.stringify({
           word,
           ...(bookId ? { bookId } : {}),
@@ -345,9 +347,15 @@ export function WordPopup({
       const data = (await res.json().catch(() => ({}))) as {
         id?: string;
         alreadyExists?: boolean;
+        error?: string;
       };
 
+      if (res.status === 401) {
+        toast.info(t("loginToAdd"));
+        return;
+      }
       if (!res.ok) {
+        if (data.error) toast.error(data.error);
         return;
       }
 

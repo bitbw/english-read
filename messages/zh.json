@@ -700,6 +700,7 @@
     "forgottenSuccess": "已重置为基础复习，明天再次复习",
     "alreadyIn": "「{word}」已在生词本",
     "addedSuccess": "\"{word}\" 已加入生词本",
+    "loginToAdd": "登录后才能加入生词本",
     "removedSuccess": "已从生词本移除「{word}」",
     "deleteConfirm": "确定从生词本删除「{word}」？",
     "deleteDescription": "删除后需在阅读中重新添加才会回到生词本。",
