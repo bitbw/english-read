@@ -5,7 +5,7 @@
 export type ReaderLayoutMode = "paginated" | "scrolled-doc";
 
 export const READER_LAYOUT_MODE_STORAGE_KEY = "english-read-reader-layout-mode";
-export const DEFAULT_LAYOUT_MODE: ReaderLayoutMode = "paginated";
+export const DEFAULT_LAYOUT_MODE: ReaderLayoutMode = "scrolled-doc";
 
 const LAYOUT_MODE_IDS: ReaderLayoutMode[] = ["paginated", "scrolled-doc"];
 

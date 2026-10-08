@@ -64,6 +64,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const t = useTranslations("reader");
   const tTier = useTranslations("readingSpeedTier");
   const controlsRef = useRef<ReaderControls | null>(null);
+  const scrollDirectionAnchorRef = useRef(0);
   const [fontSize, setFontSize] = useState(22);
   const [colorScheme, setColorScheme] = useState<ReaderColorSchemeId>(readColorSchemeFromStorage());
   const [layoutMode, setLayoutMode] = useState<ReaderLayoutMode>(readLayoutModeFromStorage());
@@ -79,6 +80,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   const [effectiveCfi, setEffectiveCfi] = useState<string | null>(null);
   const [cfiReady, setCfiReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [readerToolbarVisible, setReaderToolbarVisible] = useState(true);
 
   /** 待上报的估算阅读量（仅在 epubjs locations.generate 完成后由阅读器填入） */
   const pendingWordsRef = useRef(0);
@@ -276,7 +278,21 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   function changeLayoutMode(mode: ReaderLayoutMode) {
     setLayoutMode(mode);
     writeLayoutModeToStorage(mode);
+    setReaderToolbarVisible(true);
+    scrollDirectionAnchorRef.current = 0;
   }
+
+  const handleScrollPositionChange = useCallback((scrollTop: number) => {
+    if (scrollTop <= 24) {
+      scrollDirectionAnchorRef.current = scrollTop;
+      setReaderToolbarVisible(true);
+      return;
+    }
+
+    if (Math.abs(scrollTop - scrollDirectionAnchorRef.current) < 8) return;
+    setReaderToolbarVisible(scrollTop < scrollDirectionAnchorRef.current);
+    scrollDirectionAnchorRef.current = scrollTop;
+  }, []);
 
   function renderTocItems(items: NavItem[], depth = 0) {
     return items.map((item) => (
@@ -300,9 +316,18 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="relative flex flex-col h-full bg-background">
       {/* 顶栏：返回 + 书名 + 字号调节 + 章节目录 */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-card shrink-0">
+      <div
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 border-b border-border bg-card shrink-0",
+          layoutMode === "scrolled-doc" &&
+            "absolute inset-x-0 top-0 z-20 transition-transform duration-200 ease-out motion-reduce:transition-none",
+          layoutMode === "scrolled-doc" && !readerToolbarVisible && "-translate-y-full pointer-events-none"
+        )}
+        aria-hidden={layoutMode === "scrolled-doc" && !readerToolbarVisible}
+        inert={layoutMode === "scrolled-doc" && !readerToolbarVisible}
+      >
         <BackButton fallbackHref="/library" className="h-8 w-8 shrink-0" />
         <div className="flex-1 min-w-0">
           <h1 className="text-sm font-medium truncate">{title}</h1>
@@ -393,6 +418,7 @@ export function ReaderClient({ bookId, title, blobUrl, initialCfi }: ReaderClien
             fontSize={fontSize}
             colorScheme={colorScheme}
             layoutMode={layoutMode}
+            onScrollPositionChange={handleScrollPositionChange}
             autoPronunciation={autoPronunciation}
             onReady={(controls) => { controlsRef.current = controls; }}
             onTocReady={(items) => setToc(items)}
