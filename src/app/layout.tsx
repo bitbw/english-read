@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { SessionProvider } from "next-auth/react";
 import { SentryUserSync } from "@/components/sentry-user-sync";
 import { Toaster } from "@/components/ui/sonner";
+import { ToastConfirmDialog } from "@/components/ui/toast-confirm-dialog";
 import { auth } from "@/lib/auth";
 import { isProductionAnalytics } from "@/lib/analytics-env";
 import { setSentryUserFromSession } from "@/lib/sentry-user";
@@ -61,6 +62,7 @@ export default async function RootLayout({
               >
                 {isProductionAnalytics ? <SuspendedPostHogPageView /> : null}
                 {children}
+                <ToastConfirmDialog />
                 <Toaster />
               </ThemeProvider>
             </SessionProvider>

@@ -80,6 +80,7 @@ interface EpubReaderProps {
     chapterPct: number
   ) => void;
   onReady?: (controls: ReaderControls) => void;
+  onScrollPositionChange?: (scrollTop: number) => void;
   onTocReady?: (toc: NavItem[]) => void;
   /**
    * 仅在 `locations.generate` 完成后，根据 location 索引单调前进估算新增英语词数后回调。
@@ -136,6 +137,7 @@ export function EpubReader({
   autoPronunciation = true,
   onProgress,
   onReady,
+  onScrollPositionChange,
   onTocReady,
   onWordsDelta,
   onLocationsReady,
@@ -193,6 +195,7 @@ export function EpubReader({
     currentPctRef.current = 0;
     setBookLoading(true);
 
+    const viewerElement = viewerRef.current;
     let mounted = true;
     /** 最近一次划词完成时间，用于区分「点击关闭弹层」与「划词后误触 click」。 */
     let lastSelectedAt = 0;
@@ -345,19 +348,30 @@ export function EpubReader({
 
     /** 窗口尺寸变化时同步 rendition 视口，避免分页错位。 */
     function onWindowResize() {
-      if (!viewerRef.current || !renditionRef.current) return;
-      resizeRenditionToViewer(renditionRef.current, viewerRef.current);
+      if (!viewerElement || !renditionRef.current) return;
+      resizeRenditionToViewer(renditionRef.current, viewerElement);
+    }
+
+    function onReaderScroll(event: Event) {
+      const target = event.target;
+      if (
+        layoutModeRef.current === "scrolled-doc" &&
+        target instanceof HTMLElement &&
+        target.classList.contains("epub-container")
+      ) {
+        onScrollPositionChange?.(target.scrollTop);
+      }
     }
 
     /** 创建 Book / Rendition，绑定事件后首屏 display，并结束 loading。 */
     async function initReader() {
       // 无挂载容器则无法渲染，直接结束 loading
-      if (!viewerRef.current) {
+      if (!viewerElement) {
         setBookLoading(false);
         return;
       }
 
-      const { width: w, height: h } = viewerPixelDimensions(viewerRef.current);
+      const { width: w, height: h } = viewerPixelDimensions(viewerElement);
 
       // 从 Blob URL 解析 EPUB 包
       const book = ePub(blobUrl);
@@ -377,13 +391,14 @@ export function EpubReader({
       onTocReady?.(navToc);
 
       // 在容器内建立版面（横翻 auto / 竖滚 scrolled-doc）
-      const rendition = book.renderTo(viewerRef.current, {
+      const rendition = book.renderTo(viewerElement, {
         width: w,
         height: h,
         flow: epubFlowForLayoutMode(layoutModeRef.current),
         spread: "auto",
       });
       renditionRef.current = rendition;
+      viewerElement.addEventListener("scroll", onReaderScroll, true);
 
       // 供顶栏/父组件：上一页、下一页、按 href 跳转
       onReady?.({
@@ -528,6 +543,7 @@ export function EpubReader({
       debouncedRelocated.cancel();
       debouncedSelected.cancel();
       window.removeEventListener("resize", onWindowResize);
+      viewerElement?.removeEventListener("scroll", onReaderScroll, true);
       if (currentCfiRef.current) {
         saveReadingProgressToServer(
           bookId,
