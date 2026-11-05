@@ -14,6 +14,7 @@
 - 当前配置使用 `webpack.automaticVercelMonitors`，它只覆盖 Webpack + Pages Router；本项目的 Cron 是 App Router Route Handler，因此不能依赖这项配置监控该任务。
 - 另一个独立问题是：抓取即使发现正文解析失败，接口目前仍会汇总结果并返回 HTTP 200。只观察 HTTP 状态或 Vercel 请求日志不足以发现“任务跑了，但没有抓到文章”。
 - 正文解析器已修复为读取文章段落标记，并兼容当前英文发布日期格式；改动已经用 Level 1、2、3 的实时文章 HTML 做过本地解析验证。
+- 抓取接口现已实现最小内容告警：同一轮 Cron 中连续两篇候选文章无法取得有效标题或正文时，向 Sentry 上报一条异常；成功解析一篇会重置连续失败计数。
 
 ## 推荐结构：两类告警
 
@@ -39,35 +40,35 @@ Vercel 的 cron schedule 使用 UTC；Sentry Monitor 的 schedule 必须与 `ver
 
 ### 2. 抓取质量告警：上游内容变化或数据没有写入
 
-自动 Cron check-in 证明的是任务执行情况，不等于正文已成功入库。抓取逻辑还应将以下状态明确报告到 Sentry：
+自动 Cron check-in 证明的是任务执行情况，不等于正文已成功入库。目前先采用最小实现：同一轮任务里连续两篇候选文章详情页未能解析出标题或正文时，调用 `Sentry.captureException` 上报一次。事件使用固定错误消息以便在 Sentry 中归并，并附上失败文章的等级和 slug，不附文章全文。成功解析文章会清零连续失败计数；正常去重不报警。阈值按“同一轮连续两篇”计算，不跨 Cron 执行保存状态。
+
+这条告警覆盖文章详情页请求失败、HTTP 非 2xx、标题缺失或正文结构变化导致解析为空。它不覆盖列表页请求失败或列表结构变化造成候选链接数为零；要覆盖这些情况，应让列表抓取区分“确实无文章”和“请求/解析失败”，再上报对应异常。
+
+其他需要分别处理的状态：
 
 | 情况 | 处理建议 |
 | --- | --- |
 | Level Read 列表请求超时、HTTP 非 2xx 或解析不到预期列表结构 | 记录具体等级和失败原因，并报告一次抓取失败事件；不要把网络异常伪装成空列表 |
-| 找到文章链接，但最新候选文章全部取不到有效标题/正文 | 作为高优先级内容抓取失败，报告 Sentry；这正是页面结构变化的主要信号 |
-| 只有个别文章失败，但同一轮仍成功抓到其他文章 | 记录失败 slug 和计数；是否立即邮件通知可按噪音容忍度决定，建议至少在连续发生或成功数为 0 时告警 |
+| 找到文章链接，但连续两篇取不到有效标题/正文 | 已实现：上报一条 Sentry 异常；连续失败的等级和 slug 作为附加信息 |
+| 单篇失败，随后文章成功 | 不告警；成功会重置连续失败计数 |
 | 数据库写入失败 | 作为任务失败上报，包含等级/slug 和异常，不包含文章全文 |
 | 列表请求正常、有文章候选且内容解析成功，但文章已存在 | 这是正常去重，不应告警 |
 | 页面正常返回，但确实没有新内容 | 不应仅因为“新增条数为 0”报警；现有 `onConflictDoNothing` 也意味着处理成功不一定新增行 |
 
-内容异常事件应使用稳定的事件名称/分组和专用 tag（例如 `cron.job=scrape-articles`、`scrape.level=2`），每轮聚合成一条，不要每个 HTML 错误都单独发一封邮件。上报字段只放状态码、slug、等级、错误类型和计数，不发送正文或敏感信息。
+内容异常使用固定错误消息和 `cron_job=scrape-articles` tag，便于在 Sentry 中归并和筛选。不要每个 HTML 错误都单独发一封邮件；上报字段只放 slug 和等级，不发送正文或敏感信息。
 
-## 邮件通知配置
+## 通知配置
 
-在 Sentry 项目中建立两条 Issue Alert（或等价的 Workflow）：
+`Sentry.captureException` 负责把错误发到 Sentry，不会自动发送邮件。检查时（2026-11-04），`english-read` 项目已有启用的 `feishu-alerts` Issue Alert：覆盖该项目的新 Issue，并通过飞书 webhook 通知。因此这条固定错误首次创建 Issue 时应走现有飞书通知；部署后应确认 Sentry Issue 和飞书消息都收到。
 
-1. **Cron 未按时运行/失败**：关联 Cron Monitor 的 missed、failed、timeout 事件。
-2. **文章内容抓取失败**：过滤 `cron.job=scrape-articles`，只对这类业务失败事件通知。
-
-为通知动作选择 Email，配置接收人或团队；设置通知频率/冷却时间，避免同一故障每天重复轰炸。若 Sentry 只通知 Issue 的负责人/团队，则需先给 Monitor 或 Issue 配好负责人，并确认该负责人邮箱可接收 Sentry 通知。
+如需邮件，在 Sentry 的该 Issue Alert 中添加 Email 动作或创建单独规则，按 `cron_job=scrape-articles` / 固定错误消息筛选，并配置收件人。Cron 漏跑、超时的 Cron Monitor 告警是另一件事，不由本次正文失败事件覆盖。
 
 ## 实施与验收顺序
 
-1. 修改 Sentry Next.js 配置，部署 Preview，检查 Sentry 是否出现对应 Cron Monitor 和 check-in。
-2. 将抓取失败场景归一化上报：列表失败、候选正文全失败、数据库写入失败；成功去重不报警。
-3. 在 Preview 使用可控的解析失败模拟或测试入口验证：Sentry 收到事件，Issue Alert 发送测试邮件；不要为测试调用会写生产数据库的抓取接口。
-4. 验证恢复路径：下一次 check-in / 成功抓取后，Monitor 或 Issue 能恢复/关闭；失败事件有链接到对应 Vercel 请求和 slug 的信息。
-5. 部署 Production 后观察至少一次真实 Cron check-in；确认 Monitor schedule 与 UTC 时间一致，邮件送达。
+1. 已实现：连续两篇候选文章正文失败时，Preview/Production 的 Sentry 服务端 SDK 收到一条业务异常；本地 `development` 环境默认禁用 Sentry 上报。
+2. 部署 Preview 后，用不写生产数据库的方式验证 Sentry Issue 和现有飞书通知；如果选择邮件，再验证邮件动作和送达。
+3. 如需监控 Cron 漏跑，再单独配置 `_experimental.vercelCronsMonitoring` 并确认 Monitor schedule 与 `vercel.json` 中的 UTC schedule 一致。
+4. 部署 Production 后观察真实运行及对应通知；成功文章会重置失败计数，但 Sentry Issue 的关闭/恢复策略仍由 Issue Alert 配置决定。
 
 ## 方案边界和维护
 
