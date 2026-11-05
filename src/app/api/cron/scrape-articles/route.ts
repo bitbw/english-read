@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { dailyArticles } from "@/lib/db/schema";
+import * as Sentry from "@sentry/nextjs";
 import {
   decodeHtmlEntities,
   extractArticleContent,
@@ -104,6 +105,8 @@ export async function GET(req: Request) {
   let scraped = 0;
   let errors = 0;
   let total = 0;
+  let consecutiveContentFailures: { level: number; slug: string }[] = [];
+  let contentFailureAlertSent = false;
 
   for (const level of LEVELS) {
     const slugs = await fetchArticleSlugs(level);
@@ -114,7 +117,20 @@ export async function GET(req: Request) {
       const data = await scrapeArticle(slug, level);
       if (!data) {
         errors++;
+        consecutiveContentFailures.push({ level, slug });
+        if (consecutiveContentFailures.length === 2 && !contentFailureAlertSent) {
+          Sentry.captureException(
+            new Error("Level Read scraper failed to extract consecutive article contents"),
+            {
+              tags: { cron_job: "scrape-articles", failure_type: "article_content" },
+              extra: { failedArticles: [...consecutiveContentFailures] },
+            },
+          );
+          await Sentry.flush(2000);
+          contentFailureAlertSent = true;
+        }
       } else {
+        consecutiveContentFailures = [];
         try {
           await db
             .insert(dailyArticles)
