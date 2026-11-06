@@ -6,7 +6,8 @@ import { Loader2, RefreshCw, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 
 interface ScrapeResult {
-  scraped: number;
+  added: number;
+  skipped: number;
   errors: number;
   total: number;
 }
@@ -117,10 +118,14 @@ export default function DevScrapePage() {
           </div>
         )}
         {result && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <div className="rounded-lg bg-muted px-3 py-2 text-center">
-              <p className="text-lg font-bold text-emerald-600">{result.scraped}</p>
-              <p className="text-xs text-muted-foreground">成功</p>
+              <p className="text-lg font-bold text-emerald-600">{result.added}</p>
+              <p className="text-xs text-muted-foreground">新增</p>
+            </div>
+            <div className="rounded-lg bg-muted px-3 py-2 text-center">
+              <p className="text-lg font-bold text-sky-600">{result.skipped}</p>
+              <p className="text-xs text-muted-foreground">已存在</p>
             </div>
             <div className="rounded-lg bg-muted px-3 py-2 text-center">
               <p className="text-lg font-bold text-amber-600">{result.errors}</p>

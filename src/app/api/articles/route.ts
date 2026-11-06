@@ -28,7 +28,10 @@ export async function GET(req: Request) {
       })
       .from(dailyArticles)
       .where(where)
-      .orderBy(desc(dailyArticles.publishedAt), desc(dailyArticles.createdAt))
+      .orderBy(
+        sql`${dailyArticles.publishedAt} DESC NULLS LAST`,
+        desc(dailyArticles.createdAt),
+      )
       .limit(pageSize)
       .offset(offset),
     db

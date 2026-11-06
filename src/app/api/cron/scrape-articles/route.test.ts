@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { captureException, flush, insert, onConflictDoNothing, values } = vi.hoisted(() => ({
+const { captureException, flush, insert, onConflictDoNothing, returning, values } = vi.hoisted(() => ({
   captureException: vi.fn(),
   flush: vi.fn().mockResolvedValue(true),
   insert: vi.fn(),
-  onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
+  onConflictDoNothing: vi.fn(),
+  returning: vi.fn().mockResolvedValue([{ id: "article-id" }]),
   values: vi.fn(),
 }));
 
@@ -24,6 +25,7 @@ describe("GET /api/cron/scrape-articles", () => {
   it("reports two consecutive article-content failures to Sentry once", async () => {
     vi.useFakeTimers();
     values.mockReturnValue({ onConflictDoNothing });
+    onConflictDoNothing.mockReturnValue({ returning });
     insert.mockReturnValue({ values });
     vi.stubGlobal(
       "fetch",
@@ -65,6 +67,7 @@ describe("GET /api/cron/scrape-articles", () => {
   it("does not report failures separated by a successfully parsed article", async () => {
     vi.useFakeTimers();
     values.mockReturnValue({ onConflictDoNothing });
+    onConflictDoNothing.mockReturnValue({ returning });
     insert.mockReturnValue({ values });
     vi.stubGlobal(
       "fetch",
@@ -89,9 +92,49 @@ describe("GET /api/cron/scrape-articles", () => {
 
     const responsePromise = GET(new Request("https://english-read.test/api/cron/scrape-articles"));
     await vi.runAllTimersAsync();
-    await responsePromise;
+    const response = await responsePromise;
 
     expect(captureException).not.toHaveBeenCalled();
     expect(flush).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      added: 1,
+      skipped: 0,
+      errors: 2,
+      total: 3,
+    });
+  });
+
+  it("counts an existing article as skipped instead of added", async () => {
+    vi.useFakeTimers();
+    returning.mockResolvedValue([]);
+    values.mockReturnValue({ onConflictDoNothing });
+    onConflictDoNothing.mockReturnValue({ returning });
+    insert.mockReturnValue({ values });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.endsWith("/news/level-1")) {
+          return new Response('<a href="/news/level-1/article-a">A</a>');
+        }
+        if (url.endsWith("/news/level-1/article-a")) {
+          return new Response(
+            '<meta property="og:title" content="Test | Level Read"><div data-audio-paragraph-start="0">A complete article paragraph that can be stored in the database.</div>',
+          );
+        }
+        return new Response("");
+      }),
+    );
+
+    const responsePromise = GET(new Request("https://english-read.test/api/cron/scrape-articles"));
+    await vi.runAllTimersAsync();
+    const response = await responsePromise;
+
+    await expect(response.json()).resolves.toMatchObject({
+      added: 0,
+      skipped: 1,
+      errors: 0,
+      total: 1,
+    });
   });
 });
