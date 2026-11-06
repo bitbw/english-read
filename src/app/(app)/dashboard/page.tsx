@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { books, users, vocabulary, dailyArticles } from "@/lib/db/schema";
-import { eq, and, lte, desc, count } from "drizzle-orm";
+import { eq, and, lte, desc, count, sql } from "drizzle-orm";
 import { isAdmin } from "@/lib/role";
 import Link from "next/link";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
@@ -76,7 +76,10 @@ export default async function DashboardPage() {
         })
         .from(dailyArticles)
         .where(eq(dailyArticles.level, 1))
-        .orderBy(desc(dailyArticles.publishedAt), desc(dailyArticles.createdAt))
+        .orderBy(
+          sql`${dailyArticles.publishedAt} DESC NULLS LAST`,
+          desc(dailyArticles.createdAt),
+        )
         .limit(4),
       db
         .select({
@@ -91,7 +94,10 @@ export default async function DashboardPage() {
         })
         .from(dailyArticles)
         .where(eq(dailyArticles.level, 2))
-        .orderBy(desc(dailyArticles.publishedAt), desc(dailyArticles.createdAt))
+        .orderBy(
+          sql`${dailyArticles.publishedAt} DESC NULLS LAST`,
+          desc(dailyArticles.createdAt),
+        )
         .limit(4),
       db
         .select({
@@ -106,7 +112,10 @@ export default async function DashboardPage() {
         })
         .from(dailyArticles)
         .where(eq(dailyArticles.level, 3))
-        .orderBy(desc(dailyArticles.publishedAt), desc(dailyArticles.createdAt))
+        .orderBy(
+          sql`${dailyArticles.publishedAt} DESC NULLS LAST`,
+          desc(dailyArticles.createdAt),
+        )
         .limit(4),
     ]);
 

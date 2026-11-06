@@ -3,9 +3,17 @@ import { dailyArticles, users } from "@/lib/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { BackButton } from "@/components/back-button";
 import { auth } from "@/lib/auth";
-import Link from "next/link";
 import { ArticleCard } from "@/components/articles/article-card";
 import { ArticleLevelTabs } from "@/components/articles/article-level-tabs";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Newspaper } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
@@ -64,7 +72,10 @@ export default async function ArticlesPage({
       })
       .from(dailyArticles)
       .where(where)
-      .orderBy(desc(dailyArticles.publishedAt), desc(dailyArticles.createdAt))
+      .orderBy(
+        sql`${dailyArticles.publishedAt} DESC NULLS LAST`,
+        desc(dailyArticles.createdAt),
+      )
       .limit(PAGE_SIZE)
       .offset(offset),
     db
@@ -75,6 +86,9 @@ export default async function ArticlesPage({
 
   const total = countResult[0]?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const paginationPages = [...new Set([1, page - 1, page, page + 1, totalPages])]
+    .filter((pageNumber) => pageNumber > 0 && pageNumber <= totalPages)
+    .sort((a, b) => a - b);
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-6 pb-20 md:pb-0">
@@ -110,26 +124,44 @@ export default async function ArticlesPage({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-2">
-          {page > 1 && (
-            <Link
-              href={`/articles?level=${level}&page=${page - 1}`}
-              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-accent transition-colors"
-            >
-              {t("prevPage")}
-            </Link>
-          )}
+        <div className="flex flex-col items-center gap-2 pt-2">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href={page > 1 ? `/articles?level=${level}&page=${page - 1}` : undefined}
+                  aria-label={t("prevPage")}
+                >
+                  {t("prevPage")}
+                </PaginationPrevious>
+              </PaginationItem>
+              {paginationPages.map((pageNumber, index) => (
+                <PaginationItem key={pageNumber}>
+                  {index > 0 && pageNumber - paginationPages[index - 1] > 1 ? (
+                    <PaginationEllipsis />
+                  ) : null}
+                  <PaginationLink
+                    href={`/articles?level=${level}&page=${pageNumber}`}
+                    isActive={pageNumber === page}
+                    aria-label={t("pageIndicator", { page: pageNumber, total: totalPages })}
+                  >
+                    {pageNumber}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  href={page < totalPages ? `/articles?level=${level}&page=${page + 1}` : undefined}
+                  aria-label={t("nextPage")}
+                >
+                  {t("nextPage")}
+                </PaginationNext>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
           <span className="text-sm text-muted-foreground">
             {t("pageIndicator", { page, total: totalPages })}
           </span>
-          {page < totalPages && (
-            <Link
-              href={`/articles?level=${level}&page=${page + 1}`}
-              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-accent transition-colors"
-            >
-              {t("nextPage")}
-            </Link>
-          )}
         </div>
       )}
     </div>
