@@ -1,0 +1,66 @@
+测试日期: 2026-11-06 (Asia/Shanghai)
+应用: english-read, 当前 preview 工作区
+本地服务: npm run start -- -p 5000; 浏览前确认 GET http://localhost:5000/dashboard => 200 OK
+服务进程: next start -p 5000, PID 58388; 测试后停止并确认端口 5000 无监听
+浏览器: Chrome 156.0.0.0, Windows NT 10.0
+
+[Build]
+Command: npm run build
+Exit code: 0
+Output:
+  ✓ Compiled successfully in 82s
+  Linting and checking validity of types ...
+  ✓ Generating static pages (67/67)
+  Collecting build traces ...
+  Routes include /articles and /dashboard
+
+[Desktop articles]
+URL: http://localhost:5000/articles?level=2&page=1
+Viewport: 1440x900
+Observed: 12 article cards; first title="Mogging" Is Collins Dictionary's Word of the Year; date=2026/11/06; active page=1; document scrollWidth=1440; main clientWidth=1216; main scrollWidth=1216.
+Screenshot: 截图/07-桌面端文章排序.png
+
+[Mobile articles page 1]
+URL: http://localhost:5000/articles?level=2&page=1
+Viewport: 390x844
+Observed: 12 visible article links; first title="Mogging" Is Collins Dictionary's Word of the Year; date=2026/11/06; pagination text="上一页\n1\n2\n3\n下一页"; pagination width=327; document/body scrollWidth=390; viewport width=390.
+Screenshot: 截图/04-移动端文章列表首屏.png
+
+[Mobile page 1 pagination]
+Action: scroll [data-slot="pagination"] into view
+Observed: page indicator=1 / 3; pagination controls fit within the 390px viewport.
+Screenshot: 截图/05-移动端分页.png
+
+[Mobile next-page interaction]
+Action: locator('[data-slot="pagination"] a[aria-label="下一页"]').click({force:true})
+Observed: URL changed to http://localhost:5000/articles?level=2&page=2; active page=2; page indicator=2 / 3; screenshot shows previous/next controls and page 2 highlight.
+Tool note: browser click's initial visibility wait timed out while the control was below the main scroller. A locator scroll+click navigated successfully. The subsequent waitForURL waiting for full "load" timed out, but immediate URL/DOM checks and screenshot confirmed the completed client-side route.
+Screenshot: 截图/06-移动端第2页分页状态.png
+
+[Mobile last-page boundary]
+URL: http://localhost:5000/articles?level=2&page=3
+Viewport: 390x844
+Observed: active page=3; page indicator=3 / 3; disabled control="下一页", aria-disabled=true, tabIndex=-1; pagination width=327; document scrollWidth=390.
+Screenshot: 截图/10-移动端末页不可继续.png
+
+[Dashboard ordering]
+URL: http://localhost:5000/dashboard
+Viewport: 1440x900
+Observed first four daily article titles/dates:
+  1. “Mogging” Is Collins Dictionary's Word of the Year — 11/06
+  2. An Online Temple Where Visitors Cannot Chat — 11/05
+  3. Hackers Turn Supermarket Freezers Into Heaters Across Europe — 11/05
+  4. People Raise Millions to Save a Home for Rare Animals — 11/04
+Screenshot: 截图/09-桌面首页每日文章排序.png
+
+[Dashboard mobile limitation]
+Viewport: 390x844
+Observed: after opening /dashboard, the visible page remained at the "加载中…" placeholder during this attempt; this was not used as mobile-layout pass evidence. Dashboard mobile responsiveness remains unverified.
+
+[Browser console/network]
+Observed console errors: repeated 404 for http://localhost:5000/_vercel/insights/script.js (local Vercel Analytics script is not served by next start).
+Observed API requests: GET /api/announcements => 200; GET /api/user/preferences => 200.
+No application rendering or pagination errors were observed. The page-navigation helper timeout is recorded in the interaction section above; the client-side navigation itself completed and was confirmed by URL, DOM, and screenshot.
+
+[Cleanup]
+Own local Next.js service stopped; Get-NetTCPConnection -LocalPort 5000 -State Listen returned no listener.
