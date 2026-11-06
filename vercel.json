@@ -1,8 +1,10 @@
 {
-  "crons": [
-    {
+  "schedules": {
+    "scrape-articles": {
+      "schedule": "0 8 * * *",
+      "timezone": "Asia/Shanghai",
       "path": "/api/cron/scrape-articles",
-      "schedule": "0 8 * * *"
+      "requestMethod": "GET"
     }
-  ]
+  }
 }

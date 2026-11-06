@@ -160,6 +160,8 @@ Stages: `0→1d, 1→2d, 2→4d, 3→7d, 4→15d, 5→30d, 6+→mastered`. “Fo
 
 Hosting target is **Vercel**. Recommended flow: create **Storage** → register **OAuth** apps → copy env into **`.env.local`** → run **`npm run db:migrate`** once against Neon → connect the **GitHub repo** and deploy. Migration SQL lives in `src/lib/db/migrations/` ([`drizzle.config.ts`](./drizzle.config.ts) uses `POSTGRES_URL_NON_POOLING`). Optional env keys are listed in [`.env.example`](./.env.example).
 
+Project dashboard: [english-read on Vercel](https://vercel.com/bitbws-projects/english-read). Use it to review builds, deployments, and runtime logs.
+
 ### 1. Create Vercel Storage
 
 Open the [Vercel Dashboard](https://vercel.com/dashboard) → select or create your project → **Storage**, then provision:
