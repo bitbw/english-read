@@ -160,6 +160,8 @@ messages/
 
 默认部署在 **Vercel**。推荐顺序：**Storage** → 注册 **OAuth** → 配置 **`.env.local`** → 对 Neon 执行一次 **`npm run db:migrate`** → **关联 GitHub 仓库**并部署。迁移 SQL 已纳入版本库（`src/lib/db/migrations/`），[`drizzle.config.ts`](./drizzle.config.ts) 使用 **`POSTGRES_URL_NON_POOLING`**。可选环境变量见根目录 [`.env.example`](./.env.example)。
 
+项目后台：[english-read 的 Vercel 控制台](https://vercel.com/bitbws-projects/english-read)，可在此查看构建、部署和运行日志。
+
 ### 1. 创建 Vercel Storage
 
 登录 [Vercel Dashboard](https://vercel.com/dashboard) → 选择或新建项目 → **Storage**，创建：
