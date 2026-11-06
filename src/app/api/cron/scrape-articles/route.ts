@@ -102,7 +102,8 @@ export async function GET(req: Request) {
   }
 
   const LEVELS = [1, 2, 3];
-  let scraped = 0;
+  let added = 0;
+  let skipped = 0;
   let errors = 0;
   let total = 0;
   let consecutiveContentFailures: { level: number; slug: string }[] = [];
@@ -132,11 +133,13 @@ export async function GET(req: Request) {
       } else {
         consecutiveContentFailures = [];
         try {
-          await db
+          const inserted = await db
             .insert(dailyArticles)
             .values({ slug, level, ...data })
-            .onConflictDoNothing();
-          scraped++;
+            .onConflictDoNothing()
+            .returning({ id: dailyArticles.id });
+          if (inserted.length > 0) added++;
+          else skipped++;
         } catch {
           errors++;
         }
@@ -145,5 +148,5 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ scraped, errors, total });
+  return NextResponse.json({ added, skipped, errors, total });
 }
