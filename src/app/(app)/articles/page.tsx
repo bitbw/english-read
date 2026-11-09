@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { db } from "@/lib/db";
 import { dailyArticles, users } from "@/lib/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -136,18 +137,22 @@ export default async function ArticlesPage({
                 </PaginationPrevious>
               </PaginationItem>
               {paginationPages.map((pageNumber, index) => (
-                <PaginationItem key={pageNumber}>
+                <Fragment key={pageNumber}>
                   {index > 0 && pageNumber - paginationPages[index - 1] > 1 ? (
-                    <PaginationEllipsis />
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
                   ) : null}
-                  <PaginationLink
-                    href={`/articles?level=${level}&page=${pageNumber}`}
-                    isActive={pageNumber === page}
-                    aria-label={t("pageIndicator", { page: pageNumber, total: totalPages })}
-                  >
-                    {pageNumber}
-                  </PaginationLink>
-                </PaginationItem>
+                  <PaginationItem>
+                    <PaginationLink
+                      href={`/articles?level=${level}&page=${pageNumber}`}
+                      isActive={pageNumber === page}
+                      aria-label={t("pageIndicator", { page: pageNumber, total: totalPages })}
+                    >
+                      {pageNumber}
+                    </PaginationLink>
+                  </PaginationItem>
+                </Fragment>
               ))}
               <PaginationItem>
                 <PaginationNext
