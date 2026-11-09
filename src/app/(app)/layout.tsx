@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const isApp = userAgent.includes("EnglishRead-App");
 
   return (
-    <div className="flex h-dvh min-h-0 overflow-hidden bg-background">
+    <div className="fixed inset-0 flex overflow-hidden bg-background">
       <Sidebar />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Topbar isApp={isApp} />
