@@ -10,6 +10,7 @@ import {
   readAutoPronunciationFromStorage,
   writeAutoPronunciationToStorage,
 } from "@/lib/reader-auto-pronunciation";
+import { sanitizeRichText } from "./rich-text";
 
 const TEXT_FONT_SIZE_KEY = "english-read-text-reader-font-size";
 
@@ -49,10 +50,7 @@ export function TextReaderRead({ text, onEdit }: TextReaderReadProps) {
     setFontSize((prev) => Math.max(14, Math.min(28, prev + delta)));
   }
 
-  const paragraphs = text
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const content = sanitizeRichText(text);
 
   return (
     <div className="flex flex-col gap-6">
@@ -103,17 +101,11 @@ export function TextReaderRead({ text, onEdit }: TextReaderReadProps) {
         className="select-text"
         style={{ userSelect: "text", WebkitUserSelect: "text" }}
       >
-        <div className="flex flex-col gap-4">
-          {paragraphs.map((para, i) => (
-            <p
-              key={i}
-              className="text-foreground tracking-wide"
-              style={{ fontSize: `${fontSize}px`, lineHeight: 1.85 }}
-            >
-              {para}
-            </p>
-          ))}
-        </div>
+        <div
+          className="text-foreground tracking-wide [&_p]:my-4 [&_h1]:my-5 [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:my-4 [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:my-3 [&_h3]:text-xl [&_h3]:font-semibold [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/40 [&_blockquote]:pl-4 [&_a]:text-primary [&_a]:underline [&_table]:my-4 [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:p-2"
+          style={{ fontSize: `${fontSize}px`, lineHeight: 1.85, userSelect: "text", WebkitUserSelect: "text" }}
+          dangerouslySetInnerHTML={{ __html: content }}
+        />
         <p className="mt-6 text-xs text-muted-foreground/50 select-none">
           {t("selectHint")}
         </p>

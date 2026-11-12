@@ -841,6 +841,7 @@
     "startReading": "开始阅读",
     "editOriginal": "编辑原文",
     "emptyError": "请输入或粘贴文本",
+    "limitError": "文本最多支持 {count} 个字符",
     "clearDraft": "清空",
     "selectHint": "划词查看释义，点击可加入生词本",
     "autoPronunciationOn": "自动发音已开启",
