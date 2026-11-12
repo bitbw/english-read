@@ -841,6 +841,7 @@
     "startReading": "Start Reading",
     "editOriginal": "Edit original",
     "emptyError": "Please enter or paste some text",
+    "limitError": "Text is limited to {count} characters",
     "clearDraft": "Clear",
     "selectHint": "Select a word to look it up and add it to your vocabulary",
     "autoPronunciationOn": "Auto pronunciation on",
